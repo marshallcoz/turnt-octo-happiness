@@ -70,7 +70,7 @@
         complex*16, save, allocatable :: B(:,:)
         complex*16, dimension(:,:,:), allocatable,target :: Ak
         integer, dimension(:), allocatable :: IPIV
-        integer :: info    
+!       integer :: info    
       end module refSolMatrixVars
             
       module resultVars
@@ -545,6 +545,25 @@
       end if
       end subroutine
       !
+      subroutine scripToMatlabMNmatrixZ(m,n,MAT,name)
+      integer, intent(in) :: m,n
+      complex*16, dimension(m,n), intent(in) :: MAT
+      integer :: i,j 
+      character(LEN=32), intent(in) :: name
+      
+      write(6,'(A,A)') trim(name), " = ["
+      do i = 1,m
+        write(6,'(a)',advance='no') "["
+        do j = 1,n
+          write(6,'(a,EN26.9,a)',advance='no') "(",REAL(MAT(i,j)),")+("
+          write(6,'(EN26.9,a,2X)',advance='no') AIMAG(MAT(i,j)),")*1i"
+        end do
+        write(6,'(A)',advance='yes')'];'
+      end do
+      write(6,'(a)') "];"
+      
+      end subroutine scripToMatlabMNmatrixZ
+      
       subroutine showMNmatrixZabs(m,n,MAT,name,outpf)
       integer, intent(in) :: m,n,outpf
       complex*16, dimension(m,n), intent(in) :: MAT
@@ -1012,7 +1031,7 @@
       end function normalto
       
       
-      !     subroutine makeTaperFuncs_cutF_cutK!(dir)
+!     subroutine makeTaperFuncs_cutF_cutK!(dir)
 !     use resultvars, only: Hf!,Hk 
 !     use waveNumVars, only : NFREC,DFREC!,NMAX,DK
 !     use dislin
@@ -2281,7 +2300,7 @@
       end module ploteo10pesos
       PROGRAM DWNLIBEM 
       use gloVars
-      use refSolMatrixVars, only : ak,info,B
+      use refSolMatrixVars, only : ak,B
       use waveNumVars !NFREC,FREC,DFREC,OME,OMEI,DK,NMAX,LFREC,DK,NMAX,expk
       use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq
       use debugStuff
@@ -2328,21 +2347,13 @@
           real*8, dimension(:) :: BET
           type (Punto), dimension(:), allocatable,target ::  BouPoints
         end subroutine subdivideTopo
-!       subroutine drawBoundary(BP,nb,titleN,extension, zoomGeom)
-!         use resultVars, only : Punto 
-!         type (Punto), dimension(:), pointer :: BP
-!         integer, intent(in) :: nb
-!         character(LEN=100) :: titleN
-!         character(LEN=3) :: extension
-!         logical, intent(in) :: zoomGeom
-!       end subroutine drawBoundary 
         subroutine preparePointerTable(pota,firstTime,smallestWL)
           integer, allocatable, dimension(:,:) :: pota
           logical,intent(in) :: firstTime
           real*8,intent(in) :: smallestWL
         end  subroutine preparePointerTable
         subroutine reffField_by_(ipXi,dir_j,cOME)
-          integer, intent(in) :: ipXi,dir_j ! ip_X : n_topo+1,n_topo+n_cont
+          integer, intent(in) :: ipXi,dir_j 
           complex*16, intent(in),target  :: cOME
         end subroutine reffField_by_
       end interface
@@ -2372,6 +2383,8 @@
       real*8, pointer :: pt_k
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd
+      integer :: info
+!     integer :: lwork
       
       call system('clear')
       CALL get_command_argument(1, arg)
@@ -2642,9 +2655,9 @@
         write(PrintNum,'(A,I0,A,EN18.2,A,EN18.2,A)', ADVANCE = "YES") &
         'w(',J,') | ',FREC," | ",result,"sec"
       end if! verbose
-         print*,"come=",come
-          write(6,'(A,EN10.2,2x)', ADVANCE = "NO") "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
-          write(6,'(A,EN10.2,2x)', ADVANCE = "NO") "eta(come)= ", (come*longitudcaracteristica_a)/(pi*beta(N+1))
+!        print*,"come=",come
+!         write(6,'(A,EN10.2,2x)', ADVANCE = "NO") "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
+!         write(6,'(A,EN10.2,2x)', ADVANCE = "NO") "eta(come)= ", (come*longitudcaracteristica_a)/(pi*beta(N+1))
       if (workBoundary) then ! Subsegment the topography if neccesssary
          call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+1),nbpts,BouPoints)
           write(6,'(A,I5)', ADVANCE = "NO") "nbp= ", nbpts
@@ -2683,7 +2696,7 @@
       end if!workbou
      
 !     call ETIME(tarray, result)
-!     print*,"antes de hacer e invertir matriz A (todas k)",result
+!     print*,"antes de hacer e invertir matriz A (todas k)"!,result
          pt_ipivA => ipivA
          pt_workA => workA
          
@@ -2701,8 +2714,62 @@
          end if
          call globalmatrix_PSV(pointAp,pointAn,pt_k,pt_cOME_i)
          call inverseA(pointAp,pt_ipivA,pt_workA,size(Ak,1))
-         if (associated(pointAn)) call inverseA(pointAn,pt_ipivA,pt_workA,size(Ak,1))
+         
+         write(arg,'(a,I0,a)') "A{",ik,"}"
+!        print*,"ik",ik
+         call scripToMatlabMNmatrixZ(size(pointAp,1),size(pointAp,2),pointAp,arg)
+         
+         if (associated(pointAn)) then 
+         call inverseA(pointAn,pt_ipivA,pt_workA,size(Ak,1))
+!        print*,"   ",2*nmax-(ik-2)
+         write(arg,'(a,I0,a)') "A{",2*nmax-(ik-2),"}"
+         call scripToMatlabMNmatrixZ(size(pointAn,1),size(pointAn,2),pointAn,arg)
+         
+         end if
+!        print*,""
+!        print*,"%k(",ik,")=",k_vec(ik)
+!        call showMNmatrixZ(size(pointAp,1),size(pointAp,2),pointAp,"A^-1 ",6)
+         
+!        if(ik.eq.nmax) then
+!        stop 2703
+!         print*,"---"
+!         print*,"---"
+!         print*,"come",come
+!         print*,"k",k_vec(ik)
+!         print*,"Z",Z
+!         print*,"alfa",alfa
+!         print*,"beta",beta
+!         print*,"amu",amu
+!         call ETIME(tarray, result); lastresult = result
+!         call globalmatrix_PSV(pointAp,pointAn,pt_k,pt_cOME_i)
+!         call ETIME(tarray, result); print*,"time formar=",result-lastresult
+!         
+!         call ETIME(tarray, result); lastresult = result
+!         !call inverseA(pointAp,pt_ipivA,pt_workA,size(Ak,1))
+!         
+!         i = size(Ak,1)
+!         call zgetrf(i,i,pointAp,i, pt_ipivA,info)
+!         call zgetri(i,pointAp,i, pt_ipivA, pt_workA,i*i,info)
+!         call ETIME(tarray, result); print*,"time invertir=",result-lastresult
+          ! time=   1.31003559E-04
+          ! time=   1.59002841E-04
+          ! time=   1.69001520E-04
+          
+!         call psv1eHSfullInverse(pointAp,cOME,k_vec(ik),Z(1:2),ALFA(1:2),BETA(1:2),AMU(1:2))
+          !   time=   3.86998057E-04
+          !   time=   4.27000225E-04
+          !   time=   5.09999692E-04
+          
+          ! 1/det(A) * adj(A)
+!         call psv1eHS(pointAp,cOME,k_vec(ik),Z(1:2),ALFA(1:2),BETA(1:2),AMU(1:2))
+          !  time=   4.15004790E-04
+          !  time=   4.79005277E-04 
+          !  time=   5.11996448E-04
+!         call showMNmatrixZ(size(pointAp,1),size(pointAp,2),pointAp,"A    ",6)
+!         stop "ik10"
+!        end if
       end do ! ik
+      stop 2771
       end if!psv
       if (SH) then
          Ak = Z0
@@ -2722,7 +2789,7 @@
 !     print*, lastresult
 !     print*,"deltaT=",result-lastresult
 !     stop 2085
-      print*,"centro=",boupoints(150)%center
+!     print*,"centro=",boupoints(150)%center
      
       do dir= 1,3 !x,y,z direction of force application
         if(dir .eq. 2) then
@@ -3042,7 +3109,7 @@
       write(PrintNum,'(a,f10.3,a)') "Elapsed ",result/60,"minutes"
         
       if (plotFKS) then  
-         write(PrintNum,'(a)')"show off"
+         write(PrintNum,'(a)')"Printing seismograms, etc..."
            write(xAx,'(a)')"frec [Hz]"
            write(yAx,'(a)')" K [1/m] "
            call chdir(trim(adjustl(rutaOut)))
@@ -3418,8 +3485,10 @@
        write(outpf,'(a,F9.7)') "DK = ",DK
        write(outpf,'(a,F9.7)') "delta X = ", real(pi / (nMax * DK),4)
        write(outpf,'(a,EN14.2E2,a)') "L = ",2*pi/DK, "m"
-       write(outpf,'(a,EN19.2E2,a)') "cyclic sources first Pwave at ",(2*pi/DK)/maxval(abs(ALFA)), "s"
-       write(outpf,'(a,EN19.2E2,a)') "cyclic sources first Swave at ",(2*pi/DK)/maxval(abs(BETA)), "s"
+       write(outpf,'(a,EN19.2E2,a)') & 
+       "cyclic sources first Pwave at the source in ",(2*pi/DK)/maxval(abs(ALFA)), "seconds"
+       write(outpf,'(a,EN19.2E2,a)') &
+       "cyclic sources first Swave at the source in ",(2*pi/DK)/maxval(abs(BETA)), "seconds"
        write(outpf,'(a,I0)') 'N. wavenumbers: ',NMAX
        write(outpf,'(a,F9.7,/,a,F15.5)') "dt = ",Dt,"Tmax=",Dt* NPTSTIME
        write(outpf,'(a,F8.1)') 'Atenuation Q = ',Qq
@@ -3457,6 +3526,10 @@
       if (j .eq. 0) then
       print*,"i=",j," (non-zero on success)"
       stop "Error al exportar wisdom en :checarWisdom"
+      else
+      print*, "Plans created, at"
+      print*,trim(tx)
+      stop "Re run program"
       end if
       print*,"Se exportó wisdom ",trim(tx)
       else
@@ -5376,16 +5449,18 @@
                 z_i = Z(e+bord)   ! e=1 , bord=0  ->  z = z0 = 0
                                   ! e=1 , bord=1  ->  z = Z1 = h1
           !downward waves
+          !  bord=0  ... 0 | bord=1  ... h(e)=Z(e+1)-Z(e)
+          !        -> 1    |       -> exp(-UI * nu * h(e))
           if (e /= 0) then !(radiation condition upper HS)
-            egammaN = exp(-UI * gamma * (z_i-Z(e)))
-            enuN = exp(-UI * nu * (z_i-Z(e)))
+            egammaN = exp(-UI * gamma * (z_i-Z(e))) 
+            enuN = exp(-UI * nu * (z_i-Z(e)))       
           else
             egammaN = Z0
             enuN = Z0
           end if
           !upward waves    
           if (e /= N+1) then !(radiation condition)
-            egammaP = exp(UI * gamma * (z_i-Z(e+1)))
+            egammaP = exp(UI * gamma * (z_i-Z(e+1))) !
             enuP = exp(UI * nu * (z_i-Z(e+1)))
           else
             egammaP = Z0
@@ -5477,7 +5552,7 @@
 !            stop 5148
       end subroutine globalmatrix_PSV
       
-            subroutine globalmatrix_SH(this_A,k,cOME_i)
+      subroutine globalmatrix_SH(this_A,k,cOME_i)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
       use debugStuff  
@@ -5594,15 +5669,18 @@
       complex*16, dimension(:),intent(inout),pointer :: work
       integer :: info
       integer :: lwork
-!     complex*16, dimension(n,n) :: copyA
+!     real, dimension(2) :: tarray
+!     real :: result, lastresult
       lwork = n*n
       
 !     copyA = A
 !     call showMNmatrixZ(n,n,copyA,"origA",6)
 !     print*,""
 !     print*,""
+!     call ETIME(tarray, result); lastresult = result
       call zgetrf(n,n,A,n,ipiv,info)
-      if(info .ne. 0) stop "Problem at LU factorization of matrix "
+!     call ETIME(tarray, result); print*,"--...--";print*,"t=",result - lastresult
+!     if(info .ne. 0) stop "Problem at LU factorization of matrix "
       
       ! Para más de 3 estratos
       ! convertir a almacenamiento bandeado
@@ -5616,7 +5694,9 @@
 !     call showMNmatrixZ(n,n,copyA,"  A  ",6)
 !     stop
       
+!     call ETIME(tarray, result); lastresult = result
       call zgetri(n,a,n,ipiv,work,lwork,info)
+!     call ETIME(tarray, result); print*,"t=",result - lastresult
       if(info .ne. 0) stop "Problem at inverse of matrix "
       
       end subroutine inverseA
@@ -7576,7 +7656,6 @@
         x(i) = real(Dt*(i-1)*(10.0**(nPow10x)),4)
       END DO
       
-      
 6720   W = 1200
        H = 800
        CALL METAFL('PDF')
@@ -7600,10 +7679,8 @@
        
        minY = -2.0*offset
        maxY = offset*nSabanapts+offset
-       
        xstep = x(n_maxtime)/6.0
        ystep = (maxY-minY)/6.0
-      
        
        call graf(real(x(1),4), & 
                 real(x(n_maxtime),4), & 
@@ -7616,11 +7693,11 @@
        
        do i = 1, nSabanapts
          call PENWID(real(1,4))
-        if (filled) then
+        if (filled) then ! sabana coloreada al estilo sismología
          if(.not. allocated(falda)) allocate(falda(n_maxtime))
-         ! relleno
+         ! valores negativos van de gris
          call color('GRAY')
-         call PENWID(real(0.001,4))
+         call PENWID(real(0.0001,4))
          CALL SHDPAT (int(16,4)) ! filled shading
          falda = 0.0_4
          falda(1:n_maxtime) = real(S(i,1:n_maxtime),4)
@@ -7631,8 +7708,9 @@
          falda(n_maxtime) = 0.0_4
          call rlarea(real(x,4),real(falda(1:n_maxtime) * escala + (i-1)*offset,4),int(n_maxtime,4))
          
+         ! valores positivos van de negro
          call SETRGB(0.05_4, 0.05_4, 0.05_4)
-         call PENWID(real(0.001,4))
+         call PENWID(real(0.0001,4))
          CALL SHDPAT (int(16,4)) ! filled shading
          falda = 0.0_4
          falda(1:n_maxtime) = real(S(i,1:n_maxtime),4)
@@ -7869,10 +7947,10 @@
       maxx = maxval(xpray)
       miny = minval(ypray)
       maxy = maxval(ypray)
-      xstep = real(abs(xpray(npixX)-xpray(1))/3.0,4)
+      xstep = real(abs(xpray(npixX)-xpray(1))/4.0,4)
       zstep = real(abs(ypray(npixZ)-ypray(1))/10.0,4)
       madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-      escalaFlechas = real((zstep * 0.75) / madmax)
+      escalaFlechas = real((xstep * 1.0) / madmax)
       encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
       print*,"encuadre=",encuadre
       CALL METAFL('PNG')
@@ -7929,24 +8007,16 @@
       if (workboundary) then !
       ! dibujar inclusión
       if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
-      allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))             !
+      allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))              !
       ii=1                                                             !
-      do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont    !
+      do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont     !
       rec(ii,1) = Xcoord_Incluonly(j,1,1)                              !
       rec(ii,2) = Xcoord_Incluonly(j,2,1)                              !
       rec(ii+1,1) = Xcoord_Incluonly(j,1,2)                            !
       rec(ii+1,2) = Xcoord_Incluonly(j,2,2)                            !
       ii=ii+2                                                          !
       end do
-!     allocate(rec(2* n_cont,2))                                      !
-!     ii=1                                                                  !
-!     do j=n_topo+1,n_topo+n_cont                                     !
-!     rec(ii,1) = Xcoord_ER(j,1,1)                                    !
-!     rec(ii,2) = Xcoord_ER(j,2,1)                                    !
-!     rec(ii+1,1) = Xcoord_ER(j,1,2)                                  !
-!     rec(ii+1,2) = Xcoord_ER(j,2,2)                                  !
-!     ii=ii+2                                                         !
-!     end do                                                          !
+      
       call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
       CALL RLAREA(real(rec(:,1),4),real(rec(:,2),4),int(2*n_cont,4))  !
       deallocate(rec) 

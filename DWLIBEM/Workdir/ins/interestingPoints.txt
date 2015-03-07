@@ -1,4 +1,22 @@
 Points of interest 
+2  <- Por lo menos (1)
+1  51  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
+___________________________________________________________
+1.0  1.0  <- escala:x escala:y
+0.0  0.0  <- offset:x offset:y
+ X        Z          nx       nz   guardarFK=1
+-0.5     0.9       0.0      1.0      1  
+-0.5     1.1       0.0      1.0      1    
+Sabanapoints -----------------------------------------------
+1.0  1.0  <- escala:x escala:y
+0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
+npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
+101    -10.0    0.4     0.0   0.0   F   F
+hacer zeros el rango en la sabana:
+0   62
+
+
+Points of interest 
 1  <- Por lo menos (1)
 51  101  F  0.000000001  40000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 ___________________________________________________________

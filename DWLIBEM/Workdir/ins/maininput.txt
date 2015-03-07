@@ -1,6 +1,6 @@
 1		verbose [int]
 F		make a video [logical]
-T		Solve topography [logical]
+F		use the boundary elements [logical]
 T		Plot FK de medio sin topografia [logical]
 F		Save the Green funcs. for later use with "-L" argument [logical]
 15		Segments per wavelength [int :: R]
