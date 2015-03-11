@@ -1,6 +1,6 @@
 Points of interest 
 2  <- Por lo menos (1)
-1  101  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
+0  101  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y

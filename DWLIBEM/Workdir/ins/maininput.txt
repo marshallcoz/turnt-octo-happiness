@@ -1,5 +1,5 @@
 1		verbose [int]
-F		make a video [logical]
+T		make a video [logical]
 F		use the boundary elements [logical]
 T		Plot FK de medio sin topografia [logical]
 F		Save the Green funcs. for later use with "-L" argument [logical]

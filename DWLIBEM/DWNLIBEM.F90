@@ -2417,7 +2417,6 @@
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
-      
       call system('clear')
       CALL get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .eq. 0) then 
@@ -4949,7 +4948,7 @@
       use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
-      use waveNumVars, only : NMAX,k_vec,dk!,DFREC
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK!,DFREC
       use wavelets !fork 
       use dislin
       use sourceVars, only: tipofuente, nFuentes, PW_pol
@@ -4972,9 +4971,9 @@
       complex*16,dimension(:),pointer :: workA
       complex*16,dimension(:,:),pointer :: pointA, nullpoint
       type(Punto), pointer :: pXi,p_X
-      logical :: auxLogic ,porLoMenosUnoEsEstr
+      logical :: auxLogic ,porLoMenosUnoEsEstr!,skipK
       integer :: tam,itabla_z,itabla_x,ik,iMec,mecS,mecE,&
-                 nXis,n_Xs,iXi,dj,i_Fuente,i_FuenteFinal
+                 nXis,n_Xs,iXi,dj,i_Fuente,i_FuenteFinal,po,ne
 #ifdef ver
       real :: result,lastresult
       real, dimension(2) :: tarray
@@ -5037,16 +5036,38 @@
             B(:,0) = matmul(Ak(:,:,0),B(:,0))
           end if
       else ! onda plana / onda cilíndrica circular
-        do ik = 1,2*NMAX ! OPTIMIZAR ESTE!!!!
-         if (dir_j .eq. 2) then
-           tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1
+        po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)
+        B(:,po:ne) = 0
+!       print*,po,k_vec(po),ne,k_vec(ne);stop
+        if (dir_j .eq. 2) then
+         tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1
+         do ik = 1,po 
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
-         else
-           tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2
-           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik)) 
-         end if
-         B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
-        end do !ik
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
+         end do!
+         do ik = ne,2*NMAX 
+           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
+         end do
+        else
+         tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2
+         do ik = 1,po
+         call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
+         end do!
+         do ik = ne,2*NMAX
+           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
+         end do
+        end if
+!       do ik = 1,2*NMAX ! OPTIMIZAR ESTE!!!!
+!         if (dir_j .eq. 2) then
+!           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
+!         else
+!           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik)) 
+!         end if
+!         B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
+!       end do !ik
       end if! onda cilíndrica circular
 #ifdef ver
        call ETIME(tarray, result)
@@ -5096,7 +5117,20 @@
                  savedauxk(1,mecS:mecE) = Meca_diff%Rw(mecS:mecE)
           end if
       else ! onda plana incidente / onda cilíndrica circular            
-        do ik = 1,2*Nmax
+        do ik = 1,po!2*Nmax
+          if (dir_j .eq. 2) then !SH
+              Meca_diff = SHdiffByStrata(B(:,ik), &
+                             p_X%center%z, p_X%layer, & 
+                             cOME,k_vec(ik),mecS,mecE,outpf)
+             savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)
+          else !PSV
+              Meca_diff = PSVdiffByStrata(B(:,ik), &
+                              p_X%center%z, p_X%layer, &
+                              cOME,k_vec(ik),mecS,mecE,outpf)
+              savedauxk(ik,mecS:mecE) = Meca_diff%Rw(mecS:mecE)
+          end if
+        end do ! ik
+        do ik = ne,2*Nmax
           if (dir_j .eq. 2) then !SH
               Meca_diff = SHdiffByStrata(B(:,ik), &
                              p_X%center%z, p_X%layer, & 
@@ -5165,7 +5199,11 @@
                 exp(-UI*kx*(p_x%center%x - xf))           !
                 cycle !imec                               !
             end if                                        !
-            do ik = 1,2*Nmax
+            do ik = 1,po
+                auxk(ik,imec) = auxk(ik,imec) * &
+                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))
+            end do !  ik
+            do ik = ne,2*Nmax
                 auxk(ik,imec) = auxk(ik,imec) * &
                 exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))
             end do !  ik
@@ -5238,33 +5276,12 @@
 #endif
       end subroutine diffField_at_iz
       
-      function skipK(J,k,come)
-      use glovars, only : pi
-      use waveNumVars, only : trimKplease,dfrec,nfrec
-      use soilvars, only: minBeta
-      integer, intent(in) :: J
-      complex*16, intent(in) :: come
-      real*8, intent(in) :: k
+      function skipK(ik,po,ne)
+!     use waveNumVars, only : vecNK
+      integer, intent(in) :: ik,po,ne!, J
       logical :: skipK
-      
       skipK = .false.
-      if (trimKplease .eqv. .true.) then
-       if (J .gt. 0.3*Nfrec) then
-        if(real(k) .gt. 0.0) then 
-           if(real(k) .gt. 1.3 * real(come/minBeta)) skipK = .true.
-        end if !
-        if(real(k) .lt. 0.0) then 
-           if(real(k) .lt. - 1.3 * real(come/minBeta)) skipK = .true.
-        end if
-       else
-         if(real(k) .gt. 0.0) then 
-           if(real(k) .gt. 1.3 * real((2*pi*0.3*Nfrec*dfrec)/minBeta)) skipK = .true.
-        end if !
-        if(real(k) .lt. 0.0) then 
-           if(real(k) .lt. - 1.3 * real((2*pi*0.3*Nfrec*dfrec)/minBeta)) skipK = .true.
-        end if
-       end if
-      end if
+      if ((ik .ge. po) .and. (ik .le. ne)) skipK = .true.
       end function skipK
       
       
@@ -7335,7 +7352,7 @@
       
       subroutine fill_diffbyStrata(i_zf,J,auxK,come,mecS,mecE,p_x,pXi,dir_j)
       use resultvars, only:Punto,FFres, nIpts
-      use waveNumVars, only : NMAX,k_vec,dk
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK
       use meshvars, only: npixX,MeshMaxX,MeshMinX 
       use wavelets !fork
       use soilvars, only:alfa,beta,N
@@ -7372,7 +7389,7 @@
       complex*16, intent(in)  :: cOME
       type(FFres),target :: FF
       real*8 :: nf(3)
-      integer :: mecaElemEnd
+      integer :: mecaElemEnd,po,ne
 !     print*,"fill"
       nf(1) = pXi%normal%x
       nf(2) = pXi%normal%y
@@ -7388,7 +7405,8 @@
                p_xaux%normal = p_x%normal
                p_xaux%isOnInterface = p_x%isOnInterface
                p_xaux%layer = p_x%layer
-          p_Xmov => p_xaux
+               p_Xmov => p_xaux
+        po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)
         do i = 1,npixX ! para cada hermanito
           mov_x = MeshMinX + (MeshMaxX - MeshMinX)/(npixX-1) * (i-1)! la coordenada x
           p_Xmov%center%x = mov_x
@@ -7412,9 +7430,14 @@
              auxkmo(1,imec) = auxk(1,imec) * & 
              exp(-UI*kx*(p_Xmov%center%x))
              cycle !imec 
-           end if
+           end if ! onda plana-------------------------------------------
            ! incidencia de una onda cilindrica:
-           do ik = 1,2*Nmax
+           auxKmo(po:ne,imec) = 0
+           do ik = 1,po!2*Nmax
+            auxKmo(ik,imec) = auxk(ik,imec) * &
+            exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x), 8))
+           end do!  ik
+           do ik = ne,2*Nmax
             auxKmo(ik,imec) = auxk(ik,imec) * &
             exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x), 8))
            end do!  ik
