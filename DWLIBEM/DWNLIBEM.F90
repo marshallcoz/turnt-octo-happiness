@@ -11,11 +11,12 @@
       logical    :: plotFKS
       logical    :: saveG
       integer    :: multSubdiv ! De 6 en adelante 
-      real       :: multBminIntegrando ! 1.1 - 3
+      real       :: cKbeta ! 1.1 - 3 (default 1.5)
       real       :: periodicdamper
       integer    :: developerfeature
       logical    :: borrarDirectorio
       logical    :: useAzimi
+      integer    :: PrintNum
       complex*16, dimension(:,:), allocatable :: developerAUXvec !sigma0
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &
@@ -53,12 +54,13 @@
       !include 'fftw3.f03'
       !frequency loop vars:
       integer,save      :: NFREC,NPTSTIME
+      integer,dimension (:),allocatable :: vecNK
       complex*16,target :: cOME  
       real*8   ,save    :: FREC,DFREC,OME,OMEI,TW, smallestWL
       !Discrete Wave-number:
       real*8   ,save    :: DK    ! delta k
       real*8, dimension(:), allocatable,target :: k_vec
-      integer,save      :: NMAX
+      integer,save      :: NK,NMAX
       complex*16, dimension(:), allocatable :: t_vec
       logical,save      :: trimKplease
       type(C_PTR),save  :: planNmaxF,planNmaxB,& 
@@ -340,10 +342,10 @@
       use waveNumVars, only : NPTSTIME
       implicit none
       integer :: i
-      real*8 :: A
+      real*8 :: A,B
       Uo = 0;
-      A = pi*(-Ts) / Tp
-      A = real((A*A-0.5)* exp(- A * A), 8)
+      A = nearest(pi*(-Ts) / Tp,1.0)
+      A = nearest(real((A*A-0.5)* exp(- A * A), 8),1.0)
       if (abs(A) .lt. 0.0001) A = 0
       Uo(1) = A * UR
       
@@ -352,7 +354,8 @@
       ! nearest to X in the direction indicated by the sign of S
         A = nearest(pi*(Dt*(i*1.0_8-1.0_8)-Ts) / Tp,1.0)
         A = nearest(A * A,1.0)
-        A = nearest((A - 0.5_8) * exp(- A) ,1.0)
+        B = nearest(exp(-A),1.0)
+        A = nearest((A - 0.5_8) * B ,1.0)
         if (abs(A) .lt. 0.0001) A = 0
         Uo(i) = A * UR
       end do
@@ -545,22 +548,22 @@
       end if
       end subroutine
       !
-      subroutine scripToMatlabMNmatrixZ(m,n,MAT,name)
-      integer, intent(in) :: m,n
+      subroutine scripToMatlabMNmatrixZ(m,n,MAT,name,outpf)
+      integer, intent(in) :: m,n, outpf
       complex*16, dimension(m,n), intent(in) :: MAT
       integer :: i,j 
       character(LEN=32), intent(in) :: name
       
-      write(6,'(A,A)') trim(name), " = ["
+      write(outpf,'(A,A)') trim(name), " = ["
       do i = 1,m
-        write(6,'(a)',advance='no') "["
+        write(outpf,'(a)',advance='no') "["
         do j = 1,n
-          write(6,'(a,EN26.9,a)',advance='no') "(",REAL(MAT(i,j)),")+("
-          write(6,'(EN26.9,a,2X)',advance='no') AIMAG(MAT(i,j)),")*1i"
+          write(outpf,'(a,EN26.9,a)',advance='no') "(",REAL(MAT(i,j)),")+("
+          write(outpf,'(EN26.9,a,2X)',advance='no') AIMAG(MAT(i,j)),")*1i"
         end do
-        write(6,'(A)',advance='yes')'];'
+        write(outpf,'(A)',advance='yes')'];'
       end do
-      write(6,'(a)') "];"
+      write(outpf,'(a)') "];"
       
       end subroutine scripToMatlabMNmatrixZ
       
@@ -853,13 +856,14 @@
       end if
       end function polyfit
       
-      function Zpolyfit(vx,vy,Ln,d,verbose,outpf) ! DOUBLE, COMPLEX
+      function Zpolyfit(vx,vy,Ln,d) ! complex*16, dimension(d+1) 
+      use glovars, only : verbose, outpf => PrintNum
       implicit none
-      integer, intent(in)               :: verbose,outpf
-      integer, intent(in)               :: Ln, d
-      complex*16, dimension(d+1)              :: zpolyfit
       real*8,     dimension(:), intent(in)    :: vx
       complex*16, dimension(:), intent(in)    :: vy
+      integer, intent(in)                     :: d, Ln
+      complex*16, dimension(d+1)              :: zpolyfit
+      
       complex*16, dimension(:,:), allocatable :: X
       complex*16, dimension(:,:), allocatable :: XT
       complex*16, dimension(:,:), allocatable :: XTX
@@ -879,83 +883,66 @@
       allocate(X(Ln, n))
       allocate(XTX(n, n))
       
-      if (verbose >= 1) then
+      if (verbose >= 4) then
         write(outpf,*)"fitting curve.."
       end if !
-      if (verbose >= 4) then
-       write(outpf,'(a)')"begin curve fit with:"
-       write(outpf,'(a,I4)')"vx: of size:",size(vx)
-       write (outpf, '(F9.4)') vx
-       write(outpf,'(a,I4)')"vy: of size:",size(vy)
-       write (outpf, '(F9.4)') vy
-      end if
       
       ! prepare the matrix
       do i = 0, d
-       do j = 1, size(vx)
+       do j = 1, Ln
           X(j, i+1) = vx(j)**i
        end do
       end do
-      if (verbose >= 4) then
-       write(outpf,'(a,I4,a,I4,a)') & 
-                              "X: size, (",size(X,1),',',size(X,2),')'
-       write(outpf,*) X
-      end if
-      
       XT  = transpose(X)
       XTX = matmul(XT, X)
-      if (verbose >= 4) then
-       write(outpf,'(a,I4,a,I4,a)') & 
-                         "XTX: size, (",size(XTX,1),',',size(XTX,2),')'
-       write(outpf,*)XTX
-      end if
       
       ! calls to LAPACK subs DGETRF and DGETRI
       ! factorizacion LU
-      call ZGETRF(n, n, XTX, & 
-                  lda, ipiv, info)
-      if (verbose >= 4) then
-       write(outpf,'(a)')"ZGETRF (XTX):"
-       write (outpf, '(E12.3)') XTX
-      end if
-      !
+      call ZGETRF(n, n, XTX, lda, ipiv, info)
       if ( info /= 0 ) then
-       write(outpf,*) "problem DGETRF =",info
-       stop 1
+       
+       print*,Ln
+       print*,vx
+       write(6,*) "Zpolyfit :problem ZGETRF =",info
+       stop 
       end if
       ! inversa de la matriz 
       call ZGETRI(n, XTX, lda, ipiv, work, lwork, info)
-      if (verbose >= 4) then
-       write(outpf,'(a)')"ZGETRI (XTX):"
-       write (outpf, '(F9.4)') XTX
-      end if
-      
       if ( info /= 0 ) then
-       write(outpf,'(a)') "problem ZGETRI =",info
-       stop 1
+       write(6,'(a)') "Zpolyfit :problem ZGETRI =",info
+       stop 
       end if
  
-      zpolyfit = matmul( matmul(XTX, XT), vy)
+      zpolyfit = matmul( matmul(XTX, XT), vy(1:Ln))
       deallocate(ipiv)
       deallocate(work)
       deallocate(X)
       deallocate(XT)
       deallocate(XTX)
-      if (verbose >= 4) then
-       write(outpf,'(a)')'polyfit='
-       write (outpf, '(E12.3)') zpolyfit
-      end if
       if (verbose .ge. 4) then
       !fit a polynomial Anx^n + ... + A2x^2 + A1x + A0 = 0
       !of degree 'd' to data: (vx,vy)
       ! coefficients are orthered from the lower power: A0 A1 A2 .. AN
        write(outpf,'(a)', ADVANCE = "NO") "0 ="
        do i=1,d+1
-          write(outpf,'(ES12.3,a,ES12.3,a,I0)', ADVANCE = "NO") & 
-          real(zpolyfit(i))," i",aimag(zpolyfit(i)),"x^",i-1
+          write(outpf,'(a,ES12.3,a,ES12.3,a,I0)', ADVANCE = "NO") & 
+          'polyfit= ',real(zpolyfit(i))," i",aimag(zpolyfit(i)),"x^",i-1
        end do
       end if
       end function Zpolyfit
+      
+      function Zevapol(po,d,x)
+      implicit none
+      integer, intent(in)                     :: d
+      complex*16, dimension(d+1)              :: po
+      real*8 :: x
+      complex*16 :: Zevapol
+      integer :: i
+      Zevapol = po(1)
+      do i =2,d+1
+        Zevapol = Zevapol + po(i)* x**(i-1)
+      end do
+      end function Zevapol
       
       !normal vectors to surf_poly at the nXI points (x,y) 
       function normalto(x,y,nXI,surf_poly,degree,verbose,outpf)
@@ -1076,52 +1063,128 @@
 !     !   stop
 !     end subroutine makeTaperFuncs_cutF_cutK  
       
-      !     subroutine spine(x,y,n,x0,y0,x1,y1,x2,y2)
-!     ! interpolación con spline de 3 puntos
-!     implicit none
-!     integer, intent(in) :: n
-!     complex*16, intent(inout), dimension(2*n) :: x
-!     complex*16, intent(inout), dimension(2*n) :: y
-!     complex*16, intent(in) :: y0,y1,y2
-!     real*8, intent(in) :: x0,x1,x2
-!     integer :: i
-!     complex*16, dimension(3,3) :: A
-!     complex*16, dimension(3) :: B
-!     complex*16 :: a1,b1,a2,b2,t
-!     
-!     A = 0
-!     A(1,1) = 2 / (x1-x0)
-!     A(1,2) = 1 / (x1-x0)
-!     A(2,1) = 1 / (x1-x0)
-!     A(2,2) = 2*(1/(x1-x0) + 1/(x2-x1))
-!     A(2,3) = 1 / (x2-x1)
-!     A(3,2) = 1 / (x2-x1)
-!     A(3,3) = 2 / (x2-x1)
-!     B(1) = 3*(y1-y0) / (x1-x0)**2
-!     B(2) = 3*((y1-y0)/(x1-x0)**2 + (y2-y1)/(x2-x1)**2)
-!     B(3) = 3*(y2-y1)/ (x2-x1)**2
-!     
-!     ! resolver y obtener ko, k1, k2
-!     call inverseA(A,3)
-!     B = matmul(A,B)
-!!     print*,B
-!     a1 = B(1)*(x1-x0) - (y1-y0)!; print*,a1
-!     b1 = -B(2)*(x1-x0) + (y1-y0)!; print*,b1
-!     a2 = B(2)*(x2-x1) - (y2-y1)!; print*,a2
-!     b2 = -B(3)*(x2-x1) + (y2-y1)!; print*,b2
-!!     print*,""
-!     do i = 1,n
-!     t = (x(i)-x0) / (x1-x0)
-!     ! en puntos intermedios a x0 y x1
-!     y(i) = (1-t)*y0 + t * y1 + t * (1- t)* (a1*(1-t)+b1*t)
-!     end do
-!     !
-!     do i = n+1,2*n
-!     t = (x(i)-x1) / (x2-x1)
-!     ! en puntos intermedios a x1 y x2
-!     y(i) = (1-t)*y1 + t * y2 + t * (1- t)* (a2*(1-t)+b2*t)
-!     end do
-!     end subroutine spine
+      subroutine spline3p(x,y,n01,n12,x0,y0,x1,y1,x2,y2)
+      ! interpolación con spline de 3 puntos
+      !    0     1         2    :  nodos
+      !    1 2 3 4 5 6 7 8 9    :  vector interpolado
+      !    <---> <--------->
+      !     n01      n12 
+      implicit none
+      integer, intent(in) :: n01,n12 !puntos entre nodos,incluidos los 3 nodos
+      real*8, intent(inout), dimension(n01+n12) :: x
+      complex*16, intent(inout), dimension(n01+n12) :: y
+      complex*16, intent(in) :: y0,y1,y2
+      real*8, intent(in) :: x0,x1,x2
+      integer :: i
+      complex*16, dimension(3,3) :: A
+      complex*16, dimension(3) :: B
+      complex*16 :: a1,b1,a2,b2,t
+      integer, dimension(3) :: ipiv
+      complex*16, dimension(3) :: work
+      integer :: info
+      integer :: lwork
+      A = 0
+      A(1,1) = 2 / (x1-x0)
+      A(1,2) = 1 / (x1-x0)
+      A(2,1) = 1 / (x1-x0)
+      A(2,2) = 2*(1/(x1-x0) + 1/(x2-x1))
+      A(2,3) = 1 / (x2-x1)
+      A(3,2) = 1 / (x2-x1)
+      A(3,3) = 2 / (x2-x1)
+      B(1) = 3*(y1-y0) / (x1-x0)**2
+      B(2) = 3*((y1-y0)/(x1-x0)**2 + (y2-y1)/(x2-x1)**2)
+      B(3) = 3*(y2-y1)/ (x2-x1)**2
+      ! resolver y obtener ko, k1, k2
+      lwork = 3*3
+      call zgetrf(3,3,A,3,ipiv,info)
+      call zgetri(3,A,3,ipiv,work,lwork,info)
+      if(info .ne. 0) stop "Problem at inverse of SPLINE3P matrix "
+      B = matmul(A,B)!     print*,B
+      a1 = B(1)*(x1-x0) - (y1-y0)!; print*,a1
+      b1 = -B(2)*(x1-x0) + (y1-y0)!; print*,b1
+      a2 = B(2)*(x2-x1) - (y2-y1)!; print*,a2
+      b2 = -B(3)*(x2-x1) + (y2-y1)!; print*,b2
+      y(1) = y0
+      do i = 2,n01
+      t = (x(i)-x0) / (x1-x0)
+      ! en puntos intermedios a x0 y x1
+      y(i) = (1-t)*y0 + t * y1 + t * (1- t)* (a1*(1-t)+b1*t)
+      end do!
+      y(n01+1) = y1
+      do i = n01+2,n01+n12-1
+      t = (x(i)-x1) / (x2-x1)
+      ! en puntos intermedios a x1 y x2
+      y(i) = (1-t)*y1 + t * y2 + t * (1- t)* (a2*(1-t)+b2*t)
+      end do
+      y(n01+n12) = y2
+      end subroutine spline3p
+      
+      subroutine splineIn(x,y,n01,n12,x0,y0,x1,y1,x2,y2)
+      use debugstuff
+      ! interpolación con spline de 3 puntos
+      !    0     1         2    :  nodos
+      !    1 2 3 4 5 6 7 8 9    :  vector interpolado
+      !    <---> <--------->
+      !     n01      n12 
+      implicit none
+      integer, intent(in) :: n01,n12 !puntos entre nodos,incluidos los 3 nodos
+      integer, intent(inout), dimension(n01+n12) :: x
+      integer, intent(inout), dimension(n01+n12) :: y
+      integer, intent(in) :: y0,y1,y2
+      integer, intent(in) :: x0,x1,x2
+      integer :: i
+      real, dimension(3,3) :: A
+      real, dimension(3) :: B
+      real :: a1,b1,a2,b2,t
+      integer, dimension(3) :: ipiv
+      real, dimension(3) :: work
+      integer :: info
+      integer :: lwork
+!     print*,"spline3pIn"
+!     print*,n01,n12
+!     print*,x0,y0
+!     print*,x1,y1
+!     print*,x2,y2
+      A(1,1) = 2. / (x1-x0)
+      A(1,2) = 1. / (x1-x0)
+      A(1,3) = 0.
+      A(2,1) = 1. / (x1-x0)
+      A(2,2) = 2.*(1./(x1-x0) + 1./(x2-x1))
+      A(2,3) = 1. / (x2-x1)
+      A(3,1) = 0.
+      A(3,2) = 1. / (x2-x1)
+      A(3,3) = 2. / (x2-x1)
+      B(1) = 3.*(y1-y0) / (x1-x0)**2.
+      B(2) = 3.*(1.*(y1-y0)/(x1-x0)**2. + 1.*(y2-y1)/(x2-x1)**2.)
+      B(3) = 3.*(y2-y1)/ (x2-x1)**2.
+      
+      ! resolver y obtener ko, k1, k2
+      lwork = 3*3
+!     call showMNmatrixR(3,3,A,"  A  ",6)
+!     call showMNmatrixR(3,1,B,"  B  ",6)
+      call sgetrf(3,3,A,3,ipiv,info)
+!     if(info .ne. 0) stop "Problem at LU of SPLINE3P matrix "
+      call sgetri(3,A,3,ipiv,work,lwork,info)
+!     if(info .ne. 0) stop "Problem at inverse of SPLINE3P matrix "
+      B = matmul(A,B)!     print*,B
+      a1 = B(1)*(x1-x0) - 1.*(y1-y0)!; print*,a1
+      b1 = -B(2)*(x1-x0) + 1.*(y1-y0)!; print*,b1
+      a2 = B(2)*(x2-x1) - 1.*(y2-y1)!; print*,a2
+      b2 = -B(3)*(x2-x1) + 1.*(y2-y1)!; print*,b2
+      y(1) = y0
+      do i = 2,n01
+      t = 1.*(x(i)-x0) / (x1-x0)
+      ! en puntos intermedios a x0 y x1
+      y(i) = int((1.-t)*y0 + t * 1.*y1 + t * (1.- t)* (a1*(1.-t)+1.*b1*t))
+      end do!
+      y(n01+1) = y1
+      do i = n01+2,n01+n12-1
+      t = 1.*(x(i)-x1) / (x2-x1)
+      ! en puntos intermedios a x1 y x2
+      y(i) = int((1.-t)*y1 + t * 1.*y2 + t * (1.- t)* (a2*(1.-t)+1.*b2*t))
+      end do
+      y(n01+n12) = y2
+      end subroutine splineIn
       
       end module
       
@@ -2301,7 +2364,7 @@
       PROGRAM DWNLIBEM 
       use gloVars
       use refSolMatrixVars, only : ak,B
-      use waveNumVars !NFREC,FREC,DFREC,OME,OMEI,DK,NMAX,LFREC,DK,NMAX,expk
+      use waveNumVars
       use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq
       use debugStuff
       use resultVars
@@ -2314,57 +2377,28 @@
       use GeometryVars, only : longitudcaracteristica_a
       implicit none
       interface
-        subroutine globalmatrix_PSV(this_A,this_An,k,cOME_i)
-          complex*16,    intent(inout), dimension(:,:),pointer :: this_A,this_An
-          real*8,     intent(in),pointer     :: k
-          complex*16, intent(in),pointer     :: cOME_i 
-        end subroutine globalmatrix_PSV
-        subroutine globalmatrix_SH(this_A,k,cOME_i)
-          complex*16,    intent(inout), dimension(:,:),pointer :: this_A
-          real*8,     intent(in),pointer     :: k
-          complex*16, intent(in),pointer     :: cOME_i 
-        end subroutine globalmatrix_SH
-        subroutine diffField_at_iz(i_zF,dir_j,J,cOME,outpf,workA, ipivA)
+        include 'interfaz.f'
+        subroutine diffField_at_iz(i_zF,dir_j,J,cOME,workA, ipivA)
           integer, intent(in) :: i_zF,dir_j,J
           complex*16, intent(in),target  :: cOME
-          integer, intent(in) :: outpf
           complex*16, dimension(:),pointer :: workA
           integer, dimension(:),pointer :: ipivA
         end subroutine diffField_at_iz
-        subroutine inverseA(A,ipiv,work,n)
-          integer, intent(in) :: n
-          complex*16, dimension(:,:), intent(inout),pointer :: A
-          integer, dimension(:), intent(inout),pointer :: ipiv
-          complex*16, dimension(:),intent(inout),pointer :: work
-        end subroutine inverseA
-        subroutine subdivideTopo(J,FREC, onlythisJ ,minbet,bet,nbpts, BouPoints)
-          use resultvars, only : Punto
-          integer, intent(in) :: J
-          real*8, intent(in) :: frec
-          logical :: onlythisJ
-          integer :: nbpts
-          real*8 :: minbet
-          real*8, dimension(:) :: BET
-          type (Punto), dimension(:), allocatable,target ::  BouPoints
-        end subroutine subdivideTopo
-        subroutine preparePointerTable(pota,firstTime,smallestWL)
-          integer, allocatable, dimension(:,:) :: pota
-          logical,intent(in) :: firstTime
-          real*8,intent(in) :: smallestWL
-        end  subroutine preparePointerTable
-        subroutine reffField_by_(ipXi,dir_j,cOME)
-          integer, intent(in) :: ipXi,dir_j 
-          complex*16, intent(in),target  :: cOME
-        end subroutine reffField_by_
+        
+        subroutine intrplr_gloMat(k0,n,pt_cOME_i,pt_ipivA,pt_workA)
+          use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
+          use waveNumVars, only : k_vec, NMAX
+          use fitting
+          implicit none
+          integer :: k0,n
+          complex*16, pointer :: pt_cOME_i
+          integer, dimension(:), pointer :: pt_ipivA
+          complex*16, dimension(:),pointer :: pt_workA
+        end subroutine intrplr_gloMat
       end interface
-      
-      ! output direction   6 : screen      101: log file
-      integer, parameter :: PrintNum = 6
-      integer :: J  ! frequency loop
-      integer :: l,iP,ik,iz,i,ip_x,ipxi,m! !small loop counter
+      integer :: J,l,iP,ik,iz,i,ip_x,ipxi,m
       integer :: dir,iPhi,iPhi_I,iPhi_F,ipxi_I,ipxi_F
-      character(LEN=100) :: titleN,yax,CTIT
-      character(LEN=100) :: tt
+      character(LEN=100) :: titleN,yax,CTIT,tt
       character(LEN=9)  :: xAx  
       CHARACTER(len=32) :: arg
       character(LEN=3) :: extension
@@ -2374,17 +2408,15 @@
       real :: result, lastresult
       complex*16, dimension(:),allocatable :: auxGvector
       type (Punto), dimension(:), pointer :: BP
-      
       integer, dimension(:),allocatable,target :: ipivA
       integer, dimension(:),pointer :: pt_ipivA
       complex*16, dimension(:),allocatable,target :: workA
       complex*16, dimension(:),pointer :: pt_workA
-      complex*16, dimension(:,:), pointer :: pointAp,pointAn
+      complex*16, dimension(:,:), pointer :: pointAp
       real*8, pointer :: pt_k
       complex*16, pointer :: pt_cOME_i
-      integer :: frecIni, frecEnd
-      integer :: info
-!     integer :: lwork
+      integer :: frecIni, frecEnd,tam
+      integer :: info,k0
       
       call system('clear')
       CALL get_command_argument(1, arg)
@@ -2409,25 +2441,22 @@
         end if
       end if
       
-      call ETIME(tarray, result) !tambien llama getmaininput
-      call setupdirectories(PrintNum)
-      call getSoilProps (PrintNum)
+      call ETIME(tarray, result)
+      call setupdirectories ! llama getmaininput
+      call getSoilProps
       call checarWisdom(2*nfrec,2*nmax,NPTSTIME) ! FFTw
-        nIpts=0; nMpts=0; nBpts = 0
-        iPtfin = 0; mPtfin = 0
+        nIpts=0; nMpts=0; nBpts = 0; iPtfin = 0; mPtfin = 0
         ! complex frecuency to "smooth" the poles and be able to integrate
         ! Bouchon (2003) OMEI entre -pi/T y -2pi/T ; T= 2pi/DFREC tiempo total
         ! tengo TW la ventana de tiempo de interés. 
-      OMEI = - periodicdamper*PI/TW
+      OMEI = - periodicdamper*PI/TW ! se cumple que exp(omei TW) << 1
       write(PrintNum,'(a,E10.2,a)') 'Frec. Imaginary part: ',OMEI,' rad/s'
-        ! se cumple que exp(omei TW) << 1
+      
       call getsource
-      if (workBoundary .eqv. .true.) then 
-         call getTopography(PrintNum)
-      end if
-      call getInquirePoints(PrintNum)
-      call sourceAmplitudeFunction(NPTSTIME,PrintNum)
-      call getVideoPoints(PrintNum)
+      if (workBoundary .eqv. .true.) call getTopography
+      call getInquirePoints
+      call sourceAmplitudeFunction
+      call getVideoPoints
       
         Npts = nIpts + nMpts
         write(PrintNum,'(a,I0)') 'Number of fixed receptors: ',Npts
@@ -2435,8 +2464,8 @@
         allpoints(iPtini:iPtfin)= inqPoints(iPtini:iPtfin); deallocate(inqPoints)
       call setInqPointsRegions
       call setVideoPointsRegions
-      
-         call chdir(trim(adjustl(rutaOut)))
+     
+      call chdir(trim(adjustl(rutaOut)))
          write(titleN,'(a)') '0_OriginalGeometry.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
@@ -2448,9 +2477,9 @@
          BP => BouPoints
          call drawBoundary(BP,nbpts,titleN,extension,.true.)
          end if
-         call chdir("..")
-       
-       CALL get_command_argument(1, arg)
+      call chdir("..")
+              
+      call get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .ne. 0) then 
         if (trim(arg) .eq. '-g') stop "argumento -g : Geometría"
       end if
@@ -2493,11 +2522,9 @@
       if (Z(0) .lt. 0.0) i = i + 2 !HS arriba
       end if
       ik = 1
-        if (tipofuente .eq. 1) ik = 0 !onda plana
-        allocate (Ak(i,i,ik:2*nmax))
-        allocate (B (i,ik:2*nmax)) ! una sola fuente
-        allocate(ipivA(i))
-        allocate(workA((i)*(i)))
+      if (tipofuente .eq. 1) ik = 0 !onda plana
+        allocate (Ak(i,i,ik:2*nmax)); allocate (B (i,ik:2*nmax)) 
+        allocate(ipivA(i)); allocate(workA((i)*(i)))
    !   to store the strata diffracted displacement: W,U,V,...
       do iP=iPtini,iPtfin
         allocate(allpoints(iP)%W(NFREC+1,3)); allpoints(iP)%W = Z0 !W,U,V
@@ -2561,7 +2588,7 @@
       call preparePointerTable(pota,.true.,0.1_8)
       call ETIME(tarray, result)
       call system('clear')
-      print*,"Pre-prosses took ", result,"seconds"
+      write(PrintNum,*)"Pre-prosses took ", result,"seconds"
       lastresult = result
       if (Verbose .le. 1) then
       write(6,'(A)', ADVANCE = "NO") " "
@@ -2599,6 +2626,7 @@
       ! complex frecuency for avoiding poles and provide damping
         COME = CMPLX(OME, OMEI,8)!periodic sources damping
         COME = COME * cmplx(1.0, -1.0/2.0/Qq,8) !histeretic damping
+        pt_come_i => COME
         ik = N+1; i = 1
         if (workBoundary) ik = N+2 !peros solo si hay inclusion (con topografia no)
         if (Z(0) .lt. 0.0) i = 0
@@ -2622,11 +2650,11 @@
            Lambda(l) = RHO(l)*alfa(l)**2. - real(2.)*aMU(l)
           end do 
         end if
-        pt_come_i => COME
          
       if (developerfeature .ne. 0) then 
       developerAUXvec(J,1) = amu(N+1) * (come/beta(N+1))**2. 
-!     if (J .lt. 5) developerAUXvec(J,1) = developerAUXvec(J,1) + 2*UI*OMEI !<- trampita para que no sea un numero muy chico
+!     if (J .lt. 5) developerAUXvec(J,1) = developerAUXvec(J,1) + 2*UI*OMEI 
+      !<- trampita para que no sea un numero muy chico
       developerAUXvec(J,2) = longitudcaracteristica_a * come / alfa(N+1) !ok
 !     print*,J,come,developerAUXvec(J,1)
 !    cycle
@@ -2640,24 +2668,24 @@
       print*,"   lamb_alf_3=",alfa(3)/frec
       print*,"   lamb_bet_3=",beta(3)/frec
       print*,"-------------------------"
-      end if!
+      end if! developerfeature .ne. 0
       if(verbose .le. 1)then
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
         if (workBoundary) write(6,'(A)', ADVANCE = "NO") repeat(char(8),10) !nbp
-        write(PrintNum,'(A)', ADVANCE = "NO") "["
+        write(6,'(A)', ADVANCE = "NO") "["
         write(6,'(A,A)', ADVANCE = "NO") & 
         repeat("X",int((58.0/NFREC)*(NFREC+1-J))),&
         repeat("_",58-int((58.0/NFREC)*(NFREC+1-J)))
-        write(PrintNum,'(A)', ADVANCE = "NO") "]" 
+        write(6,'(A)', ADVANCE = "NO") "]" 
       else
         call ETIME(tarray, result)
         write(PrintNum,'(A,I0,A,EN18.2,A,EN18.2,A)', ADVANCE = "YES") &
         'w(',J,') | ',FREC," | ",result,"sec"
       end if! verbose
 !        print*,"come=",come
-!         write(6,'(A,EN10.2,2x)', ADVANCE = "NO") "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
-!         write(6,'(A,EN10.2,2x)', ADVANCE = "NO") "eta(come)= ", (come*longitudcaracteristica_a)/(pi*beta(N+1))
+!        write(6,'(A,EN10.2,2x)', ADVANCE = "NO") & 
+!        "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
       if (workBoundary) then ! Subsegment the topography if neccesssary
          call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+1),nbpts,BouPoints)
           write(6,'(A,I5)', ADVANCE = "NO") "nbp= ", nbpts
@@ -2681,95 +2709,50 @@
        allocate(IPIVbem(ik));allocate(auxGvector(ik))
        end if
        ibemMat = z0 ; trac0vec = z0 ; auxGvector = z0
-       
-!      if(allocated(ibemMat)) deallocate(ibemMat)
-!      if(allocated(trac0vec)) deallocate(trac0vec)
-!      if(allocated(IPIVbem)) deallocate(IPIVbem)
-!      if(allocated(auxGvector)) deallocate(auxGvector)
-!     l = n_top_sub + 2* n_con_sub + n_val_sub
-!     if (PSV) ik = 2* l
-!     if (SH) ik = l
-!      allocate(ibemMat(ik,ik));ibemMat = z0
-!      allocate(trac0vec(ik));trac0vec = z0
-!      allocate(IPIVbem(ik))
-!      allocate(auxGvector(ik)); auxGvector = z0
       end if!workbou
      
 !     call ETIME(tarray, result)
+!     write(6,'(a,f10.3,a)') "Start= ",result,"seconds" 
+!     lastresult = result
 !     print*,"antes de hacer e invertir matriz A (todas k)"!,result
          pt_ipivA => ipivA
          pt_workA => workA
-         
       if (PSV) then
-        Ak = Z0
-      do ik = 1,nmax+1
-      ! k positivo
-         pointAp => Ak(1:size(Ak,1),1:size(Ak,2),ik)
+         tam = size(Ak,1)
+       do ik = 1,vecNK(J) ! k positivo (Aorig -> nmax+1)
+         pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)
-      ! k negativo correspondiente
-         if (ik .gt. 1 .and. ik .lt. (nmax+1)) then
-           pointAn => Ak(1:size(Ak,1),1:size(Ak,2), 2*nmax-(ik-2))
-         else
-           nullify(pointAn)
-         end if
-         call globalmatrix_PSV(pointAp,pointAn,pt_k,pt_cOME_i)
-         call inverseA(pointAp,pt_ipivA,pt_workA,size(Ak,1))
-         
-         write(arg,'(a,I0,a)') "A{",ik,"}"
-!        print*,"ik",ik
-         call scripToMatlabMNmatrixZ(size(pointAp,1),size(pointAp,2),pointAp,arg)
-         
-         if (associated(pointAn)) then 
-         call inverseA(pointAn,pt_ipivA,pt_workA,size(Ak,1))
-!        print*,"   ",2*nmax-(ik-2)
-         write(arg,'(a,I0,a)') "A{",2*nmax-(ik-2),"}"
-         call scripToMatlabMNmatrixZ(size(pointAn,1),size(pointAn,2),pointAn,arg)
-         
-         end if
-!        print*,""
-!        print*,"%k(",ik,")=",k_vec(ik)
-!        call showMNmatrixZ(size(pointAp,1),size(pointAp,2),pointAp,"A^-1 ",6)
-         
-!        if(ik.eq.nmax) then
-!        stop 2703
-!         print*,"---"
-!         print*,"---"
-!         print*,"come",come
-!         print*,"k",k_vec(ik)
-!         print*,"Z",Z
-!         print*,"alfa",alfa
-!         print*,"beta",beta
-!         print*,"amu",amu
-!         call ETIME(tarray, result); lastresult = result
-!         call globalmatrix_PSV(pointAp,pointAn,pt_k,pt_cOME_i)
-!         call ETIME(tarray, result); print*,"time formar=",result-lastresult
-!         
-!         call ETIME(tarray, result); lastresult = result
-!         !call inverseA(pointAp,pt_ipivA,pt_workA,size(Ak,1))
-!         
-!         i = size(Ak,1)
-!         call zgetrf(i,i,pointAp,i, pt_ipivA,info)
-!         call zgetri(i,pointAp,i, pt_ipivA, pt_workA,i*i,info)
-!         call ETIME(tarray, result); print*,"time invertir=",result-lastresult
-          ! time=   1.31003559E-04
-          ! time=   1.59002841E-04
-          ! time=   1.69001520E-04
-          
-!         call psv1eHSfullInverse(pointAp,cOME,k_vec(ik),Z(1:2),ALFA(1:2),BETA(1:2),AMU(1:2))
-          !   time=   3.86998057E-04
-          !   time=   4.27000225E-04
-          !   time=   5.09999692E-04
-          
-          ! 1/det(A) * adj(A)
-!         call psv1eHS(pointAp,cOME,k_vec(ik),Z(1:2),ALFA(1:2),BETA(1:2),AMU(1:2))
-          !  time=   4.15004790E-04
-          !  time=   4.79005277E-04 
-          !  time=   5.11996448E-04
-!         call showMNmatrixZ(size(pointAp,1),size(pointAp,2),pointAp,"A    ",6)
-!         stop "ik10"
-!        end if
-      end do ! ik
-      stop 2771
+         call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+         call inverseA(pointAp,pt_ipivA,pt_workA,tam)
+       end do ! ik
+      
+!      call parImpar_gloMat
+!      open(421,FILE= "outA.m",action="write",status="replace")
+!      do ik=1,2*NMAX
+!      write(arg,'(a,I0,a)') "Aorig{",ik,"}"
+!      call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),arg,421)
+!      end do
+!      close(421)
+!      stop     
+       
+       k0 = vecNK(J)
+       call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
+       call parImpar_gloMat
+       
+!     call ETIME(tarray, result)
+!     write(6,'(a,f10.3,a)') "Elapsed ",result,"seconds"       
+!     write(6,'(a,f10.3,a)') "Delta time =",result-lastresult,"seconds"
+      
+      
+!      open(421,FILE= "outA.m",action="write",status="replace")
+!      do ik=1,2*NMAX
+!      write(arg,'(a,I0,a)') "A{",ik,"}"
+!      call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),arg,421)
+!      end do
+!      close(421)
+!      print*,"printed outA.m"
+!      stop
+
       end if!psv
       if (SH) then
          Ak = Z0
@@ -2784,12 +2767,6 @@
          Ak(1:size(Ak,1),1:size(Ak,2),Nmax+2:2*nmax) = &
          Ak(1:size(Ak,1),1:size(Ak,2),Nmax:2:-1)
       end if!sh
-!     call ETIME(tarray, result)
-!     write(PrintNum,'(a,f10.3,a)') "Elapsed ",result,"seconds"
-!     print*, lastresult
-!     print*,"deltaT=",result-lastresult
-!     stop 2085
-!     print*,"centro=",boupoints(150)%center
      
       do dir= 1,3 !x,y,z direction of force application
         if(dir .eq. 2) then
@@ -2798,7 +2775,7 @@
          if(skipdir(1) .and. skipdir(3)) cycle
         end if! dir
        if(.not. skipdir(dir)) then 
-         call diffField_at_iz(0,dir,J,cOME,PrintNum,pt_workA,pt_ipivA)
+         call diffField_at_iz(0,dir,J,cOME,pt_workA,pt_ipivA)
        end if
       
        ! fill IBEM matrix
@@ -2806,7 +2783,7 @@
       !********(campo difractda en medio estratificado)*********************
          do iz = 1,nZs !por cada Z de fuentes en tabla de segmentos tipo 0 y 1
            if (thereisavirtualsourceat(iz)) then ! (ipxi = 1,n_top_sub)
-             call diffField_at_iz(iz,dir,J,cOME,PrintNum,pt_workA, pt_ipivA)
+             call diffField_at_iz(iz,dir,J,cOME,pt_workA, pt_ipivA)
            end if 
          end do !iz
       
@@ -3106,10 +3083,16 @@
       if(verbose >= 1) write(PrintNum,'(a)')" done"
       ! showoff 
       call ETIME(tarray, result)
+      if (result .ge. 60) then
       write(PrintNum,'(a,f10.3,a)') "Elapsed ",result/60,"minutes"
-        
+      write(6,'(a,f10.3,a)') "Elapsed ",result/60,"minutes"
+      else
+      write(PrintNum,'(a,f10.3,a)') "Elapsed ",result,"seconds"
+      write(6,'(a,f10.3,a)') "Elapsed ",result,"seconds"
+      end if
+      
+      write(6,'(a)')"Printing seismograms, etc..."
       if (plotFKS) then  
-         write(PrintNum,'(a)')"Printing seismograms, etc..."
            write(xAx,'(a)')"frec [Hz]"
            write(yAx,'(a)')" K [1/m] "
            call chdir(trim(adjustl(rutaOut)))
@@ -3241,6 +3224,8 @@
       end if
       call vaciarWisdom
       Write(PrintNum,'(a)') ' done '
+      Write(6,'(a)') ' done '
+      close(PrintNum)
       
 !     if (borrarDirectorio .eqv. .false.) then
 !     call date_and_time(TIME=time); write(PrintNum,'(a,a)') "hhmmss.sss = ",time
@@ -3252,23 +3237,21 @@
       
       
       ! SET UP & READ 
-      subroutine setupdirectories(PrintNum)
-      use glovars, only : borrarDirectorio, rutaOut
-      integer :: PrintNum
+      subroutine setupdirectories
+      use glovars, only : borrarDirectorio, rutaOut,PrintNum
       character(10) :: time
       CHARACTER(len=400) :: path 
       CHARACTER(len=32) :: arg
       integer :: status
       ! preparar los directorios de trabajo y de resultados
       
-      if (PrintNum /= 6) open(PrintNum,FILE= "GlayeredOUT.txt")
-      call date_and_time(TIME=time); write(PrintNum,'(a,a)') "hhmmss.sss = ",time
+      
       CALL getcwd(path)
-      write(PrintNum,'(a,/,a)') 'At:',TRIM(path)
+      write(6,'(a,/,a)') 'At:',TRIM(path)
       write(path,'(a,a)') trim(path),"/WorkDir"
       CALL chdir(trim(path))
       CALL getcwd(path)
-      write(PrintNum,'(a,/,a)') 'Now at:',TRIM(path)
+      write(6,'(a,/,a)') 'WORKDIRECTORY:',TRIM(path)
       call getMainInput
       CALL get_command_argument(1, arg)
       if ((trim(arg) .ne. '-r') .and. (trim(arg) .ne. '-f')) borrarDirectorio = .true.
@@ -3288,6 +3271,8 @@
       call system(trim(adjustl(path)))
       call chdir(trim(adjustl(rutaOut)),status) !outs
       if (status .eq. 0) call system("rm *.*")
+      if (PrintNum /= 6) open(PrintNum,FILE= "logfile.txt")
+      call date_and_time(TIME=time); write(PrintNum,'(a,a)') "hhmmss.sss = ",time
       call system('mkdir phi')
       CALL chdir("phi",status)
       if (status .eq. 0) call system("rm *.*")
@@ -3325,35 +3310,36 @@
         write(6,'(a)') 'There is a missing input file. '
         stop 'Check "maininput.txt" on Working directory' 
       end if
-      READ(35,'(I1)') verbose; print*,"verbose =",verbose 
-      READ(35,'(L1)') makevideo; print*,"make a video =",makevideo
-      READ(35,'(L1)') workBoundary; print*,"boundary? ",workBoundary
-      READ(35,'(L1)') plotFKS; print*,"plotFK?",plotFKS
-      READ(35,'(L1)') saveG; print*,"Save Green funcs?", saveG
-      READ(35,*) multSubdiv; print*,"division multiple = ", multSubdiv
+      READ(35,'(I1)') verbose!; print*,"verbose =",verbose 
+      READ(35,'(L1)') makevideo!; print*,"make a video =",makevideo
+      READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
+      READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
+      READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
+      READ(35,*) multSubdiv!; print*,"division multiple = ", multSubdiv
       READ(35,*) staywiththefinersubdivision, finersubdivisionJ
-      READ(35,*) multBminIntegrando; print*,"multBminIntegrando = ", multBminIntegrando
-      read(35,*) periodicdamper; print*,"Periodic sources damping factor = ", periodicdamper
+      READ(35,*) cKbeta!; print*,"multBminIntegrando = ", cKbeta
+      read(35,*) periodicdamper!; print*,"Periodic sources damping factor = ", periodicdamper
       READ(35,*) useAzimi
       read(35,*) developerfeature
       read(35,*) borrarDirectorio
+      read(35,*) PrintNum
       read(35,*) longitudcaracteristica_a
       read(35,*) fraccionDeSmallestWL_segm_de_esquina
       close(35)    
       CALL chdir("..")
       end subroutine getMainInput
       
-      subroutine getSoilProps (outpf)
+      subroutine getSoilProps
       use soilVars
       use waveNumVars
-      use waveVars, only : dt,t0, maxtime
-      use gloVars, only : verbose,PI, multBminIntegrando
+      use waveVars, only : dt, maxtime
+      use gloVars, only : verbose,PI, cKbeta,outpf => PrintNum
+      use fitting
       
       implicit none
-      integer, intent(in) :: outpf
       logical :: lexist
       real :: H, ALF, BET, RO
-      real*8 :: maxBeta,BEALF
+      real*8 :: maxBeta,BEALF, k1_3,kmax,frac!,m
       integer :: J,i
       
       CALL chdir("ins")
@@ -3361,7 +3347,7 @@
       if (lexist) then
         OPEN(7,FILE="HVDEPTH.txt",FORM="FORMATTED")
       else
-        write(outpf,'(a)') 'There is a missing input file. '
+        write(6,'(a)') 'There is a missing input file. '
         stop 'Check "HVDEPTH.txt" on Working directory' 
       end if
       
@@ -3450,46 +3436,61 @@
       end do
       end if
       READ(7,*)
-      READ(7,*)DFREC,NFREC, NPTSTIME , nmax,Qq,t0 ,TW, maxtime
+      READ(7,*)DFREC,NFREC,NPTSTIME,nK,Qq,TW,maxtime
       close(7)
       
       CALL chdir("..")
-      ! estimamos dk para que con nmax dado se vea la onda de Rayligh incluso
-      ! en la frec más alta
-      DK = 2.0_8*pi*(DFREC * NFREC)/(beta0(1) * nmax)* multBminIntegrando !1.1
-      
-      ! aplicamos el amortiguamiento en las velocidades
-      do J=i,N+1
-        !non dispersive 
-        Alfa(J) = Alfa0(J) * (cmplx(1.0,-1/(2*Qq),8 ))
-        beta(J) = beta0(J) * (cmplx(1.0,-1/(2*Qq),8 ))
-        aMU(J) = RHO(J) * beta(J)**2
-        Lambda(J) = RHO(J)*Alfa(J)**2 - real(2.)*aMU(J)
-        ! or Azimi every frec -> OK
-      end do
-      
-      !adjuste to a 2**N value
          ! Calculamos NFREC resultados y hacemos zeropadding hasta NPSTIME
          NPTSTIME = int(log10(real(NPTSTIME)) / log10(2.)+0.99 )
-         NPTSTIME = 2** NPTSTIME
+         NPTSTIME = 2** NPTSTIME     !adjuste to a 2**N value
          if (NPTSTIME .lt. 2*NFREC) then 
            NPTSTIME=2*NFREC
            print*,"WARNING, modified NPTSTIME to" , NPTSTIME
          end if
-         NMAX = int(log10(real(NMAX)) / log10(2.)+0.99 )
-         NMAX = 2**NMAX
-      
       Dt = (1.0) / (real(NPTSTIME) * DFREC)
+      
+      ! dk para ver estar CKbeta veces por arriba de polo Rayleigh
+      frac = 1./3.
+      kmax = 0.9* (2*pi*DFREC*NFREC) / minBeta * cKbeta !1.5
+      DK = kmax / nk
+      k1_3 = (2*pi*DFREC*NFREC * frac) / minBeta * cKbeta 
+      
+      allocate(vecNk(NFREC+1))
+      ! cantidad de numeros de onda calculados en cada frecuencia
+      ! el resto hasta nmax se interpola
+      vecNk = (/(i,i=1, NFREC+1)/)
+      call splineIn(vecNk, & ! vector x [int]
+                    vecNk, & ! vector interpolado [int]
+                    int(nfrec * frac),& ! n puntos [x0 ... x1-1]
+                    NFREC+1-int(nfrec * frac), & ! [x1 ...  x2 ]
+                    1,                  int(0.55*nK), &  !x0,y0
+                    int(nfrec * frac)+1,int(0.6*nk), &  !x1,y1
+                    NFREC+1,            nk) !x2,y2
+      
+      
+      NMAX = vecNK(NFREC)!     IF (vecNK(NFREC) .gt. nmax) 
+      NMAX = int(log10(real(NMAX)) / log10(2.)+0.99 )
+      NMAX = 2**NMAX     !adjuste to a 2**N value
+!     do i = 1,nfrec+1
+!     print*,i,vecNK(i),(vecNK(i)*DK) / ((2.0_8*pi*DFREC*i)/minBeta)
+!     end do
+!     DK = (2.0_8*pi*DFREC*NFREC/3.0_8)/(minBeta * nk)* cKbeta 
+      ! para tener L cte. en todas las frecuencias DK es cte.
       
       if (verbose .ge. 1) then 
        write(outpf,'(a,F9.7)') "DK = ",DK
-       write(outpf,'(a,F9.7)') "delta X = ", real(pi / (nMax * DK),4)
+       write(outpf,'(a,I0,a,I0,a,I0,a,I0,a,I0,a,I0,a)') "nk a 3pt spline with (",& 
+          1,",",int(0.55*nK),"), (",& 
+          int(nfrec * frac)+1,",",int(0.6*nk),"), (",& 
+          NFREC+1,",",nk,")"
+       write(outpf,'(a,I0)') 'nk average = ',int(sum(vecNK)/(NFREC+1))
+       write(outpf,'(a,I0)') 'nk max (each sign): ',NMAX
+       write(outpf,'(a,F12.7)') "delta X = ", real(pi / (nMax * DK),4)
        write(outpf,'(a,EN14.2E2,a)') "L = ",2*pi/DK, "m"
        write(outpf,'(a,EN19.2E2,a)') & 
-       "cyclic sources first Pwave at the source in ",(2*pi/DK)/maxval(abs(ALFA)), "seconds"
+       "L/alfa = tp = ",(2*pi/DK)/maxval(abs(ALFA0)), "seconds"
        write(outpf,'(a,EN19.2E2,a)') &
-       "cyclic sources first Swave at the source in ",(2*pi/DK)/maxval(abs(BETA)), "seconds"
-       write(outpf,'(a,I0)') 'N. wavenumbers: ',NMAX
+       "L/beta = ts = ",(2*pi/DK)/maxval(abs(BETA0)), "seconds"
        write(outpf,'(a,F9.7,/,a,F15.5)') "dt = ",Dt,"Tmax=",Dt* NPTSTIME
        write(outpf,'(a,F8.1)') 'Atenuation Q = ',Qq
        write(outpf,'(a,I0,a,F8.4,a,F12.4,a,/)') & 
@@ -3503,6 +3504,7 @@
                              planNfrecF,planNfrecB,& 
                              planNtimeF,planNtimeB
       use, intrinsic :: iso_c_binding
+      use glovars, only : PrintNum
       include 'fftw3.f03'
       type(C_PTR) :: plan
       integer(C_INT) :: j,a,b,c,flag
@@ -3539,7 +3541,7 @@
       print*,"i=",j," (non-zero on success)"
       stop "Error al importar wisdom en :FFTW"
       else
-      print*,"leído wisdom ",trim(tx)
+      write(PrintNum,*)"leído wisdom ",trim(tx)
       ! crear planos
       flag = FFTW_WISDOM_ONLY
       planNfrecF = fftw_plan_dft_1d(a, Ua,Va, FFTW_FORWARD,flag)
@@ -3548,7 +3550,7 @@
       planNmaxB = fftw_plan_dft_1d(b, Ub,Vb, FFTW_BACKWARD, flag)
       planNtimeF = fftw_plan_dft_1d(c, Uc,Vc, FFTW_FORWARD, flag)
       planNtimeB = fftw_plan_dft_1d(c, Uc,Vc, FFTW_BACKWARD, flag)
-      print*,"planos creados"
+      write(PrintNum,*)"planos creados"
       end if
       end if
       end subroutine checarWisdom
@@ -3569,12 +3571,12 @@
       !call fftwf_cleanup()
       end subroutine vaciarWisdom
       
-      subroutine getInquirePoints(outpf)
+      subroutine getInquirePoints
       use resultVars, only : inqPoints, nIpts, iPtini,iPtfin, & 
                        nSabanapts, Sabana,sabZeroini,sabZerofin, SabanaPlotIndividual, sabanaBajarAFrontera
       use waveNumVars, only : NPTSTIME
+!     USE glovars, only : outpf => Printnum
       implicit none
-      integer, intent(in) :: outpf
       integer :: i,j,k,thelayeris,iIndex, nnsabanas,thisnsab
       logical :: lexist, tellisoninterface, ths_isoninterface,wtfk
       integer :: auxGuardarFK, ths_layer, sabanabajarmax
@@ -3587,7 +3589,7 @@
       if(lexist)then
         open(7,FILE="interestingPoints.txt",FORM="FORMATTED")
       else
-        write(outpf,'(a,a)') 'There is a missing input file. ',&
+        write(6,'(a,a)') 'There is a missing input file. ',&
         'Check "interestingPoints.txt" on Working directory' 
         stop 1
       end if
@@ -3598,6 +3600,7 @@
       READ(7,*) escalax,escalay
       READ(7,*) offsetx,offsety
       iPtini = 1
+      if (nnsabanas .eq. 0) nSabanapts=0
       iPtfin = nIpts + nSabanapts
       allocate(inqPoints(nIpts + nSabanapts))
       inqPoints(:)%normal%x = 0
@@ -3701,9 +3704,9 @@
       end function tellisoninterface
       
       subroutine getsource
-      use wavevars, only: Escala,Ts,Tp, ampfunction, sigGaus
+      use wavevars, only: Escala,Ts,Tp, ampfunction, sigGaus, t0
       use sourceVars, only: Po, tipoFuente, PW_pol, nFuentes
-      use glovars, only:verbose,pi
+      use glovars, only:verbose,pi,PrintNum
       use resultVars, only : Punto
       use Gquadrature, only: Gquad_n
       use soilVars, only : Z,N
@@ -3769,17 +3772,17 @@
         Po(i)%length = 1.0_8
        end if
       end do
-      READ(77,*); READ(77,*) Escala; READ(77,*) ampfunction
+      READ(77,*); READ(77,*) Escala; READ(77,*) ampfunction; READ(77,*) t0
       READ(77,*) Ts; READ(77,*) Tp; READ(77,*) sigGaus
       READ(77,*) PW_pol; close(77); CALL chdir("..")
       if (verbose .ge. 1) then; do i = 1,nFuentes
-      write(6,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a)') & 
+      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a)') & 
       "Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
       "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,"]"
       end do; end if
       end subroutine getsource
       
-      subroutine getVideoPoints(outpf)
+      subroutine getVideoPoints
       use resultVars, only : moviePoints, nMpts, & 
                              iPtfin,mPtini,mPtfin
       use peli, only : coords_Z,coords_X,fotogramas,fotogramas_Region
@@ -3787,15 +3790,14 @@
       use gloVars,only: makevideo,z0
       use waveNumVars, only : NPTSTIME
       implicit none
-      integer, intent(in) :: outpf
-      integer             :: iz,thelayeris
+      integer :: iz,thelayeris
       logical :: tellisoninterface,lexist
       CALL chdir("ins")
       inquire(file="videoParameters.txt",exist=lexist)
       if (lexist) then
         OPEN(7,FILE="videoParameters.txt",FORM="FORMATTED")
       else
-        write(outpf,'(a)') 'There is a missing input file. '
+        write(6,'(a)') 'There is a missing input file. '
         stop 'Check "videoParameters.txt" on Working directory' 
       end if
       
@@ -3836,7 +3838,7 @@
         end do
       end subroutine getVideoPoints 
       
-      subroutine getTopography(outpf)
+      subroutine getTopography
       !Read coordinates of collocation points and fix if there are
       !intersections with inferfaces. Also find normal vectors of segments.
       use GeometryVars, only: n_topo,n_cont,n_vall,nXI, Xcoord_ER, &
@@ -3849,7 +3851,6 @@
       use ploteo10pesos
       
       implicit none 
-      integer, intent(in) :: outpf
       logical :: lexist, huboCambios
       real*8, dimension(:,:,:), allocatable :: auxVector
       real*8 :: l, m
@@ -3864,14 +3865,13 @@
       logical, dimension(:), allocatable :: es_de_esquina
       huboCambios = .false.
       allocate(auxA(1)); allocate(auxB(1))
-      
       CALL chdir("ins")
       !Read Surface topography
       inquire(file="boundaries.txt",exist=lexist)
       if (lexist) then
         OPEN(77,FILE="boundaries.txt",FORM="FORMATTED")
       else
-        write(outpf,'(a)')'There is a missing input file. '
+        write(6,'(a)')'There is a missing input file. '
         stop 'Check "boundaries.txt" on Working directory' 
       end if
       CALL get_command_argument(1, arg)
@@ -3975,11 +3975,11 @@
       DO e = 2,size(Z) !en cada interfaz (excepto la superficie)
         if ((abs(anint(Xcoord_ER(iXI,2,1) * 1000) - anint(Z(e) * 1000)) < errT) .or. & 
             (abs(anint(Xcoord_ER(iXI,2,2) * 1000) - anint(Z(e) * 1000)) < errT)) then
-            if (verbose >= 4) write(outpf,*)"already sliced here"
+            if (verbose >= 4) write(PrintNum,*)"already sliced here"
         else ! no already
             ! si es un segmento que se forma recorriendo los puntos hacia Z+
             if (Xcoord_ER(iXI,2,1) < Z(e)  .AND. Xcoord_ER(iXI,2,2) > Z(e)) then
-               if (verbose >= 4) write(outpf,*)"hay un cambio de estrato hacia z+"
+               if (verbose >= 4) write(PrintNum,*)"hay un cambio de estrato hacia z+"
                if (abs(Xcoord_ER(iXI,1,2) - Xcoord_ER(iXI,1,1)) .le. 0.001) then ! es vertical
                  nuevoPx = Xcoord_ER(iXI,1,1)
                else ! es inclinado
@@ -3989,7 +3989,7 @@
                  nuevoPx = splitatY(surf_poly,1,real(Z(e),4),real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
                end if !
              if (verbose >= 4) then
-              write(outpf,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
+              write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
               "(dn)Segment (x,z):[",Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1)," to" &
               ,Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),"] crosses interface at (x,z)=(",nuevoPx,",",Z(e),")"
              end if
@@ -4018,7 +4018,7 @@
             end if !(Xcoord_ER(iXI,2,1) < Z(e)  .AND. Xcoord_ER(iXI,2,2) > Z(e))
       ! si es un segmento que se forma recorriendo los puntos hacia Z-
             if (Xcoord_ER(iXI,2,1) > Z(e)  .AND. Xcoord_ER(iXI,2,2) < Z(e)) then
-               if (verbose >= 4) write(outpf,*)"hay un cambio de estrato hacia z-"
+               if (verbose >= 4) write(PrintNum,*)"hay un cambio de estrato hacia z-"
                if (abs(Xcoord_ER(iXI,1,2) - Xcoord_ER(iXI,1,1)) .le. 0.001) then ! es vertical
                  nuevoPx = Xcoord_ER(iXI,1,1)
                else ! es inclinado
@@ -4027,7 +4027,7 @@
                  nuevoPx = splitatY(surf_poly,1,real(Z(e),4),real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
                end if!
              if (verbose >= 4) then
-               write(outpf,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
+               write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
               "(dn)Segment (x,z):[",Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1)," to" &
               ,Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),"] crosses interface at (x,z)=(",nuevoPx,",",Z(e),")"
              end if
@@ -4134,10 +4134,10 @@
       
         if (verbose .ge. 3) then
         DO iXI = 1,nXI
-        write(outpf,'(I0,a,F5.2,a,F5.2,a,F5.2,a,F5.2,a,F5.2)', ADVANCE = "NO") iXI,& 
+        write(Printnum,'(I0,a,F5.2,a,F5.2,a,F5.2,a,F5.2,a,F5.2)', ADVANCE = "NO") iXI,& 
          " c[",origGeom(iXI)%center%x,",",origGeom(iXI)%center%z,"] n[",&
          origGeom(iXI)%normal%x,",",origGeom(iXI)%normal%z,"] l:",origGeom(iXI)%length
-        write(outpf,'(a,F5.2,a,F5.2,a,i0,a,i0)') & 
+        write(Printnum,'(a,F5.2,a,F5.2,a,i0,a,i0)') & 
         "  co",origGeom(iXI)%cosT," si",origGeom(iXI)%sinT," e",origGeom(iXI)%layer, &
         " t",origGeom(iXI)%tipoFrontera
         end do
@@ -4178,7 +4178,8 @@
       
       subroutine setInqPointsRegions
       use resultVars, only : allpoints,nIpts,nPts
-      use soilVars, only : Z!,N
+      use soilVars, only : Z
+      use glovars, only : verbose, Printnum
       implicit none
       integer :: i
       logical :: cn,adentroOafuera
@@ -4195,15 +4196,16 @@
                             real(allpoints(i)%center%z,4),'incl')
         if (cn .eqv. .true.) then
             allpoints(i)%region = 2!'incl'
-!           allpoints(i)%layer = N+2
         end if
         if (abs(z(0)) .gt. 0.0001) then ! si no es cero
           if (real(allpoints(i)%center%z,4) .lt. 0.0) then
             allpoints(i)%region = 0!'void'
           end if
         end if
-        print*,i,"[",allpoints(i)%center%x,",",allpoints(i)%center%z,"] is ", &
-                     allpoints(i)%region
+        if (verbose .ge. 2) then
+        write(Printnum,*)i,"[",allpoints(i)%center%x, & 
+        ",",allpoints(i)%center%z,"] is ",allpoints(i)%region
+        end if
       end do
       end subroutine setInqPointsRegions
       
@@ -4247,16 +4249,10 @@
        end if
        
        nXI = size(Xcoord_ER(:,1,1))
-!      print*,"3497 nXI ",nXI,x,y
-!      print*,"XcooBox_maxX", XcooBox_maxX
-!      print*,"XcooBox_maxY", XcooBox_maxY
-!      print*,"XcooBox_minX", XcooBox_minX
-!      print*,"XcooBox_minY", XcooBox_minY
           if (XcooBox_minX .le. x) then
           if (x .le. XcooBox_maxX) then
           if (XcooBox_minY .le. y) then
           if (y .le. XcooBox_maxY) then
-!         print*,"will test ",x,y
           cn = 0
           do k=1,nXI
             if (Xcoord_ER(k,2,1) .le. y) then
@@ -4861,24 +4857,18 @@
       end if
       end function thereisavirtualsourceat
       
-      subroutine sourceAmplitudeFunction(NPTSTIME, outpf)
+      subroutine sourceAmplitudeFunction
       use wavelets !las funciones: ricker, fork
       use waveVars, only : Dt,Uo, ampfunction,Escala,dt,maxtime
-      use waveNumVars, only : DFREC,nfrec
-      use gloVars, only : verbose,Ur,rutaOut,z0
+      use waveNumVars, only : DFREC,nfrec, NPTSTIME
+      use gloVars, only : ve => verbose,Ur,rutaOut,z0,Printnum
       use ploteo10pesos
       implicit none
-      integer, intent(in) :: NPTSTIME ,outpf
       character(LEN=9)          :: logflag
       character(LEN=100)        :: titleN,xAx,yAx,CTIT
       CHARACTER(len=32) :: arg
       !complex*16 :: FFTW!(NPTSTIME)
-      integer :: ve, n_maxtime
-      
-!     real :: result,lastresult
-!     real, dimension(2) :: tarray
-      
-      ve = verbose
+      integer :: n_maxtime
       CALL get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .ne. 0) then 
         if (trim(arg) .eq. '-a') ve = 6
@@ -4887,7 +4877,6 @@
        n_maxtime = int(maxtime/dt)
        if(maxtime .lt. dt) n_maxtime = 2*nfrec
        if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-!      print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
       
 !     real :: factor
       ! Amplitude function of incident wave
@@ -4895,13 +4884,10 @@
       ! el tamaño del ricker es 2*NFREC porque incluirá el conjugado
       allocate(Uo(NPTSTIME))
       Uo=z0
-      if (ve .ge. 1) then
-       write(outpf,'(a)')' '
-       write(outpf,'(a)')'Incident wave amplitude function: '
-      end if!
       if(ampfunction .eq. 1) then
         call ricker ! Ricker wavelet saved on Uo
           if (ve .ge. 1) then
+             write(Printnum,'(a)')'Incident wave amplitude function: Ricker'
             call chdir(trim(adjustl(rutaOut)))
             write(titleN,'(a)') 'WaveAmplitude-ricker_time.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Ricker wavelet'
@@ -4911,16 +4897,8 @@
                  n_maxtime,titleN,xAx,yAx,CTIT,1200,800,0.0)
             CALL chdir("..")
           end if
-        
-!       call ETIME(tarray, result)
-!       lastresult = result
-!       Uo = Uo / (sqrt(1.0*NPTSTIME) * dfrec) ! forward
-!       call fork(size(Uo),Uo,-1,verbose,outpf) ! fft into frequency 
         ! forward
-        Uo = FFTW(NPTSTIME,Uo,-1,Dt)
-!       call ETIME(tarray, result);print*,"t=",result - lastresult
-!       stop 4742
-        
+        Uo = FFTW(NPTSTIME,Uo,-1,Dt)        
           if (ve .ge. 1) then
             call chdir(trim(adjustl(rutaOut)))
             write(titleN,'(a)') 'WaveAmplitude-ricker_frec.pdf'
@@ -4947,6 +4925,7 @@
       elseif(ampfunction .eq. 2) then ! Gaussian
         call gaussian
           if (ve .ge. 1) then
+           write(Printnum,'(a)')'Incident wave amplitude function: Gaussian'
             call chdir(trim(adjustl(rutaOut)))
             write(titleN,'(a)') 'WaveAmplitude-Gaussian_frec.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Gaussian wavelet'
@@ -4957,17 +4936,17 @@
             CALL chdir("..")
           end if
       else  ! DIRAC -----------------------------------------
+       if (ve .ge. 1) write(Printnum,'(a)')'Incident wave amplitude function: Dirac delta'
         Uo=UR
       end if !tipoPulso
       Uo = Uo*Escala !escala de la señal
       if (ve .eq. 6) stop "argumento -a"
-      if (ve .ge. 1) write(outpf,'(a)')' '
       end subroutine sourceAmplitudeFunction
-      subroutine diffField_at_iz(i_zF,dir_j,J,cOME_in,outpf,workA, ipivA)
+      subroutine diffField_at_iz(i_zF,dir_j,J,cOME_in,workA, ipivA)
 !#define ver 1
       ! esta función es llamada con cada profundidad donde hay
       ! por lo menos una fuente.
-      use gloVars, only: z0, plotFKS,UI,UR
+      use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
       use waveNumVars, only : NMAX,k_vec,dk!,DFREC
@@ -4977,92 +4956,11 @@
       use soilvars, only:alfa,beta,N,Z
       use, intrinsic :: iso_c_binding!, only : C_INT
       implicit none
-      interface !porque recibe un puntero como argumento
-      subroutine globalmatrix_PSV(this_A,this_An,k,cOME_i)
-      complex*16,    intent(inout), dimension(:,:),pointer :: this_A,this_An
-      real*8,     intent(in),pointer     :: k
-      complex*16, intent(in),pointer     :: cOME_i 
-      end subroutine globalmatrix_PSV
-      subroutine globalmatrix_SH(this_A,k,cOME_i)
-      complex*16,    intent(inout), dimension(:,:),pointer :: this_A
-      real*8,     intent(in),pointer     :: k
-      complex*16, intent(in),pointer     :: cOME_i 
-      end subroutine globalmatrix_SH
-      subroutine inverseA(A,ipiv,work,n)
-      integer, intent(in) :: n
-      complex*16, dimension(:,:), intent(inout),pointer :: A
-      integer, dimension(:), intent(inout),pointer :: ipiv
-      complex*16, dimension(:),intent(inout),pointer :: work
-      end subroutine inverseA
-      subroutine asociar(PX, i_Fuente ,itabla_z, itabla_x)
-      use resultVars, only : Punto
-      type(Punto), pointer :: PX
-      integer, intent(in) :: itabla_x, itabla_z, i_Fuente
-      end subroutine asociar
-      subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k)
-          use resultvars, only : Punto
-          use soilVars, only : N
-          integer, intent(in) :: i_zF,tam
-          complex*16, intent(inout), dimension(tam) :: this_B
-          integer,    intent(in)    :: direction
-          real*8,     intent(in)    :: k
-          complex*16, intent(in)    :: cOME
-          type(Punto),intent(in),target    :: pXi
-         end subroutine PSVvectorB_force
-         subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
-          use resultvars, only : Punto
-          use soilVars, only : N
-          integer, intent(in) :: i_zF,tam
-          complex*16, intent(inout), dimension(tam) :: this_B
-          real*8,     intent(in)    :: k
-          complex*16, intent(in)    :: cOME
-          type(Punto),intent(in),target    :: pXi
-         end subroutine SHvectorB_force
-         subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
-         use resultvars, only : Punto,FFres
-         type (FFres), intent(out) :: FF
-         integer,    intent(in)     :: mecS,mecE, i_zF
-         type(Punto),intent(in), pointer :: p_X,pXi
-         complex*16, intent(in)     :: cOME
-         integer, intent(in) :: dir_j
-         end subroutine FFpsv
-         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
-         use resultvars, only : Punto,FFres
-         type (FFres), intent(out) :: FF !V,Ty
-         integer,    intent(in)     :: mecS,mecE, i_zF
-         type(Punto),intent(in), pointer :: p_X,pXi
-         complex*16, intent(in)     :: cOME 
-         end subroutine FFsh
-      subroutine fill_termindep(auxK,come,mecS,mecE,p_x,pXi,dir_j)
-      use resultvars, only:Punto
-      type(Punto), pointer :: p_X,pXi
-      integer :: mecS,mecE
-      integer, intent(in) :: dir_j
-      complex*16, dimension(1,mecS:mecE), target :: auxK
-      complex*16, intent(in)  :: cOME
-      end subroutine fill_termindep
-      subroutine fill_ibemMat(i_zF,auxK,come,mecS,mecE,p_x,pXi,dir_j)
-      use resultvars, only:Punto
-      type(Punto), pointer :: pXi,p_X
-      integer :: mecS,mecE,J,i_zF
-      integer, intent(in) :: dir_j
-      complex*16, dimension(1,mecS:mecE), target :: auxK
-      complex*16, intent(in)  :: cOME
-      end subroutine fill_ibemMat
-      subroutine fill_diffbyStrata(i_zf,J,auxK,come,mecS,mecE,p_x,pXi,dir_j)
-      use resultvars, only:Punto
-      use waveNumVars, only : NMAX 
-      type(Punto), pointer :: pXi,p_X
-      integer :: i_zf,mecS,mecE,J
-      integer, intent(in) :: dir_j
-      complex*16, dimension(2*nmax,mecS:mecE), target :: auxK
-      complex*16, intent(in)  :: cOME
-      end subroutine fill_diffbyStrata
+      interface
+      include 'interfaz.f'
       end interface
-      
       integer, intent(in) :: i_zF,dir_j,J
       complex*16, intent(in),target  :: cOME_in
-      integer, intent(in) :: outpf
       logical,pointer :: intf
       integer, pointer :: ef
       integer, dimension(:),pointer :: ipivA
@@ -5139,7 +5037,7 @@
             B(:,0) = matmul(Ak(:,:,0),B(:,0))
           end if
       else ! onda plana / onda cilíndrica circular
-        do ik = 1,2*NMAX
+        do ik = 1,2*NMAX ! OPTIMIZAR ESTE!!!!
          if (dir_j .eq. 2) then
            tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
@@ -5370,7 +5268,127 @@
       end function skipK
       
       
-! G_stra - matrix 
+! G_stra - matrix pointAp,pt_k,pt_cOME_i
+      subroutine gloMat_PSV(this_A,k,cOME_i)
+      ! Calcular para +k. Una vez invertida la matrix, hay paridades para -k.
+      use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
+      use gloVars, only : UI,UR,Z0
+      use debugStuff
+      implicit none
+      complex*16,    intent(inout), dimension(:,:),pointer :: this_A
+      real*8,     intent(in),pointer     :: k
+      complex*16, intent(in),pointer     :: cOME_i 
+      
+      real*8     :: k2
+      complex*16, dimension(2,4) :: subMatD,subMatS, &
+                                   subMatD0,subMatS0
+      complex*16, dimension(4,4) :: diagMat
+      complex*16 :: gamma,nu,xi,ega,enu,ck
+      integer    :: i,iR,iC,e,bord
+      
+      ck = -k*UR
+      iR= 0;iC= 0;i=1
+      if (Z(0) .lt. 0.0) then !Half-Space por arriba de z=0 
+        i = 0;iR= -2; iC= -2
+      end if
+      
+      DO e = i,N+1
+          gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
+          nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+          ! Se debe cumplir que la parte imaginaria del número de onda 
+          ! vertical debe ser menor que cero. La parte imaginaria contri-
+          ! buye ondas planas inhomogéneas con decaimiento expo-
+          ! nencial a medida que z crece.
+          if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+          if(aimag(nu).gt.0.0)nu= conjg(nu)
+          xi = k**2.0 - nu**2.0 
+          ! en fortran los elementos se indican por columnas:
+          subMatD0 = RESHAPE((/ -gamma, ck, ck,nu,& 
+                                 gamma, ck, ck,-nu /), &
+                           (/ 2,4 /))
+          subMatD0 = subMatD0 * UI
+          k2 = 2.0*k
+          subMatS0 = RESHAPE((/ xi,-k2*gamma,-k2*nu,-xi,& 
+                               xi,k2*gamma,k2*nu,-xi /),&
+                           (/2,4/)) 
+          subMatS0 = amu(e) * subMatS0 
+          ! la profundidad z de la frontera superior del estrato
+!         z_i = Z(e)   ! e=1  ->  z = z0 = 0
+!         z_f = Z(e+1) ! e=1  ->  z = z1 
+        do bord = 0,1
+          if ((e .eq. 0) .and. (bord .eq. 0)) cycle
+          if (e+bord > N+1) exit 
+          ! si 1+0;1+1;2+0;[2+1] > 2
+        if (bord .eq. 0) then !---->---->---->---->---->---->
+          if (e /= N+1) then !(radiation condition lower HS)
+            ega = exp(-UI * gamma * (Z(e+1)-Z(e)))
+            enu = exp(-UI * nu * (Z(e+1)-Z(e)))
+          else
+            ega = Z0
+            enu = Z0
+          end if
+          diagMat = RESHAPE((/ UR, Z0, Z0, Z0, & 
+                               Z0, UR, Z0, Z0, & 
+                               Z0, Z0, ega, Z0, & 
+                               Z0, Z0, Z0, enu /), &
+                           (/ 4,4 /))
+        else !bord .eq. 1 -----------------------------------
+          if (e /= 0) then !(radiation condition upper HS)
+            ega = exp(-UI * gamma * (Z(e+1)-Z(e))) 
+            enu = exp(-UI * nu * (Z(e+1)-Z(e)))       
+          else
+            ega = Z0
+            enu = Z0
+          end if !<----<----<----<----<----<----<----<----<--
+          diagMat = RESHAPE((/ ega, Z0, Z0, Z0, & 
+                               Z0, enu, Z0, Z0, & 
+                               Z0, Z0, UR, Z0, & 
+                               Z0, Z0, Z0, UR /), &
+                           (/ 4,4 /))
+        end if
+          ! desplazamientos
+          subMatD = matmul(subMatD0,diagMat)
+          ! esfuerzos
+          subMatS = matmul(subMatS0,diagMat)
+        !ensamble de la macro columna i
+          !evaluadas en el borde SUPERIOR del layer i
+          if (bord == 0 .AND. e /= 0 ) then 
+           if (e /= N+1) then !(radiation condition)
+            if (e/=i) then !(only stress bound.cond. in the surface
+             this_A( iR-1 : iR   , iC+1 : iC+4 ) = -subMatD
+            end if
+             this_A( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatS
+           else
+           if (e/=i) then !(only stress bound.cond. in the surface
+             this_A( iR-1 : iR   , iC+1 : iC+2 ) = -subMatD(:,1:2)
+           end if
+             this_A( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatS(:,1:2)
+            ! exit
+           end if
+          end if
+          
+          !evaluadas en el borde INFERIOR del layer i
+          if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
+           if (e /= 0) then !(radiation condition upward)
+            ! ambas ondas
+            this_A( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatD
+            this_A( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatS
+           else
+            ! solo onda hacia arriba
+            this_A( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatD(:,3:4)
+            this_A( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatS(:,3:4)
+           end if
+          end if
+        end do !bord loop del borde i superior o nferior
+          iR= iR+4 
+          iC= iC+4
+      END DO !{e} loop de las macro columnas para cada estrato
+!            call showMNmatrixZ(size(this_A,1),& 
+!            size(this_A,2),this_A,"A    ",6) 
+!            stop "gloMat_PSV"
+      end subroutine gloMat_PSV
+      
+      ! Calcular para +k y -k al mismo tiempo. Se ahorran algunas operaciones
       subroutine globalmatrix_PSV(this_A,this_An,k,cOME_i)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
@@ -5549,7 +5567,7 @@
       END DO !{e} loop de las macro columnas para cada estrato
 !            call showMNmatrixZ(size(this_A,1),& 
 !            size(this_A,2),this_A,"A    ",6) 
-!            stop 5148
+!            stop 5652
       end subroutine globalmatrix_PSV
       
       subroutine globalmatrix_SH(this_A,k,cOME_i)
@@ -5669,37 +5687,241 @@
       complex*16, dimension(:),intent(inout),pointer :: work
       integer :: info
       integer :: lwork
-!     real, dimension(2) :: tarray
-!     real :: result, lastresult
       lwork = n*n
-      
-!     copyA = A
-!     call showMNmatrixZ(n,n,copyA,"origA",6)
-!     print*,""
-!     print*,""
-!     call ETIME(tarray, result); lastresult = result
       call zgetrf(n,n,A,n,ipiv,info)
-!     call ETIME(tarray, result); print*,"--...--";print*,"t=",result - lastresult
+      if(info .ne. 0) stop "inverseA :Problem at LU factorization of matrix Try more Q"
+      ! Para más de 3 estratos !--------
+      ! 1) convertir a almacenamiento bandeado
+!       2) call ZGBTRF( n, n, 5, 5, A, n, IPIV, INFO )
 !     if(info .ne. 0) stop "Problem at LU factorization of matrix "
-      
-      ! Para más de 3 estratos
-      ! convertir a almacenamiento bandeado
-!     call ZGBTRF( n, n, 5, 5, A, n, IPIV, INFO )
-!     if(info .ne. 0) stop "Problem at LU factorization of matrix "
-      
       ! luego con cada B
-!     call ZGBTRS( 'N', N, KL, KU, NRHS, AB, LDAB, IPIV, B, LDB, INFO )
-
-!     copyA = A
-!     call showMNmatrixZ(n,n,copyA,"  A  ",6)
-!     stop
-      
-!     call ETIME(tarray, result); lastresult = result
+!       3) call ZGBTRS( 'N', N, KL, KU, NRHS, AB, LDAB, IPIV, B, LDB, INFO )
       call zgetri(n,a,n,ipiv,work,lwork,info)
-!     call ETIME(tarray, result); print*,"t=",result - lastresult
-      if(info .ne. 0) stop "Problem at inverse of matrix "
-      
+      if(info .ne. 0) stop "inverseA :Problem at inverse of matrix "
       end subroutine inverseA
+      
+      ! los elementos de la inversa de la matrix global
+      ! tienen tendencia asintótica lineal después para 
+      ! k muy grande. Se interpola linealmente
+      subroutine inter_gloMat(k0,k1,k2)
+      use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
+!     use waveNumVars, only : NMAX
+      use fitting
+      implicit none
+      integer      ::  k0, k1, k2
+      complex*16   :: vk0,vk1,vk2
+      integer :: r,c,ik,tam
+      real*8,dimension(k2-k0+1) :: vecX
+      tam = size(Ak,1)
+      print*,k0,k1,k2!;stop
+      vecX = (/(ik,ik=k0,k2)/)
+      do r=1,tam
+      do c=1,tam
+      vk0 = Ak(r,c,k0)
+      vk1 = Ak(r,c,k1)
+      vk2 = Ak(r,c,k2)
+!     print*,""
+!     print*,1.0_8*k0, vk0
+!     print*,1.0_8*k1, vk1
+!     print*,1.0_8*k2, vk2
+      if (abs(vk0) .lt. 1E-020) then
+      Ak(r,c,k0+1:k2) = 0
+      cycle
+      end if
+      
+!     Ak(r,c,k0+1:k2) =  Zpolyfit(vx,vy,d) ! complex*16, dimension(d+1)
+!     
+      call spline3p(vecX, & ! vector x [real*8]
+                    Ak(r,c,k0:k2), & ! vector interpolado [complex*16]
+                    k1-k0, & ! n puntos [x0 ... x1-1]
+                    k2-k1+1, & !        [x1 ...  x2 ]
+                    1.0_8*k0, vk0, &  !x0,y0
+                    1.0_8*k1, vk1, &  !x1,y1
+                    1.0_8*k2, vk2 )   !x2,y2
+      
+!     do ik=1,k2-k0+1
+!     print*,ik,vecX(ik),Ak(r,c,int(vecX(ik)))
+!     end do
+      end do !c
+      end do !r
+!     stop "inter_gloMat"
+      end subroutine inter_gloMat
+      
+      
+      subroutine intrplr_gloMat(k0,n,pt_cOME_i,pt_ipivA,pt_workA)
+      use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
+      use waveNumVars, only : k_vec, NMAX
+      use fitting
+      implicit none
+      interface
+      include 'interfaz.f'
+      end interface
+      integer :: i,k0,k1,k2,n,tam,r,c,ik
+!     integer :: d != 4
+      real*8 :: ratio,step
+      real*8, dimension(n)     :: xdat
+      integer,dimension(n)     :: idat
+      complex*16, dimension(n) :: ydat
+      complex*16, pointer :: pt_cOME_i
+      integer, dimension(:), pointer :: pt_ipivA
+      complex*16, dimension(:),pointer :: pt_workA
+      complex*16, dimension(:,:), pointer :: pointAp
+      real*8, pointer :: pt_k
+      complex*16 :: m
+      ! armar los vectores de datos
+      ratio = 1.0 ! mayor o igual a 1
+      tam = size(Ak,1)
+!     step = ((nmax+1) - (k0))/(n-1) !iguales
+      if (int(n/2) .lt. real(n)/2.) then
+      step = (int((n-1)/2)) * n  !impar
+      else
+      step = (int((n-1)/2) + 1) * n !par
+      end if
+      step = ((nmax+1) - (k0))/(ratio*step) !crecim geometrico
+      idat(1) = k0
+      do i=2,n-1
+         idat(i) =  idat(i-1) + int((i-1)*step)
+         xdat(i) = k_vec(idat(i))
+      end do
+      idat(n) = nmax+1
+      xdat(n) = k_vec(idat(n))
+!     do i=1,n;print*,i,idat(i);end do;stop
+      do i=2,n
+         pointAp => Ak(1:tam,1:tam,idat(i))
+         pt_k => k_vec(idat(i))
+         call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+         call inverseA(pointAp,pt_ipivA,pt_workA,tam)
+      end do
+      
+      ! interpolar cada elemento (rectas)
+      do r=1,tam
+      do c=1,tam
+        ydat(1) = Ak(r,c,idat(1))
+!       print*,ydat(1)
+        k1 = idat(1)+1
+        do i=2,n
+           k2 = idat(i) !k0 + int((i-1)*step)
+           ydat(i) = Ak(r,c,k2)
+           m = (ydat(i)-ydat(i-1))/(xdat(i)-xdat(i-1))
+           do ik=k1,k2
+             Ak(r,c,ik) = ydat(i-1) + m * (k_vec(ik) - xdat(i-1))
+           end do
+           k1 = k2+1
+        end do
+!       print*,""
+!       do i=k0-2,nmax+1
+!         print*,i,k_vec(i),Ak(r,c,i)
+!       end do       
+!       stop
+      end do !c
+      end do !r
+      end subroutine intrplr_gloMat
+      
+      
+      subroutine intrplr_zpoly_gloMat(k0,n,pt_cOME_i,pt_ipivA,pt_workA)
+      use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
+      use waveNumVars, only : k_vec, NMAX
+      use fitting
+      implicit none
+      interface
+      include 'interfaz.f'
+      end interface
+      integer :: i,k0,k1,k2,n,tam,r,c
+      integer :: d != 4
+      real*8 :: step
+      real*8, dimension(n)     :: xdat
+      complex*16, dimension(n) :: ydat
+      complex*16, pointer :: pt_cOME_i
+      integer, dimension(:), pointer :: pt_ipivA
+      complex*16, dimension(:),pointer :: pt_workA
+      complex*16, dimension(:,:), pointer :: pointAp
+      real*8, pointer :: pt_k
+      complex*16, dimension(10+1) :: po
+      d = 10
+      ! armar los vectores de datos
+      tam = size(Ak,1)
+      step = ((nmax+1) - (k0))/(n-1)
+      xdat(1) = k_vec(k0)
+      xdat(n) = k_vec(nmax+1)
+      do i=2,n-1
+         k1 = k0 + int((i-1)*step)
+         xdat(i) = k_vec(k1)
+      end do!
+      do i=2,n
+         k1 = k0 + int((i-1)*step)
+         pointAp => Ak(1:tam,1:tam,k1)
+         pt_k => k_vec(k1)
+         call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+         call inverseA(pointAp,pt_ipivA,pt_workA,tam)
+      end do
+      ! interpolar cada elemento
+      do r=1,tam
+      do c=1,tam
+        ydat(1) = Ak(r,c,k0)
+        do i=2,n
+           k1 = k0 + int((i-1)*step)
+           ydat(i) = Ak(r,c,k1)
+         if (abs(ydat(i)) .lt. 1E-5) then
+           k2 = k1
+           ydat(i:n) = 0
+           exit
+         else
+           k2 = nmax+1
+         end if
+        end do
+        
+        po = Zpolyfit(xdat(1:n),ydat(1:n),n,d)
+        do i=k0+1,k2
+           Ak(r,c,i) = Zevapol(po,d,k_vec(i))
+        end do
+        do i=k2,nmax+1
+           Ak(r,c,i) = 0
+        end do
+      end do !c
+      end do !r
+      end subroutine intrplr_zpoly_gloMat
+      
+      
+      ! de los elementos a_ij
+      ! pares en k:  i={1,3,5...} con j={1,3,4...} ; i={2,4,6...} con j={2,4,6...}
+      ! impares  k:  i={1,3,5...} con j={2,4,6...} ; i={2,4,6...} con j={1,3,5...}
+      subroutine parImpar_gloMat
+      use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
+      use waveNumVars, only : NMAX
+      use debugStuff
+      implicit none
+      integer :: r,c,ik,ikp,tam
+      integer,dimension(:,:),allocatable :: Comal
+      logical :: s !empieza en priemr columna
+      tam = size(Ak,1)
+      allocate(Comal(tam,tam))
+      Comal =1
+      ! los odd
+      s = .false.
+      do r = 1,tam
+      if (s) then
+      Comal(r,1:tam:2) = -1
+      else
+      Comal(r,2:tam:2) = -1
+      end if
+      s = (.not. s)
+      end do
+!     call showMNmatrixI(tam,tam, Comal," Que ",6)
+      ! negativos
+      do ik=nmax+2,2*NMAX
+        ikp = (2*NMAX +2-ik)
+!       print*,ik,ikp;cycle
+!     call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),"antes")
+        do r=1,tam
+        do c=1,tam
+        Ak(r,c,ik) = Ak(r,c,ikp) * Comal(r,c)
+        end do
+        end do
+!     call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),"despu")
+!     stop
+      end do
+!     stop "parImpar_gloMat"
+      end subroutine parImpar_gloMat
       
 ! G_stra - term indep
       subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k)
@@ -5723,7 +5945,7 @@
       
       integer :: iIf,nInterf
       real    :: SGNz
-      complex*16 :: gamma,nu,DEN,L2M
+      complex*16 :: gamma,nu,DEN,L2M, argum,sincmod
       real*8     :: errT = 0.0001_8
       complex*16 :: omeAlf,omeBet
       
@@ -5731,7 +5953,6 @@
       real*8,     dimension(2) :: z_loc
       complex*16, dimension(2) :: egamz,enuz,gamz,nuz
       complex*16, dimension(2) :: sincGamma, sincNu
-      !complex*16 :: argum,sincmod
       
                                   !  1 para Greeni1 (horizontal),
                                   !  3 para Greeni3 (vertical)
@@ -5799,22 +6020,22 @@
       
       ! en cada interfaz 
         ! caso (receptor abajo de la fuente) : interfaz de abajo (2)
-        !argum = gamma*A*seno + UR * (k*A*cose)
-        !sincGamma(2) = sincmod(argum,gamz(2))*(2*A)
-        sincGamma(2) = egamz(2)*(sin(k*A)/(k*A)*(2*A))
+        argum = gamma*A*seno + UR * (k*A*cose)
+        sincGamma(2) = sincmod(argum,gamz(2))*(2*A)
+!       !sincGamma(2) = egamz(2)*(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
-        !argum = nu*A*seno + UR * (k*A*cose)
-        !sincNu(2) = sincmod(argum,nuz(2))*(2*A)
-        sincNu(2) = enuz(2) *(sin(k*A)/(k*A)*(2*A))
+        argum = nu*A*seno + UR * (k*A*cose)
+        sincNu(2) = sincmod(argum,nuz(2))*(2*A)
+!       !sincNu(2) = enuz(2) *(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
         ! caso (receptor arriba de la fuente) : interfaz de arriba (1)
-        !argum = -gamma*A*seno + UR * (k*A*cose)
-        !sincGamma(1) = sincmod(argum,gamz(1))*(2*A)
-        sincGamma(1) = egamz(1) *(sin(k*A)/(k*A)*(2*A))
+        argum = -gamma*A*seno + UR * (k*A*cose)
+        sincGamma(1) = sincmod(argum,gamz(1))*(2*A)
+!       !sincGamma(1) = egamz(1) *(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
-        !argum = -nu*A*seno + UR * (k*A*cose)
-        !sincNu(1) = sincmod(argum,nuz(1))*(2*A)
-        sincNu(1) = enuz(1) *(sin(k*A)/(k*A)*(2*A))
+        argum = -nu*A*seno + UR * (k*A*cose)
+        sincNu(1) = sincmod(argum,nuz(1))*(2*A)
+!       !sincNu(1) = enuz(1) *(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
       end if !fuente tipo 0 o 1
       
@@ -6013,7 +6234,7 @@
       !                   + ( W * kz * LAMBDA(e)))
       end subroutine PSVvectorB_ondaplana
       
-            subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
+      subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
       use debugStuff
@@ -6032,7 +6253,7 @@
       logical, pointer :: fisInterf
       integer :: iIf,nInterf, el_tipo_de_fuente
       real    :: SGNz
-      complex*16 :: nu,DEN,omeBet!, argum,sincmod
+      complex*16 :: nu,DEN,omeBet, argum,sincmod
       real*8     :: errT = 0.0001_8
       ! una para cada interfaz (la de arriba [1] y la de abajo [2])
       real*8,     dimension(2) :: z_loc
@@ -6081,14 +6302,14 @@
       
       ! en cada interfaz 
         ! caso (receptor abajo de la fuente) : interfaz de abajo (2)
-        !argum = nu*a*seno + UR * (k*a*cose)
-        !sincNu(2) = sincmod(argum,nuz(2))*A*2.0_8
-        sincNu(2) = enuz(2) * (sin(k*A)/(k*A)*(2*A))
+        argum = nu*a*seno + UR * (k*a*cose)
+        sincNu(2) = sincmod(argum,nuz(2))*A*2.0_8
+!       !sincNu(2) = enuz(2) * (sin(k*A)/(k*A)*(2*A)) !no se inclina
         
         ! caso (receptor arriba de la fuente) : interfaz de arriba (1)
-        !argum = -nu*a*seno + UR * (k*a*cose)
-        !sincNu(1) = sincmod(argum,nuz(1))*A*2.0_8
-        sincNu(1) = enuz(1) * (sin(k*A)/(k*A)*(2*A))
+        argum = -nu*a*seno + UR * (k*a*cose)
+        sincNu(1) = sincmod(argum,nuz(1))*A*2.0_8
+!       !sincNu(1) = enuz(1) * (sin(k*A)/(k*A)*(2*A)) !no se inclina
       end if !fuente tipo 2
       
       ! en cada interfaz (1 arriba) y (2 abajo)
@@ -6139,6 +6360,14 @@
        end if
       end if
       end subroutine SHvectorB_force
+      
+      FUNCTION SINCMOD(ARG,ARGZ)  
+      use glovars, only : UI    
+      COMPLEX*16 :: SINCMOD,ARG, ARGZ
+      SINCMOD=EXP(-UI*ARGZ)
+      IF(ABS(ARG).LE.0.0001_8)RETURN
+      SINCMOD=(EXP(UI*(ARG-ARGZ))-EXP(-UI*(ARG+ARGZ)) )/2.0_8/UI/ARG
+      END function SINCMOD
 ! G_stra - coefficients
       ! coeficientes de las ondas planas emitidias en cada interfaz 
       ! para representar el campo difractado por estratigrafía
@@ -6346,7 +6575,6 @@
       ! de condiciones de continuidad entre E y R y front libre en R (misma columna)
       use glovars, only : z0,UR
       use resultVars, only : Punto,ibemMat,FFres,n_top_sub,n_con_sub,n_val_sub, boupoints
-!     use soilVars ,only : beta,N
       implicit none
       interface !porque recibe un puntero como argumento
          subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
