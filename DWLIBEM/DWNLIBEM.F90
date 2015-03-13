@@ -2369,7 +2369,7 @@
       use debugStuff
       use resultVars
       use ploteo10pesos
-      use sourceVars, only : po,nfuentes,psv,sh,tipofuente
+      use sourceVars, only : psv,sh,tipofuente
       use MeshVars, only : npixX
       use dislin
       use waveVars, only : t0
@@ -2417,6 +2417,7 @@
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
+      !#< blue
       call system('clear')
       CALL get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .eq. 0) then 
@@ -2438,32 +2439,48 @@
            print*,"unknown input argument"
            stop
         end if
-      end if
-      
+      end if !#>
       call ETIME(tarray, result)
       call setupdirectories ! llama getmaininput
-      call getSoilProps
+      call getSoilProps 
+      frecIni = NFREC+1
+      frecEnd = 1
+      onlythisJ = .false. !#< b
+      IF (LEN_TRIM(arg) .ne. 0) then
+        if (trim(arg) .eq. '-f') then
+          CALL get_command_argument(2, arg)
+          IF (LEN_TRIM(arg) .ne. 0) then
+            read(arg,*) frecIni
+            if (frecIni .lt. 1) stop "-f lower than 1"
+            if (frecIni .gt. NFREC+1) stop "-f higher than NFREC+1 "
+            frecEnd = frecIni
+            onlythisJ = .true.
+          else
+            print*," "; print*," "
+            print*,"no single frequency specified on argument -f"
+            stop
+          end if
+        end if
+      end if !#>
       call checarWisdom(2*nfrec,2*nmax,NPTSTIME) ! FFTw
         nIpts=0; nMpts=0; nBpts = 0; iPtfin = 0; mPtfin = 0
-        ! complex frecuency to "smooth" the poles and be able to integrate
-        ! Bouchon (2003) OMEI entre -pi/T y -2pi/T ; T= 2pi/DFREC tiempo total
-        ! tengo TW la ventana de tiempo de interés. 
-      OMEI = - periodicdamper*PI/TW ! se cumple que exp(omei TW) << 1
-      write(PrintNum,'(a,E10.2,a)') 'Frec. Imaginary part: ',OMEI,' rad/s'
+        
+      call getsource(skipdir,PSV,SH)
+      if (PSV) write(PrintNum,*) "  this a P-SV case"
+      if (SH)  write(PrintNum,*) "  this a SH case"
       
-      call getsource
       if (workBoundary .eqv. .true.) call getTopography
       call getInquirePoints
-      call sourceAmplitudeFunction
+      if(.not. onlythisJ) call sourceAmplitudeFunction
       call getVideoPoints
       
         Npts = nIpts + nMpts
-        write(PrintNum,'(a,I0)') 'Number of fixed receptors: ',Npts
+        write(PrintNum,'(a,I0)') '   Number of fixed receptors: ',Npts
         allocate (allpoints(Npts))
         allpoints(iPtini:iPtfin)= inqPoints(iPtini:iPtfin); deallocate(inqPoints)
       call setInqPointsRegions
       call setVideoPointsRegions
-     
+ !#< blue
       call chdir(trim(adjustl(rutaOut)))
          write(titleN,'(a)') '0_OriginalGeometry.pdf'
          write(extension,'(a)') 'PDF'
@@ -2482,29 +2499,22 @@
       IF (LEN_TRIM(arg) .ne. 0) then 
         if (trim(arg) .eq. '-g') stop "argumento -g : Geometría"
       end if
+  !#>
 ! predimensionamientos
-      skipdir = .true.
-      SH = .false. ; PSV = .false.
-      do i=1,Nfuentes
-       if (abs(Po(i)%normal%x) .gt. 0.001_8) skipdir(1) = .false.
-       if (abs(Po(i)%normal%y) .gt. 0.001_8) skipdir(2) = .false.
-       if (abs(Po(i)%normal%z) .gt. 0.001_8) skipdir(3) = .false.
-      end do
-      if (skipdir(2) .eqv. .false.) SH = .true.
-      if (skipdir(1) .eqv. .false.) PSV = .true.
-      if (skipdir(3) .eqv. .false.) PSV = .true.
-      write(PrintNum,*) " "
-      write(PrintNum,*) " is this a P-SV problem? ",PSV
-      write(PrintNum,*) " is this a  SH  problem? ",SH
-      
+      write(PrintNum,'(a)') &
+       "---------------------------------------------------------------------------------"
       CALL get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .ne. 0) then 
         if (trim(arg) .eq. '-L') then
+        ! cargar G para misma fuente,geometria,receptores
+        ! Cuando cambiamos la función de amplitud
           print*,""
           print*,"********************"
           print*,"*** loading data ***"
           print*,"********************"
           print*,""
+          write(PrintNum,'(a)') "*** loading data ***"
+         !#< r  TODO: recalcular campo incidente !#>
           call loadG_fotogramas
           if (PSV) call Churubusco
           if (SH) call Hollywood(3)
@@ -2551,22 +2561,19 @@
       do i=1,Npts
         allpoints(i)%pointIndex = i
       end do ! i
+      !#< b
+      if (verbose .ge. 2) then;    print*,"inquire points"
+        do iP=1,nPts
+          print*,iP,allpoints(iP)%center,allpoints(ip)%region,& 
+          allpoints(ip)%layer,allpoints(ip)%guardarMovieSiblings
+        end do
+      end if !#>
       
-!     if (verbose .ge. 1) then
-!       print*,"inquire points"
-!       do iP=1,nPts
-!         print*,iP,allpoints(iP)%center,allpoints(ip)%region,& 
-!         allpoints(ip)%layer,allpoints(ip)%guardarMovieSiblings
-!       end do
-!     end if
-       allocate(k_vec(2*nmax))
-      ! cero
+      allocate(k_vec(2*nmax))
       k_vec(1) = real(dk * 0.01,8)
-      ! positivos
       do ik = 2,NMAX+1
         k_vec(ik) = real(ik-1,8) * dk
-      end do
-      ! negativos
+      end do!
       do ik = nmax+2,2*NMAX
         k_vec(ik) = (ik - 2*NMAX - 1) * dk
       end do
@@ -2580,14 +2587,15 @@
       do i = NPTSTIME-NFREC+2,NPTSTIME
         t_vec(i) = exp(cmplx(0.0,-(i-NPTSTIME-1)* dfrec * t0*(2*pi),8))
       end do
-      
+      !#< g
       if (developerfeature .ne. 0) then
       allocate(developerAUXvec(NFREC,2))
-      end if
-      call preparePointerTable(pota,.true.,0.1_8)
+      end if !#>
+      call preparePointerTable(pota,.true.,0.1_8) !#< b
       call ETIME(tarray, result)
       call system('clear')
       write(PrintNum,*)"Pre-prosses took ", result,"seconds"
+      write(PrintNum,'(/,/)')
       lastresult = result
       if (Verbose .le. 1) then
       write(6,'(A)', ADVANCE = "NO") " "
@@ -2595,34 +2603,10 @@
       write(6,'(A)', ADVANCE = "NO") " "
       print*,""
       write(6,'(A)', ADVANCE = "NO") repeat(" ",60)
-      end if
-      
-      frecIni = NFREC+1
-      frecEnd = 1
-      onlythisJ = .false.
-      CALL get_command_argument(1, arg)
-      IF (LEN_TRIM(arg) .ne. 0) then
-        if (trim(arg) .eq. '-f') then
-          CALL get_command_argument(2, arg)
-          IF (LEN_TRIM(arg) .ne. 0) then
-            read(arg,*) frecIni
-            if (frecIni .lt. 1) stop "-f lower than 1"
-            if (frecIni .gt. NFREC+1) stop "-f higher than NFREC+1 "
-            frecEnd = frecIni
-            onlythisJ = .true.
-          else
-            print*," "; print*," "
-            print*,"no single frequency specified on argument -f"
-            stop
-          end if
-        end if
-      end if
-      
+      end if !#>
       DO J = frecIni,frecEnd,-1 !NFREC+1,1,-1
         FREC=DFREC*real(J-1); if (J .eq. 1)  FREC = 0.5_8 * DFREC  ! Hz
         OME=2.0*PI*FREC !rad/s
-        
-      ! complex frecuency for avoiding poles and provide damping
         COME = CMPLX(OME, OMEI,8)!periodic sources damping
         COME = COME * cmplx(1.0, -1.0/2.0/Qq,8) !histeretic damping
         pt_come_i => COME
@@ -2649,7 +2633,7 @@
            Lambda(l) = RHO(l)*alfa(l)**2. - real(2.)*aMU(l)
           end do 
         end if
-         
+      !#< g
       if (developerfeature .ne. 0) then 
       developerAUXvec(J,1) = amu(N+1) * (come/beta(N+1))**2. 
 !     if (J .lt. 5) developerAUXvec(J,1) = developerAUXvec(J,1) + 2*UI*OMEI 
@@ -2667,7 +2651,8 @@
       print*,"   lamb_alf_3=",alfa(3)/frec
       print*,"   lamb_bet_3=",beta(3)/frec
       print*,"-------------------------"
-      end if! developerfeature .ne. 0
+      end if!#> !developerfeature .ne. 0
+      !#< b
       if(verbose .le. 1)then
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
@@ -2681,7 +2666,8 @@
         call ETIME(tarray, result)
         write(PrintNum,'(A,I0,A,EN18.2,A,EN18.2,A)', ADVANCE = "YES") &
         'w(',J,') | ',FREC," | ",result,"sec"
-      end if! verbose
+      end if
+      if (onlythisJ) write(PrintNum,*) "Frec = ",COME!#> 
 !        print*,"come=",come
 !        write(6,'(A,EN10.2,2x)', ADVANCE = "NO") & 
 !        "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
@@ -2811,8 +2797,9 @@
       l = n_top_sub + 2* n_con_sub + n_val_sub
       ik = 2* l
       iPIVbem = ik
-                       if (verbose .ge. 3) call showMNmatrixZ(ik,ik, ibemMat," mat ",6)
-                       if (verbose .ge. 3) call showMNmatrixZ(ik,1, trac0vec,"  b  ",6)
+      !#< b
+      if (verbose .ge. 3) call showMNmatrixZ(ik,ik, ibemMat," mat ",6)
+      if (verbose .ge. 3) call showMNmatrixZ(ik,1, trac0vec,"  b  ",6)
 !                         call chdir(trim(adjustl(rutaOut)))
 !                         CALL chdir("phi")
 !                         write(titleN,'(a,I0,a)')'h_incidente_',J,'_E.pdf'
@@ -2826,9 +2813,11 @@
 !                           call drawPHI(titleN,-2)
 !                         end if
 !                         CALL chdir(".."); CALL chdir("..")
+      !#>
       call zgesv(ik,1,ibemMat,ik,IPIVbem,trac0vec,ik,info)
       if(info .ne. 0) stop "problem with ibem system"
       if (any(isnan(real(trac0vec)))) stop "2120 valio madres el ibem"
+      !#< b
                        if (verbose .ge. 1) then
                           call chdir(trim(adjustl(rutaOut)))
                           CALL chdir("phi")
@@ -2846,6 +2835,7 @@
                           CALL chdir(".."); CALL chdir("..")
                        end if!
                        if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
+      !#>
       do iP_x = 1,nIpts !cada receptor X 
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
@@ -2870,17 +2860,12 @@
             iPxi = iPxi + 1
           end do !iPhi         
                            if (verbose .ge. 4) call showMNmatrixZ(ik,1,auxGvector," auxG",6)
-!         allpoints(iP_x)%W(J,i) = sum(trac0vec * auxGvector) + &
-!         allpoints(iP_x)%W(J,i)
           
           if(i .eq. 1) allpoints(iP_x)%resp(J)%W = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%W
           if(i .eq. 2) allpoints(iP_x)%resp(J)%U = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%U
           
-!         if(i .eq. 1) allpoints(iP_x)%resp(J)%W = sum(trac0vec * auxGvector) 
-!         if(i .eq. 2) allpoints(iP_x)%resp(J)%U = sum(trac0vec * auxGvector) 
-
           l = i + 3 !componente de la tracción {Tz,Tx}
           auxGvector(1:ik) = z0
           iPxi = ipxi_I
@@ -2949,16 +2934,16 @@
       l = n_top_sub + 2* n_con_sub + n_val_sub !cantidad de segmentos
       ik = l !tamaño de la matrix
       iPIVbem = ik
-      
+      !#< b
       if (verbose .ge. 3) call showMNmatrixZ(ik,ik, ibemMat," mat ",6)
       if (verbose .ge. 3) call showMNmatrixZ(ik,1, trac0vec,"  b  ",6)
-      
+      !#>
       call zgesv(ik,1,ibemMat,ik,IPIVbem,trac0vec,ik,info)
       if(info .ne. 0) stop "problem with ibem system"
       
       if (any(isnan(real(trac0vec)))) then ! NAN is not equal even to itself
       stop "2120 valio madres el ibem"; end if!
-           
+      !#< b
       if (verbose .ge. 2) then  
          call chdir(trim(adjustl(rutaOut))) 
          CALL chdir("phi")
@@ -2978,8 +2963,8 @@
          end if
         CALL chdir(".."); CALL chdir("..")
       end if! 
-      
       if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
+      !#>
       do iP_x = 1,nIpts !cada receptor X 
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
@@ -3080,7 +3065,7 @@
       
 !     deallocate(B);deallocate(IPIV)
       if(verbose >= 1) write(PrintNum,'(a)')" done"
-      ! showoff 
+      ! seismograms 
       call ETIME(tarray, result)
       if (result .ge. 60) then
       write(PrintNum,'(a,f10.3,a)') "Elapsed ",result/60,"minutes"
@@ -3091,7 +3076,7 @@
       end if
       
       write(6,'(a)')"Printing seismograms, etc..."
-      if (plotFKS) then  
+      if (plotFKS .and. (tipoFuente .ne. 1)) then  
            write(xAx,'(a)')"frec [Hz]"
            write(yAx,'(a)')" K [1/m] "
            call chdir(trim(adjustl(rutaOut)))
@@ -3116,17 +3101,12 @@
            CALL chdir("..")
       end if
       
-      CALL get_command_argument(1, arg)
-      if (trim(arg) .eq. '-f') then
-        ! sabana en frecuencia elegida
-        call chdir(trim(adjustl(rutaOut)))
-        ! W 
+      if (onlythisJ) then ! sabana en frecuencia eta
+        call chdir(trim(adjustl(rutaOut))) 
         write(tt,'(a)') "W__eta.pdf"
         call plot_at_eta(frecIni,tt)
-        ! U
         write(tt,'(a)') "U__eta.pdf"
         call plot_at_eta(frecIni,tt)
-        
         CALL chdir("..")
         print*,""
         print*,"at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
@@ -3135,9 +3115,8 @@
       
       ! mostrar sismogramas en los puntos de interés
            call chdir(trim(adjustl(rutaOut)))
-!          call system("mkdir traces")
            call chdir("traces")
-       if (PSV) then     
+       if (PSV) then !#< g  
         if (developerfeature .eq. 1) then
         write(yAx,'(a)') 'denominador'
           call W_to_t(developerAUXvec(1:nfrec,1),'r__',yax,iP,& 
@@ -3157,7 +3136,7 @@
                     allpoints(iP)%center%x,& 
                     allpoints(iP)%center%z)
         end do
-        end if
+        end if !#>
         
                 !w
         do iP = iPtini,iPtfin
@@ -3243,8 +3222,6 @@
       CHARACTER(len=32) :: arg
       integer :: status
       ! preparar los directorios de trabajo y de resultados
-      
-      
       CALL getcwd(path)
       write(6,'(a,/,a)') 'At:',TRIM(path)
       write(path,'(a,a)') trim(path),"/WorkDir"
@@ -3329,12 +3306,8 @@
       end subroutine getMainInput
       
       subroutine getSoilProps
-      use soilVars
-      use waveNumVars
-      use waveVars, only : dt, maxtime
-      use gloVars, only : verbose,PI, cKbeta,outpf => PrintNum
-      use fitting
-      
+      use soilVars; use waveNumVars; use waveVars, only : dt, maxtime; use fitting
+      use gloVars, only : verbose,PI, cKbeta,outpf => PrintNum,periodicdamper
       implicit none
       logical :: lexist
       real :: H, ALF, BET, RO
@@ -3353,7 +3326,7 @@
       READ(7,*)
       READ(7,'(I2)')N   !NUMBER OF LAYERS NOT COUNTING UPPER/LOWER HALF-SPACE
       READ(7,*)
-      if (verbose >= 1) write(outpf,'(/,I2,A,/)') N,' layers'
+      write(outpf,'(/,A,I2,A,/)') '  ',N,' layers'
       ALLOCATE (Z(0:N+1)); ALLOCATE (AMU(0:N+2))
       ALLOCATE (BETA0(0:N+2)); ALLOCATE (ALFA0(0:N+2)); ALLOCATE(ANU(0:N+2))
       ALLOCATE (LAMBDA(0:N+2)); ALLOCATE (RHO(0:N+2))
@@ -3366,18 +3339,17 @@
       DO J=1,N
          READ(7,*) H, ALF, BET, RO
         if (H .lt. 0.0) then
-         Z(0) = real(H)
-         AMU(0)=cmplx(RO*BET**2.0,0.0,8)
-         BETA0(0)=BET
-         ALFA0(0)=ALF
-         RHO(0) = RO
-         LAMBDA(0)=cmplx(RHO(0)*ALF**2.0 - real(2.)*real(AMU(0)),0.0,8)
-         if (verbose >= 1) then
-         write(outpf,& 
-       '(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-       ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU(0)),  RHO(0), real(LAMBDA(0))
-         end if
-         READ(7,*) H, ALF, BET, RO
+          Z(0) = real(H)
+          AMU(0)=cmplx(RO*BET**2.0,0.0,8)
+          BETA0(0)=BET
+          ALFA0(0)=ALF
+          RHO(0) = RO
+          LAMBDA(0)=cmplx(RHO(0)*ALF**2.0 - real(2.)*real(AMU(0)),0.0,8) 
+          BEALF = beta0(0)/alfa0(0)
+          anu(0) = (bealf**2 - 0.5)/(-1 + bealf**2)!#< b
+         write(outpf,'(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
+       ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU(0)),  RHO(0), real(LAMBDA(0)),real(anu(J))!#>
+          READ(7,*) H, ALF, BET, RO
         end if
          Z(J+1)=Z(J)+real(H)
          AMU(J)=cmplx(RO*BET**2.0,0.0,8)
@@ -3386,29 +3358,28 @@
          RHO(J) = RO
          LAMBDA(J)=cmplx(RHO(J)*ALF**2.0 - real(2.)*real(AMU(J)),0.0,8)
 !        BEALF=SQRT((0.5-ANU)/(1.0-ANU)) !IF POISSON RATIO IS GIVEN
-         BEALF = beta0(J)/alfa0(j)
+         BEALF = beta0(J)/alfa0(J)
          anu(J) = (bealf**2 - 0.5)/(-1 + bealf**2)
-!        ALFA(J)=BET/BEALF
-       if (verbose >= 1) then
-         write(outpf,& 
-       '(F7.1,A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-       Z(J),' - ',Z(J+1),ALFA0(J),BETA0(J),real(AMU(J)),  RHO(J), real(LAMBDA(J)),real(anu(J))
-       end if
+!        ALFA(J)=BET/BEALF !#< b
+          write(outpf,&
+          '(F7.1,A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
+          Z(J),' - ',Z(J+1),ALFA0(J),BETA0(J),real(AMU(J)),& 
+          RHO(J), real(LAMBDA(J)),real(anu(J)) !#>
       END DO
       
       READ(7,*) H, ALF, BET, RO 
-      if (H .lt. 0.0) then
+      if (H .lt. 0.0) then !(caso: semiespacio arriba, semiespacio abajo)
          Z(0) = real(H)
          AMU(0)=cmplx(RO*BET**2.0,0.0,8)
          BETA0(0)=BET
          ALFA0(0)=ALF
          RHO(0) = RO
-         LAMBDA(0)=cmplx(RHO(0)*ALF**2.0 - real(2.)*real(AMU(0)),0.0,8)
-         if (verbose >= 1) then
-         write(outpf,& 
-       '(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-       ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU(0)),  RHO(0), real(LAMBDA(0))
-         end if
+         LAMBDA(0)=cmplx(RHO(0)*ALF**2.0 - real(2.)*real(AMU(0)),0.0,8) 
+         BEALF = beta0(0)/alfa0(0)
+         anu(0) = (bealf**2 - 0.5)/(-1 + bealf**2)!#< b
+         write(outpf,'(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
+         ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU(0)),&
+         RHO(0), real(LAMBDA(0)),real(anu(0)) !#>
          READ(7,*) H, ALF, BET, RO
       end if
       AMU(N+1)=cmplx(RO*BET**2,0.0,8)
@@ -3416,30 +3387,26 @@
       ALFA0(N+1)=ALF
       RHO(N+1) = RO
       LAMBDA(N+1)=cmplx(RHO(n+1)*ALF**2 - real(2.)*real(AMU(n+1)),0.0,8)
-      BEALF = beta0(J)/alfa0(j)
-      anu(J) = (bealf**2 - 0.5)/(-1 + bealf**2)
-      if (verbose >= 1) then
-       write(outpf,'(F7.1,A,2x,F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-       Z(N+1),' -   inf. ',ALFA0(N+1),BETA0(N+1),real(AMU(N+1)),RHO(N+1),real(LAMBDA(N+1)),real(anu(J))
-       write(outpf,'(a)')' '
-      end if
-      i = 1
-      if (Z(0) .lt. 0.0) i = 0
-      minBeta = minval(beta0(i:N+1))
-      maxBeta = maxval(beta0(i:N+1))
+      BEALF = beta0(N+1)/alfa0(N+1)
+      anu(N+1) = (bealf**2 - 0.5)/(-1 + bealf**2) !#< b
+         write(outpf,'(F7.1,2x,A, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
+         Z(1),' -  inf. ',ALFA0(N+1),BETA0(N+1),real(AMU(N+1)),&
+         RHO(N+1), real(LAMBDA(N+1)),real(anu(N+1)) !#>
+      i = 1;  if (Z(0) .lt. 0.0) i = 0
+      minBeta = minval(beta0(i:N+1));  maxBeta = maxval(beta0(i:N+1))
       if (abs(minBeta - maxBeta) .lt. 0.01) then
        layershadecolor(i:N+1) = 0.8_4
       else
       do J=i,N+1
-       layershadecolor(J) = real(0.7 - (maxBeta-beta0(J))*((0.7-0.85)/(maxBeta - minBeta)),4)
+       layershadecolor(J)= real(0.7-(maxBeta-beta0(J))*((0.7-0.85)/(maxBeta-minBeta)),4)
       end do
       end if
       READ(7,*)
       READ(7,*)DFREC,NFREC,NPTSTIME,nK,Qq,TW,maxtime
       close(7)
-      
       CALL chdir("..")
-         ! Calculamos NFREC resultados y hacemos zeropadding hasta NPSTIME
+      
+      !#< r ---- Calculamos NFREC resultados y hacemos zeropadding hasta NPSTIME--- !#>
          NPTSTIME = int(log10(real(NPTSTIME)) / log10(2.)+0.99 )
          NPTSTIME = 2** NPTSTIME     !adjuste to a 2**N value
          if (NPTSTIME .lt. 2*NFREC) then 
@@ -3448,15 +3415,15 @@
          end if
       Dt = (1.0) / (real(NPTSTIME) * DFREC)
       
-      ! dk para ver estar CKbeta veces por arriba de polo Rayleigh
+      !#< r ----  dk para ver estar CKbeta veces por arriba de polo Rayleigh------- !#>
       frac = 1./3.
       kmax = 0.9* (2*pi*DFREC*NFREC) / minBeta * cKbeta !1.5
       DK = kmax / nk
       k1_3 = (2*pi*DFREC*NFREC * frac) / minBeta * cKbeta 
       
       allocate(vecNk(NFREC+1))
-      ! cantidad de numeros de onda calculados en cada frecuencia
-      ! el resto hasta nmax se interpola
+      ! cantidad de numeros de onda {donde se invierte la matriz} en cada frecuencia
+      ! el resto hasta nmax+1 se interpola
       vecNk = (/(i,i=1, NFREC+1)/)
       call splineIn(vecNk, & ! vector x [int]
                     vecNk, & ! vector interpolado [int]
@@ -3465,37 +3432,43 @@
                     1,                  int(0.55*nK), &  !x0,y0
                     int(nfrec * frac)+1,int(0.6*nk), &  !x1,y1
                     NFREC+1,            nk) !x2,y2
-      
-      
       NMAX = vecNK(NFREC)!     IF (vecNK(NFREC) .gt. nmax) 
       NMAX = int(log10(real(NMAX)) / log10(2.)+0.99 )
       NMAX = 2**NMAX     !adjuste to a 2**N value
-!     do i = 1,nfrec+1
-!     print*,i,vecNK(i),(vecNK(i)*DK) / ((2.0_8*pi*DFREC*i)/minBeta)
-!     end do
-!     DK = (2.0_8*pi*DFREC*NFREC/3.0_8)/(minBeta * nk)* cKbeta 
-      ! para tener L cte. en todas las frecuencias DK es cte.
       
-      if (verbose .ge. 1) then 
-       write(outpf,'(a,F9.7)') "DK = ",DK
-       write(outpf,'(a,I0,a,I0,a,I0,a,I0,a,I0,a,I0,a)') "nk a 3pt spline with (",& 
+      ! complex frecuency to "smooth" the poles and be able to integrate
+        ! Bouchon (2003) OMEI entre -pi/T y -2pi/T ; T= 2pi/DFREC tiempo total
+        ! tengo TW la ventana de tiempo de interés. 
+      OMEI = - periodicdamper*PI/TW ! se cumple que exp(omei TW) << 1
+           
+      if (verbose .ge. 1) then !#< b
+       write(outpf,'(a)') &
+       "--- frecuency --------------------------------------------------------------------"
+       write(outpf,'(a,F9.7,/,a,F15.5)') "   dt = ",Dt,"   Tmax=",Dt* NPTSTIME
+       write(outpf,'(a,F8.1)') '   Atenuation Q = ',Qq
+       write(outpf,'(a,I0,a,F8.4,a,F12.4,a,/)') & 
+           '   N. frequencies: ',NFREC,'  @',DFREC,'Hertz :. Fmax = ', & 
+           NFREC*DFREC,'Hertz'
+      
+       write(outpf,'(a)') &
+       "--- DWN -------------------------------------------------------------------------"
+       write(outpf,'(a,F9.7)') "   DK = ",DK
+       write(outpf,'(a,I0,a,I0,a,I0,a,I0,a,I0,a,I0,a)') "   nk a 3pt spline with (",& 
           1,",",int(0.55*nK),"), (",& 
           int(nfrec * frac)+1,",",int(0.6*nk),"), (",& 
           NFREC+1,",",nk,")"
-       write(outpf,'(a,I0)') 'nk average = ',int(sum(vecNK)/(NFREC+1))
-       write(outpf,'(a,I0)') 'nk max (each sign): ',NMAX
-       write(outpf,'(a,F12.7)') "delta X = ", real(pi / (nMax * DK),4)
-       write(outpf,'(a,EN14.2E2,a)') "L = ",2*pi/DK, "m"
-       write(outpf,'(a,EN19.2E2,a)') & 
-       "L/alfa = tp = ",(2*pi/DK)/maxval(abs(ALFA0)), "seconds"
-       write(outpf,'(a,EN19.2E2,a)') &
-       "L/beta = ts = ",(2*pi/DK)/maxval(abs(BETA0)), "seconds"
-       write(outpf,'(a,F9.7,/,a,F15.5)') "dt = ",Dt,"Tmax=",Dt* NPTSTIME
-       write(outpf,'(a,F8.1)') 'Atenuation Q = ',Qq
-       write(outpf,'(a,I0,a,F8.4,a,F12.4,a,/)') & 
-           'N. frequencies: ',NFREC,'  @',DFREC,'Hertz :. Fmax = ', & 
-           NFREC*DFREC,'Hertz'
-      end if
+       write(outpf,'(a,I0)') '   nk average = ',int(sum(vecNK)/(NFREC+1))
+       write(outpf,'(a,I0)') '   nmax (each sign): ',NMAX
+       write(outpf,'(a,F12.7)') "   delta X = ", real(pi / (nMax * DK),4)
+       write(outpf,'(a,EN14.2E2,a)') "   L = ",2*pi/DK, "m"
+       write(outpf,'(a,EN19.5E2,a)') & 
+       "   L/alfa = tp = ",(2*pi/DK)/maxval(abs(ALFA0)), "seconds"
+       write(outpf,'(a,EN19.5E2,a)') &
+       "   L/beta = ts = ",(2*pi/DK)/maxval(abs(BETA0)), "seconds"
+       write(outpf,'(a,E10.2,a)') '   Frec. Imaginary part: ',OMEI,' rad/s'
+       write(outpf,'(a)') &
+       "---------------------------------------------------------------------------------"
+      end if !#>
       end subroutine getSoilProps
       
       subroutine checarWisdom(a,b,c)
@@ -3540,7 +3513,8 @@
       print*,"i=",j," (non-zero on success)"
       stop "Error al importar wisdom en :FFTW"
       else
-      write(PrintNum,*)"leído wisdom ",trim(tx)
+      write(PrintNum,*)"  "
+      write(PrintNum,*)"  leído wisdom ",trim(tx)
       ! crear planos
       flag = FFTW_WISDOM_ONLY
       planNfrecF = fftw_plan_dft_1d(a, Ua,Va, FFTW_FORWARD,flag)
@@ -3549,7 +3523,7 @@
       planNmaxB = fftw_plan_dft_1d(b, Ub,Vb, FFTW_BACKWARD, flag)
       planNtimeF = fftw_plan_dft_1d(c, Uc,Vc, FFTW_FORWARD, flag)
       planNtimeB = fftw_plan_dft_1d(c, Uc,Vc, FFTW_BACKWARD, flag)
-      write(PrintNum,*)"planos creados"
+      write(PrintNum,*)"  planos creados"
       end if
       end if
       end subroutine checarWisdom
@@ -3572,9 +3546,9 @@
       
       subroutine getInquirePoints
       use resultVars, only : inqPoints, nIpts, iPtini,iPtfin, & 
-                       nSabanapts, Sabana,sabZeroini,sabZerofin, SabanaPlotIndividual, sabanaBajarAFrontera
+                       nSabanapts, Sabana,sabZeroini,sabZerofin,&
+                       SabanaPlotIndividual, sabanaBajarAFrontera
       use waveNumVars, only : NPTSTIME
-!     USE glovars, only : outpf => Printnum
       implicit none
       integer :: i,j,k,thelayeris,iIndex, nnsabanas,thisnsab
       logical :: lexist, tellisoninterface, ths_isoninterface,wtfk
@@ -3594,7 +3568,8 @@
       end if
       READ(7,*) !Points of interest for an accelerogram
       READ(7,*) nIpts
-      READ(7,*) nnsabanas, nSabanapts, SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
+      READ(7,*) nnsabanas, nSabanapts, & 
+                SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
       READ(7,*) !__________________________________________
       READ(7,*) escalax,escalay
       READ(7,*) offsetx,offsety
@@ -3702,10 +3677,10 @@
       end do
       end function tellisoninterface
       
-      subroutine getsource
+      subroutine getsource(skipdir,PSV,SH)
       use wavevars, only: Escala,Ts,Tp, ampfunction, sigGaus, t0
       use sourceVars, only: Po, tipoFuente, PW_pol, nFuentes
-      use glovars, only:verbose,pi,PrintNum
+      use glovars, only:pi,PrintNum
       use resultVars, only : Punto
       use Gquadrature, only: Gquad_n
       use soilVars, only : Z,N
@@ -3716,6 +3691,8 @@
         type (Punto), pointer :: BP
         end subroutine punGa
       end interface 
+      
+      logical :: skipdir(3),PSV,SH
       integer :: thelayeris,efsource,i
       logical :: lexist, tellisoninterface, intfsource
       real    :: xfsource,zfsource,l
@@ -3774,11 +3751,24 @@
       READ(77,*); READ(77,*) Escala; READ(77,*) ampfunction; READ(77,*) t0
       READ(77,*) Ts; READ(77,*) Tp; READ(77,*) sigGaus
       READ(77,*) PW_pol; close(77); CALL chdir("..")
-      if (verbose .ge. 1) then; do i = 1,nFuentes
+      do i = 1,nFuentes
+      write(Printnum,'(a)') &
+       "---------------------------------------------------------------------------------"
       write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a)') & 
-      "Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
+      "   Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
       "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,"]"
-      end do; end if
+      end do
+      
+      skipdir = .true.
+      SH = .false. ; PSV = .false.
+      do i=1,Nfuentes
+       if (abs(Po(i)%normal%x) .gt. 0.001_8) skipdir(1) = .false.
+       if (abs(Po(i)%normal%y) .gt. 0.001_8) skipdir(2) = .false.
+       if (abs(Po(i)%normal%z) .gt. 0.001_8) skipdir(3) = .false.
+      end do
+      if (skipdir(2) .eqv. .false.) SH = .true.
+      if (skipdir(1) .eqv. .false.) PSV = .true.
+      if (skipdir(3) .eqv. .false.) PSV = .true.
       end subroutine getsource
       
       subroutine getVideoPoints
@@ -3892,9 +3882,11 @@
       READ(77,*) escala_n
       DO iXI = 1,n_topo
          if (escala_n .gt. 0.0) then
-         READ(77,*) Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),es_de_esquina(iXI)
+         READ(77,*) Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),& 
+         Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),es_de_esquina(iXI)
          else
-         READ(77,*) Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),es_de_esquina(iXI)
+         READ(77,*) Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),& 
+         Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),es_de_esquina(iXI)
          end if
          Xcoord_ER(iXI,1,1:2) = Xcoord_ER(iXI,1,1:2) * escalax + offsetx
          Xcoord_ER(iXI,2,1:2) = Xcoord_ER(iXI,2,1:2) * escalay + offsety
@@ -3905,9 +3897,11 @@
       READ(77,*) escala_n
       DO iXI = n_topo+1, n_topo+n_cont
          if (escala_n .gt. 0.0) then
-         READ(77,*) Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),es_de_esquina(iXI)
+         READ(77,*) Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),& 
+         Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),es_de_esquina(iXI)
          else
-         READ(77,*) Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),es_de_esquina(iXI)
+         READ(77,*) Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),& 
+         Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),es_de_esquina(iXI)
          end if
          Xcoord_ER(iXI,1,1:2) = Xcoord_ER(iXI,1,1:2) * escalax + offsetx
          Xcoord_ER(iXI,2,1:2) = Xcoord_ER(iXI,2,1:2) * escalay + offsety
@@ -3918,9 +3912,11 @@
       READ(77,*) escala_n
       DO iXI = n_topo+n_cont+1,n_topo+n_cont+n_vall !nXI
          if (escala_n .gt. 0.0) then
-         READ(77,*) Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),es_de_esquina(iXI)
+         READ(77,*) Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),& 
+         Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),es_de_esquina(iXI)
          else
-         READ(77,*) Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),es_de_esquina(iXI)
+         READ(77,*) Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),& 
+         Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1),es_de_esquina(iXI)
          end if
          Xcoord_ER(iXI,1,1:2) = Xcoord_ER(iXI,1,1:2) * escalax + offsetx
          Xcoord_ER(iXI,2,1:2) = Xcoord_ER(iXI,2,1:2) * escalay + offsety
@@ -3985,7 +3981,8 @@
                  m = (Xcoord_ER(iXI,2,2) - Xcoord_ER(iXI,2,1))/(Xcoord_ER(iXI,1,2) - Xcoord_ER(iXI,1,1))
                  surf_poly = real((/Xcoord_ER(iXI,2,1) - Xcoord_ER(iXI,1,1)*m , m /),4)
                  !are the polynomial coefficients from lower to top. A0 A1 A2 ... An
-                 nuevoPx = splitatY(surf_poly,1,real(Z(e),4),real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
+                 nuevoPx = splitatY(surf_poly,1,real(Z(e),4),& 
+                 real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
                end if !
              if (verbose >= 4) then
               write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
@@ -4004,7 +4001,7 @@
                auxVector(iXI+1,2,2) = Xcoord_ER(iXI,2,2)
                auxVector(iXI+2:nXI+1,1:2,1:2) = Xcoord_ER(iXI+1:nXI,1:2,1:2)
 !              es_de_esquina(1:iXI) !se queda igual
-               es_de_esquina(iXI+2:nXI+1) = es_de_esquina(iXI+1:nXI) ! se recorre (si hay espacio no hay fish)
+               es_de_esquina(iXI+2:nXI+1) = es_de_esquina(iXI+1:nXI) !recorre
                es_de_esquina(iXI+1) = es_de_esquina(iXI) ! se duplica
                deallocate(Xcoord_ER)
                nXI = nXI + 1
@@ -4023,7 +4020,8 @@
                else ! es inclinado
                  m = (Xcoord_ER(iXI,2,2) - Xcoord_ER(iXI,2,1))/(Xcoord_ER(iXI,1,2) - Xcoord_ER(iXI,1,1))
                  surf_poly = real((/Xcoord_ER(iXI,2,1) - Xcoord_ER(iXI,1,1)*m , m /),4)
-                 nuevoPx = splitatY(surf_poly,1,real(Z(e),4),real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
+                 nuevoPx = splitatY(surf_poly,1,real(Z(e),4),& 
+                 real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
                end if!
              if (verbose >= 4) then
                write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
@@ -4042,7 +4040,7 @@
                auxVector(iXI+1,2,2) = Xcoord_ER(iXI,2,2)
                auxVector(iXI+2:nXI+1,1:2,1:2) = Xcoord_ER(iXI+1:nXI,1:2,1:2)
 !              es_de_esquina(1:iXI) !se queda igual
-               es_de_esquina(iXI+2:nXI+1) = es_de_esquina(iXI+1:nXI) ! se recorre (si hay espacio no hay fish)
+               es_de_esquina(iXI+2:nXI+1) = es_de_esquina(iXI+1:nXI) ! se recorre
                es_de_esquina(iXI+1) = es_de_esquina(iXI) ! se duplica
                deallocate(Xcoord_ER)
                nXI = nXI + 1
@@ -4886,7 +4884,7 @@
       if(ampfunction .eq. 1) then
         call ricker ! Ricker wavelet saved on Uo
           if (ve .ge. 1) then
-             write(Printnum,'(a)')'Incident wave amplitude function: Ricker'
+             write(Printnum,'(a)')'   Incident wave amplitude function: Ricker'
             call chdir(trim(adjustl(rutaOut)))
             write(titleN,'(a)') 'WaveAmplitude-ricker_time.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Ricker wavelet'
@@ -4924,7 +4922,7 @@
       elseif(ampfunction .eq. 2) then ! Gaussian
         call gaussian
           if (ve .ge. 1) then
-           write(Printnum,'(a)')'Incident wave amplitude function: Gaussian'
+           write(Printnum,'(a)')'   Incident wave amplitude function: Gaussian'
             call chdir(trim(adjustl(rutaOut)))
             write(titleN,'(a)') 'WaveAmplitude-Gaussian_frec.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Gaussian wavelet'
@@ -4935,10 +4933,12 @@
             CALL chdir("..")
           end if
       else  ! DIRAC -----------------------------------------
-       if (ve .ge. 1) write(Printnum,'(a)')'Incident wave amplitude function: Dirac delta'
+       if (ve .ge. 1) write(Printnum,'(a)')'   Incident wave amplitude function: Dirac delta'
         Uo=UR
       end if !tipoPulso
       Uo = Uo*Escala !escala de la señal
+      write(Printnum,'(a)') &
+       "---------------------------------------------------------------------------------"
       if (ve .eq. 6) stop "argumento -a"
       end subroutine sourceAmplitudeFunction
       subroutine diffField_at_iz(i_zF,dir_j,J,cOME_in,workA, ipivA)
