@@ -1,3 +1,52 @@
+Superficie (x,y)ini - (x,y)fin en metros VALLE
+2		N_topo segmentos :: T^0 + T^d = 0
+5 		N_cont segmentos :: T^d = T^0; u^d = u^0
+2		N_vall segmentos :: T^d = 0
+***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+1.0    <- [negativo invierte normal]
+  0.0000    0.0000   -1.0000    0.0000     F
+  1.0000    0.0000    0.0000    0.0000     F
+***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
+1.0  0.5   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+-1.0    <- [negativo invierte normal]
+  1.0000    0.0000    1.0000    0.1000 T
+  1.0000    0.1000    0.4000    0.5000 F
+  0.4000    0.5000   -0.4000    0.5000 F
+ -0.4000    0.5000   -1.0000    0.1000 F
+ -1.0000    0.1000   -1.0000    0.0000 T
+***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+-1.0    <- [negativo invierte normal]
+ -1.0000    0.0000   -3.0000    0.0000 F
+  3.0000    0.0000    1.0000    0.0000 F
+Inclusion properties
+Alfa(m/s) Beta(m/s) Dens(T/m3) 
+2.0   1.0   1.0
+Cualquier receptor dentro de esta superficie está en el aire
+0    N segmentos 
+1 1  <- escala:x escala:y
+0 0  <- offset:x offset:y
+Borde de región E cuando flip12 .true.
+10    N segmentos 
+1.0  0.5   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+  1.0000    0.0000    1.0000    0.1000
+  1.0000    0.1000    0.4000    0.5000 
+  0.4000    0.5000   -0.4000    0.5000 
+ -0.4000    0.5000   -1.0000    0.1000
+ -1.0000    0.1000   -1.0000    0.0000
+ -1.0000    0.0000   -2.0000    0.0000
+ -2.0000    0.0000   -2.0000    1.5000
+ -2.0000    1.5000    2.0000    1.5000
+  2.0000    1.5000    2.0000    0.0000
+  2.0000    0.0000    1.0000    0.0000
+
+
+
 Superficie (x,y)ini - (x,y)fin en metros TUNEL-CIRCULAR 300
 150	N_topo segmentos :: T^0 + T^d = 0
 0    	N_cont segmentos :: T^d = T^0; u^d = u^0
@@ -321,6 +370,10 @@ Cualquier receptor dentro de esta superficie está en el aire
 -0.99803 0.062791 -0.99912 0.041876 F
 -0.99912 0.041876 -0.99978 0.005 F
 -0.99978 0.005 -1.10000 0.00000 F
+Borde de región E cuando flip12 .true.
+0    N segmentos 
+1.0  0.5   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
 
 
 

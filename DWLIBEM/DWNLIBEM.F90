@@ -1,2366 +1,3 @@
-!     Variables   
-      module gloVars 
-      save
-      ! verbose = 0   ! no output 
-      !         = 1   ! main calls, properties and images
-      !         = 2   ! 1 + counters in loops and subfunctions
-      !         = 3   ! 2 + matrix values
-      integer    :: verbose 
-      logical    :: makeVideo
-      logical    :: workBoundary
-      logical    :: plotFKS
-      logical    :: saveG
-      integer    :: multSubdiv ! De 6 en adelante 
-      real       :: cKbeta ! 1.1 - 3 (default 1.5)
-      real       :: periodicdamper
-      integer    :: developerfeature
-      logical    :: borrarDirectorio
-      logical    :: useAzimi
-      integer    :: PrintNum
-      complex*16, dimension(:,:), allocatable :: developerAUXvec !sigma0
-      complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
-                               UR = cmplx(1.0d0,0.0d0,8), &
-                               Z0 = cmplx(0.0d0,0.0d0,8)
-      real*8, target :: ONE = 1.0_8
-      real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
-      CHARACTER(len=400) :: rutaOut
-      end module gloVars 
-      
-      module soilVars
-      save
-      integer ::  N !number of layers from z>= 0. HALF-SPACE at N+1
-      real*8, dimension(:),  allocatable :: Z,RHO,BETA0,ALFA0,ANU
-      real*8 :: minBeta
-      complex*16 ,dimension(:), allocatable :: ALFA,BETA,AMU,LAMBDA
-      real*8 :: Qq
-      real*4, dimension(:),  allocatable :: layershadecolor
-      complex*16 :: ALFA_inc,BETA_inc,AMU_inc,LAMBDA_inc
-      real*4 :: shadecolor_inc
-      end module soilVars
-      
-      module waveVars
-      real, save :: Escala
-      real*8, save :: Dt,maxtime  !segundos
-      real, save :: t0
-      integer, save :: ampfunction ! 0 dirac; 1 ricker
-      complex*16, dimension(:), allocatable :: Uo
-      real, save :: Ts 
-      real, save :: Tp 
-      real, save :: sigGaus
-      end module waveVars
-      
-      module waveNumVars
-      use, intrinsic :: iso_c_binding
-      !include 'fftw3.f03'
-      !frequency loop vars:
-      integer,save      :: NFREC,NPTSTIME
-      integer,dimension (:),allocatable :: vecNK
-      complex*16,target :: cOME  
-      real*8   ,save    :: FREC,DFREC,OME,OMEI,TW, smallestWL
-      !Discrete Wave-number:
-      real*8   ,save    :: DK    ! delta k
-      real*8, dimension(:), allocatable,target :: k_vec
-      integer,save      :: NK,NMAX
-      complex*16, dimension(:), allocatable :: t_vec
-      logical,save      :: trimKplease
-      type(C_PTR),save  :: planNmaxF,planNmaxB,& 
-                           planNfrecF,planNfrecB,& 
-                           planNtimeF,planNtimeB
-      end module waveNumVars
-      
-      module refSolMatrixVars
-        complex*16, save, allocatable :: B(:,:)
-        complex*16, dimension(:,:,:), allocatable,target :: Ak
-        integer, dimension(:), allocatable :: IPIV
-!       integer :: info    
-      end module refSolMatrixVars
-            
-      module resultVars
-       type FFres
-         complex*16 :: U,V,W,Tx,Ty,Tz!,s33,s31,s11!,s32,s12
-       end type FFres
-      
-!     use gloVars, only: dp
-       type Punto2d
-        real*8 :: x,z
-       end type Punto2d
-       
-       type Punto3d
-        real*8 :: x,y,z
-       end type Punto3d
-       
-       type MecaElem
-        type (Punto2d) :: center
-        complex*16, dimension(5) :: Rw !u1,u3,s33,s31,s11
-        complex*16, dimension(3) :: Rw_SH !u2,s32,s12
-       end type MecaElem
-       
-!      type tipo_qlmk
-!        logical :: shouldUseQuadrature
-!      end type tipo_qlmk
-       
-       type Punto              
-        type(Punto2d) :: center
-        type(Punto3d) :: normal
-        type(Punto2d) :: bord_A,bord_B !1x, 2y (a line on the xz plane)
-        real*8  :: length
-        logical :: segmentoDeEsquina
-        real*8  :: gamma
-        real*8  :: cosT,sinT
-        integer :: layer
-        logical :: isBoundary
-        logical :: isSourceSegmentForce 
-        logical :: isOnInterface
-        logical :: guardarFK
-        logical :: isSabana
-        logical :: guardarMovieSiblings
-        integer :: boundaryIndex
-        integer :: pointIndex
-        integer :: region !1 estr, 2 incl, 0 void
-        integer :: tipoFrontera !para diferenciar los puntos de colocación
-        ! 0 TE^0 + TE^d = 0 
-        ! 1 TE^0 + TE^d = TR^r; uE^0 + uE^d = uR^r
-        ! 2 TR^r = 0
-
-      !                       ,--- f: 1...nfrec+1
-      !                       | ,--- k: 1...NMAX+1 / 2*NMAX
-      !                       | | ,--- iMec: 1:3 (desps) W,U,V
-      !                       | | | 
-        complex*16, dimension(:,:,:), allocatable :: FK
-      !                     
-        complex*16, dimension(:,:,:)   , allocatable :: G
-        complex*16, dimension(:,:,:,:)   , allocatable :: Gmov
-      
-        ! espectro campo total inquirePoints : 
-      !                        ,--- f: 1...nfrec+1
-      !                        | ,--- iMec: 1:2 y 3
-        complex*16, dimension (:,:), allocatable :: W
-        type(FFres),dimension (:), allocatable :: resp
-        complex*16, dimension (:,:,:), allocatable :: Wmov
-      
-      !                 ,--- xXx (indice punto integracion Gaussiana)
-      !                 | ,--- (1,2) -> (x,z)
-      !                 | |
-        real*8, dimension(:,:), allocatable :: Gq_xXx_coords
-        real*8, dimension(:), allocatable :: Gq_xXx_C
-      
-       end type Punto   
-      ! bondary elements:     ,--- POINT index / x (receptor)
-      type (Punto), dimension(:), allocatable, save, target :: allpoints
-      type (Punto), dimension(:), allocatable, save :: inqPoints
-      type (Punto), dimension(:), allocatable, save :: moviePoints
-      type (Punto), dimension(:), allocatable, save, target :: BouPoints !xi
-      
-        logical :: SabanaPlotIndividual,sabanaBajarAFrontera
-        integer, save :: nIpts, nSabanapts, nMpts, nBpts, nPts,&
-                       iPtini,iPtfin,mPtini,mPtfin, & 
-                       n_top_sub,n_con_sub,n_val_sub
-        complex*16, dimension(:,:), allocatable :: ibemMat
-        complex*16, dimension(:), allocatable :: trac0vec 
-        integer, dimension(:), allocatable :: IPIVbem
-          complex*16, allocatable, save, target :: Sabana(:,:) !(punto,traza)
-          integer :: sabZeroini,sabZerofin
-        integer, allocatable, dimension(:,:), save :: fixedPoTa,pota
-        integer :: nZs ! depths at pota
-      end module resultVars
-      
-      module peli
-        real, dimension(:),allocatable :: coords_Z ,coords_X
-        complex*16, dimension(:,:,:,:), allocatable,target :: fotogramas
-        integer, dimension(:,:), allocatable :: fotogramas_Region
-      end module peli
-      
-      module sourceVars
-        use resultVars, only : Punto
-        type (Punto),dimension(:),allocatable, save, target :: Po
-        logical, save :: SH,PSV
-        integer :: tipofuente
-        integer :: nFuentes
-        integer :: PW_pol
-      end module sourceVars
-      
-      module meshVars
-        integer, save :: npixX,npixZ
-        real, save :: MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
-      end module meshVars
-                   
-      module Gquadrature
-        real :: WLmulti ! una o dos longitudes de onda
-        integer, parameter :: Gquad_n = 8
-      ! ##############################
-      ! # Para cambiar Num de puntos #
-      ! # actualizar encabezado de   #
-      ! # rutina punGa               #
-      ! ##############################
-      
-      ! courtesy of http://pomax.github.io/bezierinfo/legendre-gauss.html
-      
-      real, parameter, dimension(8) :: Gqu_t_8 = & 
-      (/ -0.9602898564975363, &
-         -0.7966664774136267, &
-         -0.5255324099163290, &
-         -0.1834346424956498, &
-          0.1834346424956498, &
-          0.5255324099163290, &
-          0.7966664774136267, &
-          0.9602898564975363 /)
-      
-      real, parameter, dimension(8) :: Gqu_A_8 = &
-      (/ 0.1012285362903763, &
-         0.2223810344533745, &
-         0.3137066458778873, &
-         0.3626837833783620, &
-         0.3626837833783620, &
-         0.3137066458778873, &
-         0.2223810344533745, &
-         0.1012285362903763 /)
-      
-      real, parameter, dimension(14) :: Gqu_t_14 = & 
-      (/ -0.9862838086968123, &
-         -0.9284348836635735, &
-         -0.8272013150697650, &
-         -0.6872929048116855, &
-         -0.5152486363581541, &
-         -0.3191123689278897, &
-         -0.1080549487073437, &
-          0.1080549487073437, &
-          0.3191123689278897, &
-          0.5152486363581541, &
-          0.6872929048116855, &
-          0.8272013150697650, &
-          0.9284348836635735, &
-          0.9862838086968123 /)
-      
-      real, parameter, dimension(14) :: Gqu_A_14 = & 
-      (/  0.0351194603317519, &
-          0.0801580871597602, &
-          0.1215185706879032, &
-          0.1572031671581935, &
-          0.1855383974779378, &
-          0.2051984637212956, &
-          0.2152638534631578, &
-          0.2152638534631578, &
-          0.2051984637212956, &
-          0.1855383974779378, &
-          0.1572031671581935, &
-          0.1215185706879032, &
-          0.0801580871597602, &
-          0.0351194603317519 /)
-      
-      real, parameter, dimension(30) :: Gqu_t_30 = & 
-      (/  -0.9968934840746495, &
-       -0.9836681232797472, &
-       -0.9600218649683075, &
-       -0.9262000474292743, &
-       -0.8825605357920527, &
-       -0.8295657623827684, &
-       -0.7677774321048262, &
-       -0.6978504947933158, &
-       -0.6205261829892429, &
-       -0.5366241481420199, &
-       -0.4470337695380892, &
-       -0.3527047255308781, &
-       -0.2546369261678899, &
-       -0.1538699136085835, &
-       -0.0514718425553177, &
-       0.0514718425553177, &
-       0.1538699136085835, &
-       0.2546369261678899, &
-       0.3527047255308781, &
-       0.4470337695380892, &
-       0.5366241481420199, &
-       0.6205261829892429, &
-       0.6978504947933158, &
-       0.7677774321048262, &
-       0.8295657623827684, &
-       0.8825605357920527, &
-       0.9262000474292743, &
-       0.9600218649683075, &
-       0.9836681232797472, &
-       0.9968934840746495/)
-      
-      real, parameter, dimension(30) :: Gqu_A_30 = & 
-      (/ 0.0079681924961666, &
-       0.0184664683110910, &
-       0.0287847078833234, &
-       0.0387991925696271, &
-       0.0484026728305941, &
-       0.0574931562176191, &
-       0.0659742298821805, &
-       0.0737559747377052, &
-       0.0807558952294202, &
-       0.0868997872010830, &
-       0.0921225222377861, &
-       0.0963687371746443, &
-       0.0995934205867953, &
-       0.1017623897484055, &
-       0.1028526528935588, &
-       0.1028526528935588, &
-       0.1017623897484055, &
-       0.0995934205867953, &
-       0.0963687371746443, &
-       0.0921225222377861, &
-       0.0868997872010830, &
-       0.0807558952294202, &
-       0.0737559747377052, &
-       0.0659742298821805, &
-       0.0574931562176191, &
-       0.0484026728305941, &
-       0.0387991925696271, &
-       0.0287847078833234, &
-       0.0184664683110910, &
-       0.0079681924961666/)
-      end module Gquadrature
-      
-      module GeometryVars
-      use resultVars, only : Punto
-      integer, save :: n_topo,n_cont,n_vall
-      integer, save :: nXI !total number of original segment nodes 
-      real*8, dimension(:,:,:), allocatable, target, save :: Xcoord_ER
-      real*8, dimension(:,:,:), allocatable, target, save :: Xcoord_Voidonly
-      real*8, dimension(:,:,:), allocatable, target, save :: Xcoord_Incluonly
-      real*8, save :: boxIncl_maxX,boxIncl_maxY,boxIncl_minX,boxIncl_minY
-      real*8, save :: boxVoid_maxX,boxVoid_maxY,boxVoid_minX,boxVoid_minY
-      real,  dimension(1+1) :: surf_poly 
-      real*8, allocatable, save :: midPoint(:,:)
-      real*8, allocatable, save :: normXI(:,:)
-      type (Punto), dimension(:), allocatable, save, target :: origGeom,origGeom_R
-      Type segemntedcoords
-        real*8, dimension(:), allocatable :: x,z !cantidad de nodos de la subdivisión
-      end Type segemntedcoords
-      logical :: staywiththefinersubdivision
-      integer :: finersubdivisionJ, fraccionDeSmallestWL_segm_de_esquina
-      real :: longitudcaracteristica_a
-      end module GeometryVars
-      module wavelets
-      contains 
-      
-      !  The Ricker wavelet on the time domain saved on   Uo
-      subroutine ricker
-      use gloVars, only : PI,UR
-      use waveVars, only : Uo,Ts,Tp,Dt
-      use waveNumVars, only : NPTSTIME
-      implicit none
-      integer :: i
-      real*8 :: A,B
-      Uo = 0;
-      A = nearest(pi*(-Ts) / Tp,1.0)
-      A = nearest(real((A*A-0.5)* exp(- A * A), 8),1.0)
-      if (abs(A) .lt. 0.0001) A = 0
-      Uo(1) = A * UR
-      
-      do i = 2, NPTSTIME/2+1
-      ! NEAREST(X, S) returns the processor-representable number 
-      ! nearest to X in the direction indicated by the sign of S
-        A = nearest(pi*(Dt*(i*1.0_8-1.0_8)-Ts) / Tp,1.0)
-        A = nearest(A * A,1.0)
-        B = nearest(exp(-A),1.0)
-        A = nearest((A - 0.5_8) * B ,1.0)
-        if (abs(A) .lt. 0.0001) A = 0
-        Uo(i) = A * UR
-      end do
-      end subroutine ricker
-      
-      subroutine gaussian
-      use waveVars, only : Uo,sigGaus
-      use waveNumVars, only : NPTSTIME!,nfrec
-      implicit none
-      integer :: i
-      real*8 :: f,s
-      
-      f = 0.0
-      !positivos
-      s = real(sigGaus/100.0 * NPTSTIME/2,8)
-      do i=1, NPTSTIME/2+1
-        f = real(i-1,8) ! Hz
-        Uo(i) = cmplx(exp(-0.5*(f/s)**2.),0.,8)
-      end do
-      !negativos
-      Uo(NPTSTIME/2+2:NPTSTIME) = conjg(Uo(NPTSTIME/2:2:-1))
-      
-      end subroutine gaussian
-      
-      function FFTW(n,Uin,direccion,escala)
-      use waveNumVars,only:planNmaxF,planNmaxB,& 
-                           planNfrecF,planNfrecB,& 
-                           planNtimeF,planNtimeB,&
-                           nfrec,nmax,NPTSTIME
-      use, intrinsic :: iso_c_binding
-      include 'fftw3.f03'
-      integer, intent(in) :: n,direccion
-      complex*16 :: Uin(n)
-      complex*16 :: FFTW(n)
-      real*8,intent(in) :: escala
-      type(C_PTR) :: plan
-      ! El plano creado en checarWisdom a partir del wisdom se reusa
-      if (direccion .lt. 1) then ! forward -1
-      if (n .eq. 2*NFREC) plan = planNfrecF
-      if (n .eq. 2*NMAX) plan = planNmaxF
-      if (n .eq. NPTSTIME) plan = planNtimeF
-      else !backward +1
-      if (n .eq. 2*NFREC) plan = planNfrecB
-      if (n .eq. 2*NMAX) plan = planNmaxB
-      if (n .eq. NPTSTIME) plan = planNtimeB
-      end if
-      ! ejecutar con plan de reuso
-      if (C_ASSOCIATED (plan) .eqv. .false.) stop "fail FFTW_WISDOM_ONLY"
-      call fftw_execute_dft(plan,Uin,FFTW)
-      ! hacia adelante
-      !Uof = Uof * Dt
-      ! hacia atrás
-      !Uot = Uot / (NPTSTIME*dt) ! *DFREC
-      FFTW = FFTW * escala
-      end function FFTW
-      
-!     SUBROUTINE FORK(LX,CX,SIGNI,verbose,outpf)
-!     implicit none
-!     integer, intent(in) :: outpf
-!     integer, intent(in) :: LX,SIGNI,verbose
-!     COMPLEX*16 :: CARG,CW,CTEMP 
-!     complex*16,intent(inout) :: CX(LX)
-!     real*8, parameter :: pi = 4.*ATAN(1.)
-!     real*8 :: SC
-!     integer :: i,j,m,istep,l
-!     if (verbose >= 4) then
-!       write(outpf,'(a,I4,a)')'FFT on ',LX,' length vector'
-!     end if
-!     J=1
-!     SC=DSQRT(real(1.0,8)/real(LX,8))
-!     DO 30 I=1,LX
-!     IF(I > J)GO TO 10
-!     CTEMP=CX(J)*cmplx(SC,0.0,8)
-!     CX(J)=CX(I)*cmplx(SC,0.0,8)
-!     CX(I)=CTEMP
-!  10 M=LX/2
-!  20 IF(J <= M)GO TO 30
-!     J=J-M
-!     M=M/2
-!     IF(M >= 1)GO TO 20
-!  30 J=J+M
-!     L=1
-!  40 ISTEP=2*L
-!     DO 50 M=1,L
-!     CARG=cmplx(0.0,(pi*real(SIGNI*(M-1)))/real(L),8)  
-!     CW=EXP(CARG)
-!     DO 50 I=M,LX,ISTEP
-!     CTEMP=CW*CX(I+L)
-!     CX(I+L)=CX(I)-CTEMP
-!  50 CX(I)=CX(I)+CTEMP
-!     L=ISTEP
-!     IF(L < LX)GO TO 40
-!     RETURN
-!     END subroutine fork
-      end module
-      
-
-      module hank
-      contains
-      
-      SUBROUTINE HANKELS(Z,H0,H1)
-!     Z = COMPLEX ARGUMENT
-!
-!     COMPUTE SECOND KIND HANKEL FUNCTIONS H0 AND H1
-!
-      COMPLEX*16 :: Z,H0,H1,C,A,E,E2,ZH,P
-      real*8 :: X,Y,R,PHI,J,AR
-      X=REAL(Z)
-      Y=AIMAG(Z)
-      R=SQRT(X*X+Y*Y)
-      PHI=ATAN2(Y,X)
-      IF(R.LE.10.0)GO TO 20
-      J=2.0*R
-      C=(0.0,0.1250)/Z
-      K=2
-      P=C*C
-      A=4.5*P
-      P=7.5*P
-      H0=1.0+C+A
-      H1=1.0-3.0*C-P
-10    I=4*K
-      K=K+1
-      DI=I
-      DK=K
-      A=A*C*(DI+1.0/DK)
-      P=P*C*(DI-3.0/DK)
-      H0=H0+A
-      H1=H1-P
-      AR=ABS(REAL(P))+ABS(AIMAG(P))
-      IF(AR.GT.1.E-16.AND.K.LT.J)GO TO 10
-      AR=0.785398163397448-X-PHI/2.0
-      E=0.0
-      IF(Y.GT.-160.0) E=0.7978845608028650/SQRT(R)*EXP(Y)*CMPLX(COS(AR),SIN(AR),8)
-!     IF(X.EQ.0.0)E=CMPLX(0.0,AIMAG(E))
-      IF(abs(X) .lt. 0.00001)E=CMPLX(0.0,AIMAG(E),8)
-      H0=H0*E
-      H1=H1*E*(0.0,1.0)
-      GO TO 23
-20    ZH=Z/2.0
-      C=-ZH*ZH
-      E=CMPLX(0.0,0.3183098861837910,8)
-      E2=E*2.0
-      A=1.0-E2*(0.5772156649015330+LOG(R/2.0))+PHI*0.636619772367582
-      P=1.0
-      K=1
-      H0=A
-      H1=A+E*(1.0-1.0/C)
-25    A=A+E2/K
-      P=P*C
-      H0=H0+A*P
-      K=K+1
-      P=P/(K*K)
-      H1=H1+(A*K+E)*P
-      IF(ABS(REAL(P))+ABS(AIMAG(P)).GT.1.E-16)GO TO 25
-      H1=H1*ZH
-!     IF(X.NE.0.0)GO TO 23
-      IF(abs(X) .gt. 0.00001)GO TO 23
-      H0=CMPLX(0.0,AIMAG(H0),8)
-      H1=CMPLX(REAL(H1),0.0,8)
-23    RETURN
-      END SUBROUTINE HANKELS
-      end module hank
-      
-      module debugStuff
-      contains
-      
-      subroutine showMNmatrixZ(m,n,MAT,name,outpf)
-      integer, intent(in) :: m,n,outpf
-      complex*16, dimension(m,n), intent(in) :: MAT
-      integer :: i,j 
-      character(LEN=5), intent(in) :: name
-      
-      write(outpf,'(A)') trim(name)
-      if (outpf .eq. 6) then
-      do i = 1,m 
-        do j = 1,n 
-          write(outpf,'(A,E9.2,A)',advance='no') "(",REAL(MAT(i,j)),","
-          write(outpf,'(E9.2,A)',advance='no') AIMAG(MAT(i,j)),"i) "
-        end do
-        write(outpf,'(A)',advance='yes')''
-      end do
-      else !a un archivo
-      do i = 1,m
-        do j = 1,n
-          write(outpf,'(EN26.9,1X)',advance='no') REAL(MAT(i,j))
-          write(outpf,'(EN26.9,3X)',advance='no') AIMAG(MAT(i,j))
-        end do
-        write(outpf,'(A)',advance='yes')''
-      end do
-      end if
-      end subroutine
-      !
-      subroutine scripToMatlabMNmatrixZ(m,n,MAT,name,outpf)
-      integer, intent(in) :: m,n, outpf
-      complex*16, dimension(m,n), intent(in) :: MAT
-      integer :: i,j 
-      character(LEN=32), intent(in) :: name
-      
-      write(outpf,'(A,A)') trim(name), " = ["
-      do i = 1,m
-        write(outpf,'(a)',advance='no') "["
-        do j = 1,n
-          write(outpf,'(a,EN26.9,a)',advance='no') "(",REAL(MAT(i,j)),")+("
-          write(outpf,'(EN26.9,a,2X)',advance='no') AIMAG(MAT(i,j)),")*1i"
-        end do
-        write(outpf,'(A)',advance='yes')'];'
-      end do
-      write(outpf,'(a)') "];"
-      
-      end subroutine scripToMatlabMNmatrixZ
-      
-      subroutine showMNmatrixZabs(m,n,MAT,name,outpf)
-      integer, intent(in) :: m,n,outpf
-      complex*16, dimension(m,n), intent(in) :: MAT
-      integer :: i,j 
-      character(LEN=5), intent(in) :: name
-      
-      write(outpf,'(A)') trim(name)
-      do i = 1,m
-        do j = 1,n
-          write(outpf,'(E15.5,2x)',advance='no') ABS(MAT(i,j))
-        end do
-        write(outpf,'(A)',advance='yes')''
-!       write(outpf,'(A)',advance='yes')''
-      end do
-      end subroutine
-      
-      !
-      subroutine showMNmatrixR(m,n,MAT,name,outpf)
-      integer, intent(in) :: m,n ,outpf
-      real, dimension(m,n), intent(in) :: MAT
-      integer :: i,j 
-      character(LEN=5), intent(in) :: name
-      
-      write(outpf,'(A)') trim(name)
-      do i = 1,m
-        do j = 1,n
-          write(outpf,'(F10.5,2x)',advance='no') MAT(i,j)
-        end do
-        write(outpf,'(A)',advance='yes')''
-!       write(outpf,'(A)',advance='yes')''
-      end do
-      end subroutine
-      !
-      subroutine showMNmatrixI(m,n,MAT,name,outpf)
-      integer, intent(in) :: m,n, outpf
-      integer, dimension(m,n), intent(in) :: MAT
-      integer :: i,j 
-      character(LEN=5), intent(in) :: name
-      
-      write(outpf,'(A)') ""
-      write(outpf,'(A)') trim(name)
-      do i = 1,m
-        do j = 1,n
-          write(outpf,'(I0,3x)',advance='no') MAT(i,j)
-        end do
-        write(outpf,'(A)',advance='yes')''
-!       write(outpf,'(A)',advance='yes')''
-      end do
-      write(outpf,'(A)') ""
-      end subroutine
-      
-      end module
-      
-      !another set of functions in case needed
-      
-      module fitting
-      contains
-      
-      function splitatY(surf_poly,degree,Y,aIN,bIN) !SINGLE PRES, REAL
-      ! there is only one intersection.
-      implicit none
-!     integer, parameter           :: dp = selected_real_kind(15, 307)
-      real, dimension(:),intent(in) :: surf_poly
-      real, intent(in) :: Y,aIN,bIN
-      real, allocatable, dimension(:) :: surf_poly0
-      integer, intent(in) :: degree
-      integer :: i
-      real :: a,b,splitatY,af,bf,temp,tmp2,tmp, & 
-                 cx,d,cf,errorTol,s,sf
-      logical :: mflag = .true.
-      errorTol = real(0.000001,8)
-      
-      allocate(surf_poly0(degree+1))
-      a = aIN
-      b = bIN
-      
-      surf_poly0 = surf_poly
-      surf_poly0(1) = surf_poly0(1) - Y
-      
-      !encontramos el cero de surf_poly0 entre a y b
-      af = polyVal(surf_poly0,degree,a)
-      bf = polyVal(surf_poly0,degree,b)
-      ! usamos el método de Brent.
-      if (af*bf >= real(0,8)) then
-        if (af < bf ) then
-          splitatY = af
-        else
-          splitatY = bf
-        end if
-        return
-      else
-        
-        if (abs(af) < abs(bf)) then
-          temp = b
-          b = a
-          a = temp
-          temp = bf
-          bf = af
-          af = temp
-        end if
-        cx = a
-        cf = af
-        mflag = .true.
-        i = 0
-        d = 0.
-        do while( (abs(bf) > errortol) .and. (abs(a-b) > errorTol ) )
-!       do while((.not.(bf == real(0,8) )) .and. (abs(a-b) > errorTol ))
-!          print*,"go_",i
-          if ((abs(af-cf) > errorTol) .and. (abs(bf-cf)>errorTol)) then
-!          if ((af /= cf) .and. (bf /= cf)) then
-          ! interpolación cuadrática inversa
-            s = a * bf * cf / (af-bf) / (af-cf) + & 
-            b*af*cf/(bf-af)/(bf-cf)+cx*af*bf/(cf-af)/(cf-bf)
-          else
-          ! regla de la secante
-            s = b - bf * (b-a)/(bf-af)
-          end if
-          tmp2 = (3.0*a + b)/4.0
-          if ( (.not.(((s > tmp2) .and. (s < b)) .or. & 
-          ((s < tmp2) .and. (s > b))) ) .or. &
-          (mflag .and. ((abs(s-b)) .ge. (abs(b-cx)/2.0 ))) .or. &
-          ((.not. (mflag)) .and. ((abs(s-b)) .ge. (abs(cx-d)/2.0 ))) ) then
-            s = (a+b) / 2.0
-            mflag = .true.
-          else
-            if ((mflag .and. (abs(b-cx)< errorTol)) .or. &
-            ((.not. (mflag)) .and. (abs(cx-d) < errorTol))) then
-              s = (a+b) / 2.0
-              mflag = .true.
-            else
-              mflag = .false.
-            end if
-          end if
-           sf = polyVal(surf_poly0,degree,s)
-           d = cx
-           cx = b
-           cf = bf
-!          if (af * sf < real(0,8)) then
-           if (af * sf < errorTol) then
-             b = s
-             bf = sf
-           else
-             a = s
-             af = sf
-           end if
-           if (abs(af) < abs(bf)) then
-             tmp = a
-             a = b
-             b = tmp
-             tmp = af
-             af = bf
-             bf = tmp
-           end if
-           i = i + 1
-           if (i> 1000) then
-             !error
-             b = real(0.123456789)
-             exit
-           end if
-        end do
-      splitatY = b
-      end if
-      end function splitatY
-      
-      
-      ! function evaluation
-      function polyVal(surf_poly,degree,X) ! SINGLE, REAL
-      implicit none
-!     integer, parameter           :: dp = selected_real_kind(15, 307)
-      real, dimension(:),intent(in) :: surf_poly
-      integer, intent(in) :: degree 
-      real, intent(in) :: X
-      real :: polyVal
-      integer :: i
-      
-      !surfo_poly are the polynomial coefficients: A0 A1 A2...An
-      polyVal = surf_poly(1) !A0
-      DO i = 1,degree
-      polyVal = polyVal + X**i * surf_poly(i+1)
-      end do
-      
-      end function
-      
-      !fit a polynomial Anx^n + ... + A2x^2 + A1x + A0 = 0
-      !of degree 'd' to data: (vx,vy)
-      ! coefficients are orthered from the lower power: A0 A1 A2 .. AN
-      ! http://rosettacode.org/wiki/Polynomial_regression#Fortran
-      function polyfit(vx,vy,Ln,d,verbose,outpf) ! DOUBLE, REAL
-      implicit none
-      integer, intent(in)               :: verbose,outpf
-      integer, intent(in)               :: Ln, d
-      real*8, dimension(d+1)              :: polyfit
-      real*8, dimension(:), intent(in)    :: vx, vy
-      real*8, dimension(:,:), allocatable :: X
-      real*8, dimension(:,:), allocatable :: XT
-      real*8, dimension(:,:), allocatable :: XTX
-      integer :: i, j
-      integer :: n, lda, lwork
-      integer :: info
-      integer, dimension(:), allocatable :: ipiv
-      real*8, dimension(:), allocatable :: work
-      
-      n = d+1
-      lda = n
-      lwork = n
- 
-      allocate(ipiv(n))
-      allocate(work(lwork))
-      allocate(XT(n, Ln))
-      allocate(X(Ln, n))
-      allocate(XTX(n, n))
-      
-      if (verbose >= 1) then
-        write(outpf,*)"fitting curve.."
-      end if !
-      if (verbose >= 4) then
-       write(outpf,'(a)')"begin curve fit with:"
-       write(outpf,'(a,I4)')"vx: of size:",size(vx)
-       write (outpf, '(F9.4)') vx
-       write(outpf,'(a,I4)')"vy: of size:",size(vy)
-       write (outpf, '(F9.4)') vy
-      end if
-      
-      ! prepare the matrix
-      do i = 0, d
-       do j = 1, size(vx)
-          X(j, i+1) = vx(j)**i
-       end do
-      end do
-      if (verbose >= 4) then
-       write(outpf,'(a,I4,a,I4,a)') & 
-                              "X: size, (",size(X,1),',',size(X,2),')'
-       write(outpf,*) X
-      end if
-      
-      XT  = transpose(X)
-      XTX = matmul(XT, X)
-      if (verbose >= 4) then
-       write(outpf,'(a,I4,a,I4,a)') & 
-                         "XTX: size, (",size(XTX,1),',',size(XTX,2),')'
-       write(outpf,*)XTX
-      end if
-      
-      ! calls to LAPACK subs DGETRF and DGETRI
-      ! factorizacion LU
-      call DGETRF(n, n, XTX, & 
-                  lda, ipiv, info)
-      if (verbose >= 4) then
-       write(outpf,'(a)')"DGETRF (XTX):"
-       write (outpf, '(E12.3)') XTX
-      end if
-      !
-      if ( info /= 0 ) then
-       write(outpf,*) "problem DGETRF =",info
-       stop 1
-      end if
-      ! inversa de la matriz 
-      call DGETRI(n, XTX, lda, ipiv, work, lwork, info)
-      if (verbose >= 4) then
-       write(outpf,'(a)')"DGETRI (XTX):"
-       write (outpf, '(F9.4)') XTX
-      end if
-      
-      if ( info /= 0 ) then
-       write(outpf,'(a)') "problem DGETRI =",info
-       stop 1
-      end if
- 
-      polyfit = matmul( matmul(XTX, XT), vy)
-      deallocate(ipiv)
-      deallocate(work)
-      deallocate(X)
-      deallocate(XT)
-      deallocate(XTX)
-      if (verbose >= 4) then
-       write(outpf,'(a)')'polyfit='
-       write (outpf, '(E12.3)') polyfit
-      end if!
-      if (verbose .ge. 4) then
-      !fit a polynomial Anx^n + ... + A2x^2 + A1x + A0 = 0
-      !of degree 'd' to data: (vx,vy)
-      ! coefficients are orthered from the lower power: A0 A1 A2 .. AN
-       write(outpf,'(a)', ADVANCE = "NO") "0 ="
-       do i=1,d+1
-          write(outpf,'(ES12.3,a,I0)', ADVANCE = "NO") polyfit(i),"x^",i-1
-       end do
-      end if
-      end function polyfit
-      
-      function Zpolyfit(vx,vy,Ln,d) ! complex*16, dimension(d+1) 
-      use glovars, only : verbose, outpf => PrintNum
-      implicit none
-      real*8,     dimension(:), intent(in)    :: vx
-      complex*16, dimension(:), intent(in)    :: vy
-      integer, intent(in)                     :: d, Ln
-      complex*16, dimension(d+1)              :: zpolyfit
-      
-      complex*16, dimension(:,:), allocatable :: X
-      complex*16, dimension(:,:), allocatable :: XT
-      complex*16, dimension(:,:), allocatable :: XTX
-      integer :: i, j
-      integer :: n, lda, lwork
-      integer :: info
-      integer, dimension(:), allocatable :: ipiv
-      complex*16, dimension(:), allocatable :: work
-      
-      n = d+1
-      lda = n
-      lwork = n
- 
-      allocate(ipiv(n))
-      allocate(work(lwork))
-      allocate(XT(n, Ln))
-      allocate(X(Ln, n))
-      allocate(XTX(n, n))
-      
-      if (verbose >= 4) then
-        write(outpf,*)"fitting curve.."
-      end if !
-      
-      ! prepare the matrix
-      do i = 0, d
-       do j = 1, Ln
-          X(j, i+1) = vx(j)**i
-       end do
-      end do
-      XT  = transpose(X)
-      XTX = matmul(XT, X)
-      
-      ! calls to LAPACK subs DGETRF and DGETRI
-      ! factorizacion LU
-      call ZGETRF(n, n, XTX, lda, ipiv, info)
-      if ( info /= 0 ) then
-       
-       print*,Ln
-       print*,vx
-       write(6,*) "Zpolyfit :problem ZGETRF =",info
-       stop 
-      end if
-      ! inversa de la matriz 
-      call ZGETRI(n, XTX, lda, ipiv, work, lwork, info)
-      if ( info /= 0 ) then
-       write(6,'(a)') "Zpolyfit :problem ZGETRI =",info
-       stop 
-      end if
- 
-      zpolyfit = matmul( matmul(XTX, XT), vy(1:Ln))
-      deallocate(ipiv)
-      deallocate(work)
-      deallocate(X)
-      deallocate(XT)
-      deallocate(XTX)
-      if (verbose .ge. 4) then
-      !fit a polynomial Anx^n + ... + A2x^2 + A1x + A0 = 0
-      !of degree 'd' to data: (vx,vy)
-      ! coefficients are orthered from the lower power: A0 A1 A2 .. AN
-       write(outpf,'(a)', ADVANCE = "NO") "0 ="
-       do i=1,d+1
-          write(outpf,'(a,ES12.3,a,ES12.3,a,I0)', ADVANCE = "NO") & 
-          'polyfit= ',real(zpolyfit(i))," i",aimag(zpolyfit(i)),"x^",i-1
-       end do
-      end if
-      end function Zpolyfit
-      
-      function Zevapol(po,d,x)
-      implicit none
-      integer, intent(in)                     :: d
-      complex*16, dimension(d+1)              :: po
-      real*8 :: x
-      complex*16 :: Zevapol
-      integer :: i
-      Zevapol = po(1)
-      do i =2,d+1
-        Zevapol = Zevapol + po(i)* x**(i-1)
-      end do
-      end function Zevapol
-      
-      !normal vectors to surf_poly at the nXI points (x,y) 
-      function normalto(x,y,nXI,surf_poly,degree,verbose,outpf)
-      implicit none
-      integer,intent(in)      :: verbose,outpf
-      integer, intent(in)     :: degree 
-!     integer, parameter      :: dp = selected_real_kind(15, 307)
-      real, intent(in), dimension(degree+1) :: surf_poly !surface 
-      integer :: nXI !number of points
-      real, intent(in), dimension(nXI) :: x,y !points coordinates
-      
-      integer :: i,j
-      real*8, allocatable :: normalto(:,:) !function result value
-      real*8, parameter      :: a = real(1,8) ! normal poing up parameter
-!     real*8, parameter      :: tolerance = real(0.001,8) !to tell if its vertical
-      real*8, dimension(degree) :: fprime !surf_poly derivative coeficients
-      real*8 :: fprimeX, x0, mag 
-      
-      ALLOCATE (normalto(nXI,2))
-      if(verbose >= 1)then
-       write(outpf,'(a)',advance='no') "  ...getting the normal vectors"
-      end if
-      ! the normal line to curve f(x) = An x^n + ... + A1 x + A0 
-      ! is y = y1 - 1 / (f'(x1)) (x - x1) 
-      ! if we want the normal vectors pointing up (bigger 'y')
-      ! we force   y = y1 + a   and we find x in terms of x1
-      
-      ! f'(x) coefficients
-      do i = degree,1,-1
-!      write(outpf,*)'i=',i
-       fprime(i)= real(i,8) * surf_poly(i+1) 
-      end do
-      if (verbose >= 4 ) then
-       write(outpf,'(a)')'surf_poly=A0,A1,...,AN '
-       write(outpf,'(F9.4)') surf_poly
-       write(outpf,'(a)')'f_prime_(x) A0 A1 ... An '
-       write(outpf,'(ES9.4/)') fprime
-      end if
-      
-      do i = 1,nXI !for every point
-      !the derivative at (xi)
-       fprimeX = real(0,8)
-       do j = size(fprime),2,-1
-         fprimeX = fprimeX + fprime(j) * x(i)**(j-1)
-       end do
-       fprimeX = fprimeX + fprime(1)
-       x0 = x(i) - a * fprimeX
-       
-       !normalizar y poner como vector
-       mag = sqrt((x(i)-x0)**2 + a**2)
-       
-       normalto(i,1)= (x0-x(i))/mag
-       normalto(i,2)= a/mag
-       
-       if (verbose >= 4) then
-         write(outpf,'(A,f7.2,A,f7.2,A,/A,f6.1,A,f6.1,/A,f6.2,A,f6.2)') &
-         "(",x(i),",",y(i),")","x0= ",x0,"  y0= ",y(i)+a, &
-         "nx=",normalto(i,1),"  ny=",normalto(i,2)
-       end if
-       
-       
-       
-      end do
-      
-      if(verbose >= 1)then
-       write(outpf,'(a)',advance='yes') " ... done"
-      end if
-      
-      ! if by incrementing  y = y1 + a the value becomes infinite, then
-      ! it is a vertical surface.                                     TODO
-      
-      
-      end function normalto
-      
-      
-!     subroutine makeTaperFuncs_cutF_cutK!(dir)
-!     use resultvars, only: Hf!,Hk 
-!     use waveNumVars, only : NFREC,DFREC!,NMAX,DK
-!     use dislin
-!     implicit none
-!     integer, intent(in) :: dir
-!     integer, parameter :: NpolF = 19
-!     integer, parameter :: NpolK = 20
-!     real, parameter :: cutoff_fracFmax = 0.92
-!     real, parameter :: cutoff_fracKmax = 0.8
-!     integer :: i
-!     
-!     if(.not. allocated(Hf)) allocate(Hf(NFREC+1))
-!     if(.not. allocated(Hk)) allocate(Hk(NMAX*2))
-!        
-!        Hf = (/ (i,i=0,nfrec) /) * DFREC
-!        Hf = 1.0/sqrt(1.0+(Hf/(cutoff_fracFmax*NFREC*DFREC))**(2*NpolF)) 
-         
-         
-!!        Hf = 1.0_8
-!        
-!        Hk(1:nmax+1) = (/ (cmplx(i,0,8),i=0,nmax) /) * DK
-!        Hk(nmax+2:2*nmax) = (/ (cmplx(i,0,8),i=nmax-1,1,-1) /) * DK 
-!        HK = 1.0/sqrt(1.0+(Hk/(cutoff_fracKmax*NMAX*DK))**(2*NpolK))
-!        
-!        if (dir .eq. 2) then
-!          Hk = 1.0_8/1.135_8  !SH
-!        else
-!!          Hk = 1.0_8/3.385_8 ! dk = 0.00343750
-! !         Hk = 1.0_8/2.3_8    !PSV ! 256  Kmax = 14.07 nK = 2048 dk = 0.006875
-!  !        Hk = 1.0_8/1.155_8  !PSV ! 512  Kmax = 28.15 nK = 2048 dk = 0.01375
-!   !       Hk = 1.0_8/0.595_8  !PSV ! 1024 Kmax = 56.29 nK = 2048 dk = 0.0275
-!          HK = HK * 1.0_8/(6100.275482093669_8 * dk * dk & 
-!                      - 0292.363636363636 * dk &
-!                      + 0004.021666666667)
-!        end if
-         
-!!        CALL SETFIL('tapperK.pdf')
-! !       call qplot((/(1.0*i,i=1,nmax*2)/),real(Hk,4),2*nmax)
-!  !      stop
-!         CALL SETFIL('tapperF.pdf')
-!         call qplot((/(1.0*i,i=1,NFREC+1)/),real(Hf,4),NFREC+1)
-!     !   stop
-!     end subroutine makeTaperFuncs_cutF_cutK  
-      
-      subroutine spline3p(x,y,n01,n12,x0,y0,x1,y1,x2,y2)
-      ! interpolación con spline de 3 puntos
-      !    0     1         2    :  nodos
-      !    1 2 3 4 5 6 7 8 9    :  vector interpolado
-      !    <---> <--------->
-      !     n01      n12 
-      implicit none
-      integer, intent(in) :: n01,n12 !puntos entre nodos,incluidos los 3 nodos
-      real*8, intent(inout), dimension(n01+n12) :: x
-      complex*16, intent(inout), dimension(n01+n12) :: y
-      complex*16, intent(in) :: y0,y1,y2
-      real*8, intent(in) :: x0,x1,x2
-      integer :: i
-      complex*16, dimension(3,3) :: A
-      complex*16, dimension(3) :: B
-      complex*16 :: a1,b1,a2,b2,t
-      integer, dimension(3) :: ipiv
-      complex*16, dimension(3) :: work
-      integer :: info
-      integer :: lwork
-      A = 0
-      A(1,1) = 2 / (x1-x0)
-      A(1,2) = 1 / (x1-x0)
-      A(2,1) = 1 / (x1-x0)
-      A(2,2) = 2*(1/(x1-x0) + 1/(x2-x1))
-      A(2,3) = 1 / (x2-x1)
-      A(3,2) = 1 / (x2-x1)
-      A(3,3) = 2 / (x2-x1)
-      B(1) = 3*(y1-y0) / (x1-x0)**2
-      B(2) = 3*((y1-y0)/(x1-x0)**2 + (y2-y1)/(x2-x1)**2)
-      B(3) = 3*(y2-y1)/ (x2-x1)**2
-      ! resolver y obtener ko, k1, k2
-      lwork = 3*3
-      call zgetrf(3,3,A,3,ipiv,info)
-      call zgetri(3,A,3,ipiv,work,lwork,info)
-      if(info .ne. 0) stop "Problem at inverse of SPLINE3P matrix "
-      B = matmul(A,B)!     print*,B
-      a1 = B(1)*(x1-x0) - (y1-y0)!; print*,a1
-      b1 = -B(2)*(x1-x0) + (y1-y0)!; print*,b1
-      a2 = B(2)*(x2-x1) - (y2-y1)!; print*,a2
-      b2 = -B(3)*(x2-x1) + (y2-y1)!; print*,b2
-      y(1) = y0
-      do i = 2,n01
-      t = (x(i)-x0) / (x1-x0)
-      ! en puntos intermedios a x0 y x1
-      y(i) = (1-t)*y0 + t * y1 + t * (1- t)* (a1*(1-t)+b1*t)
-      end do!
-      y(n01+1) = y1
-      do i = n01+2,n01+n12-1
-      t = (x(i)-x1) / (x2-x1)
-      ! en puntos intermedios a x1 y x2
-      y(i) = (1-t)*y1 + t * y2 + t * (1- t)* (a2*(1-t)+b2*t)
-      end do
-      y(n01+n12) = y2
-      end subroutine spline3p
-      
-      subroutine splineIn(x,y,n01,n12,x0,y0,x1,y1,x2,y2)
-      use debugstuff
-      ! interpolación con spline de 3 puntos
-      !    0     1         2    :  nodos
-      !    1 2 3 4 5 6 7 8 9    :  vector interpolado
-      !    <---> <--------->
-      !     n01      n12 
-      implicit none
-      integer, intent(in) :: n01,n12 !puntos entre nodos,incluidos los 3 nodos
-      integer, intent(inout), dimension(n01+n12) :: x
-      integer, intent(inout), dimension(n01+n12) :: y
-      integer, intent(in) :: y0,y1,y2
-      integer, intent(in) :: x0,x1,x2
-      integer :: i
-      real, dimension(3,3) :: A
-      real, dimension(3) :: B
-      real :: a1,b1,a2,b2,t
-      integer, dimension(3) :: ipiv
-      real, dimension(3) :: work
-      integer :: info
-      integer :: lwork
-!     print*,"spline3pIn"
-!     print*,n01,n12
-!     print*,x0,y0
-!     print*,x1,y1
-!     print*,x2,y2
-      A(1,1) = 2. / (x1-x0)
-      A(1,2) = 1. / (x1-x0)
-      A(1,3) = 0.
-      A(2,1) = 1. / (x1-x0)
-      A(2,2) = 2.*(1./(x1-x0) + 1./(x2-x1))
-      A(2,3) = 1. / (x2-x1)
-      A(3,1) = 0.
-      A(3,2) = 1. / (x2-x1)
-      A(3,3) = 2. / (x2-x1)
-      B(1) = 3.*(y1-y0) / (x1-x0)**2.
-      B(2) = 3.*(1.*(y1-y0)/(x1-x0)**2. + 1.*(y2-y1)/(x2-x1)**2.)
-      B(3) = 3.*(y2-y1)/ (x2-x1)**2.
-      
-      ! resolver y obtener ko, k1, k2
-      lwork = 3*3
-!     call showMNmatrixR(3,3,A,"  A  ",6)
-!     call showMNmatrixR(3,1,B,"  B  ",6)
-      call sgetrf(3,3,A,3,ipiv,info)
-!     if(info .ne. 0) stop "Problem at LU of SPLINE3P matrix "
-      call sgetri(3,A,3,ipiv,work,lwork,info)
-!     if(info .ne. 0) stop "Problem at inverse of SPLINE3P matrix "
-      B = matmul(A,B)!     print*,B
-      a1 = B(1)*(x1-x0) - 1.*(y1-y0)!; print*,a1
-      b1 = -B(2)*(x1-x0) + 1.*(y1-y0)!; print*,b1
-      a2 = B(2)*(x2-x1) - 1.*(y2-y1)!; print*,a2
-      b2 = -B(3)*(x2-x1) + 1.*(y2-y1)!; print*,b2
-      y(1) = y0
-      do i = 2,n01
-      t = 1.*(x(i)-x0) / (x1-x0)
-      ! en puntos intermedios a x0 y x1
-      y(i) = int((1.-t)*y0 + t * 1.*y1 + t * (1.- t)* (a1*(1.-t)+1.*b1*t))
-      end do!
-      y(n01+1) = y1
-      do i = n01+2,n01+n12-1
-      t = 1.*(x(i)-x1) / (x2-x1)
-      ! en puntos intermedios a x1 y x2
-      y(i) = int((1.-t)*y1 + t * 1.*y2 + t * (1.- t)* (a2*(1.-t)+1.*b2*t))
-      end do
-      y(n01+n12) = y2
-      end subroutine splineIn
-      
-      end module
-      
-      module ploteo10pesos
-      contains
-      
-      subroutine plotSpectrum(y_in,Df,full_n,n,titleN,xAx,yAx,logflag,W,H,maxfrec)
-      ! (Uo,DFREC,size(Uo),size(Uo)/2.0,titleN,xAx,yAx,logflag,1200,800,maxfrec)
-      use DISLIN
-      implicit none
-      real, intent(in)                              :: Df,maxfrec
-      integer, intent(in)                           :: full_n,n,H,W
-      character(LEN=100), intent(in)                 :: xAx
-      character(LEN=100), intent(in)                 :: yAx
-      character(LEN=9)                             :: logflag
-      character(LEN=100)                            :: titleN
-      COMPLEX*16, DIMENSION(full_n), intent(in) :: y_in
-      complex,    dimension(:), allocatable :: y
-      real,       dimension(:), allocatable :: x
-      real maxY,minY,maxYc,minYc,xstep,ystep
-      integer :: i
-      character(LEN=100) :: dumb
-      CHARACTER(LEN=6)  :: CBUF
-!     character(LEN=100),parameter :: f1='(F50.16,2x,F50.16)'
-      allocate(x(n))
-      allocate(y(n))
-      DO i = 1,n
-        x(i) = Df*(i-1)
-        y(i) = cmplx(real(y_in(i)),aimag(y_in(i)),4) 
-!       !write(6,*) x(i), y(i)
-      END DO
-      
-!     
-      minY=MINVAL(real(y(:)),1)
-!     !write(6,*)"MinReal Val= ",minY
-      maxY=MAXVAL(real(y(:)),1)
-!     !write(6,*)"MaxReal Val= ",maxY
-      minYc=MINVAL(aimag(y(:)),1)
-!     !write(6,*)"MinComplex Val= ",minYc
-      maxYc=MAXVAL(aimag(y(:)),1)
-!     !write(6,*)"MaxComplex Val= ",maxYc
-      minY =MIN(minY,minYc)
-      maxY =MAX(maxY,maxYc)
-!     !write(6,*)"MinY Val= ",minY
-!     !write(6,*)"MaxY Val= ",maxY
-      
-      logflag = trim(adjustl(logflag))
-      if (trim(logflag) == 'logx') then
-       logflag = 'X'
-       ! los ceros no son muy populares:
-       x(1)=x(2)/2.
-      elseif (trim(logflag) == 'logy') then
-       logflag = 'Y'
-!     ! minY =MIN(minY,minYc,-0.1)
-!     ! maxY =MAX(maxY,maxYc, 0.1)
-      elseif (trim(logflag) == 'loglog') then
-       logflag = 'XY'
-       ! los ceros no son muy populares:
-       x(1)=x(2)/2.
-!     ! minY =MIN(minY,minYc,-0.1)
-!     ! maxY =MAX(maxY,maxYc, 0.1)
-      else
-       logflag = 'none'
-      end if
-      
-      
-      
-      ! Dislin plotting routines 
-      CALL METAFL('PDF') !define intended display  XWIN,PS,EPS,PDF
-!     !write(titleN,'(a,a)') trim(titleN),'.eps' 
-!     !titleN = trim(titleN)
-!     !titleN = trim(titleN)
-      CALL SETFIL(trim(adjustl(titleN)))
-      call filmod('DELETE') ! para sobreescribir el archivo
-      CALL SETPAG('DA4P')
-      CALL PAGE(int(W+1200,4),int(H+350,4))
-      CALL PAGMOD('NONE')
-      CALL DISINI() ! dislin initialize 
-      call errmod ("all", "off")
-!     !CALL PAGERA() ! plots a page border
-      CALL COMPLX ! sets a complex font
-      CALL TEXMOD ('ON') ! latex!!
-      CALL HWFONT()
-      CALL axspos (int(370,4) ,int(H+100,4)) !Axis system pos. Lower left corner
-      call axslen (int(W,4) ,int(H,4)) !size of the axis system.
-      call name(trim(xAx),'X') 
-      call name(trim(yAx),'Y') 
-      call labels('EXP','Y')
-      call labdig(int(1,4),'X') !number of decimal places for labels
-      call labdig(int(1,4),'Y')
-      call ticks (int(5,4) ,'XY') 
-!     !call titlin ( titleN , 1 )
-      xstep = x(n) /6. ! increment for labels 
-      ystep = (maxY-minY)/6.0
-      if (maxY * minY < 0.0) then
-       maxY = max(abs(minY),abs(maxY))
-       minY = -1.0 * maxY
-       ystep = (maxY-minY)/2.0
-       maxY = maxY - mod(maxY,ystep)
-       minY = -1.0 * maxY
-       ystep = (maxY-minY)/6.0
-       maxY = maxY + ystep
-       minY = -1.0 * maxY
-      end if
-      
-      !
-      if (logflag == 'Y') then
-        CALL AXSSCL('LOG',trim(logflag))
-!       !print*,x(n)
-!       !print*,log10(x(n))
-        call graf(real(x(1),4),real(x(n),4) &
-             ,real(x(1),4) ,real(xstep,4) &
-             ,real(-7.0,4),real(log10(maxY),4) &
-             ,real(-7.0,4),real(1.0,4))  
-             
-      elseif (logflag == 'X' .or. logflag == 'XY') then
-        CALL AXSSCL('LOG',trim(logflag))
-        call graf(real(-2.0,4),real(log10(x(n)),4) &
-             ,real(-2.0,4) ,real(1.0,4) &
-             ,real(minY,4),real(maxY,4) &
-             ,real(minY,4),real(ystep,4))
-      else
-        call graf(real(0.0,4),real(x(n),4), & 
-                  real(0.0,4),real(max(1.0,xstep),4), &
-                  real(minY,4),real(maxY,4), & 
-                  real(minY,4),real(ystep,4))
-      end if
-      
-      
-      call color ('RED')
-      call curve(real(abs(x),4) ,real(y,4) ,int(n,4))
-      call color('BLUE')
-      call curve(real(abs(x),4), real(aimag(y),4), int(n,4))
-      call color ('FORE') 
-      call curve(real(abs(x),4), & 
-                    real(sqrt(real(y)**2.0 +aimag(y)**2.0),4), int(n,4))
-!     
-!     maxfrec
-      call color ('FORE') 
-      call rline(real(maxfrec,4),real(minY,4), & 
-                 real(maxfrec,4),real(maxY,4))
-!     
-      call dash() !sets a dashed line style
-      call xaxgit() !plots the line Y=0
-      
-!     
-!     
-      call legini(CBUF,int(3,4),int(20,4))
-!     !nx = nxposn(x(n) + x(n) / 20.)
-!     !ny = nyposn(minY + (maxY-minY)*0.7)
-!     !print*,nx
-!     !print*,ny
-      call legpos(int(1600,4),int(320,4))
-      write(dumb,'(a)') 'Re(z) '
-!     !print*,dumb
-      call leglin(CBUF,dumb,int(1,4))
-      write(dumb,'(a)') 'Im(z) '
-!     !print*,dumb
-      call leglin(CBUF,dumb,int(2,4))
-      write(dumb,'(a)') 'Abs(z)'
-!     !print*,dumb
-      call leglin(CBUF,dumb,int(3,4))
-      
-      call legtit('') ! or '' for nothing
-      call legend(CBUF,int(3,4))
-!     
-      call disfin()
-      
-!     print*,'plotted ',trim(titleN)
-!     !print*,''
-      deallocate(x,y)
-      end subroutine plotSpectrum
-      
-                            
-      subroutine plotXYcomp(y_in,Dt,n,titleN,xAx,yAx,CTIT,W,H,ma)
-      ! (Uo,Dt,size(Uo),'FIGURE_NAME.pdf','time[sec]','amplitude',1200,800) 
-      USE DISLIN
-!     use glovars, only : pi
-      implicit none
-      real, intent(in)                              :: Dt,ma
-      integer, intent(in)                           :: n,H,W
-      character(LEN=9), intent(in)                  :: xAx
-      character(LEN=100), intent(in)                :: yAx
-      character(LEN=100)                            :: titleN
-      COMPLEX*16, DIMENSION(n), intent(in) :: y_in
-      complex,    dimension(n)             :: y
-      real             :: yr,yi
-      character(LEN=50) :: tx
-      
-      real, dimension(n) :: x
-      real maxY,minY,xstep,ystep,maxYc,minYc,val
-      integer :: i,nPow10x,nPow10y,signo
-!     integer :: Modo,nx,ny
-      character(LEN=100) :: dumb
-      CHARACTER(LEN=30) :: CBUF
-      character(LEN=100) :: CTIT
-!     integer*4 :: lentitle
-!     character(LEN=100),parameter :: f1='(F50.16,2x,F50.16)'
-      
-      
-!     allocate(x(n))
-!     print*,size(y)
-      
-      ! para que se vea el texto en los ejes si es muy pequeño en formato F3.1
-      nPow10x = 0
-      if (Dt *(n-1) < 0.6) then
-        do i = 1,10
-          if (Dt *(n-1)*(10.0**i) > 1.0) then
-            exit
-          end if 
-        end do 
-        nPow10x = i
-        
-      elseif (Dt * (n-1) > 6000.) then  
-        do i = 1,10
-          if (Dt *(n-1)*(10.0**(-i)) < 1000.0) then
-            exit
-          end if
-        end do
-        nPow10x = -i
-      end if
-      DO i = 1,n
-        x(i) = Dt*(i-1)*(10.0**(nPow10x))
-        write(tx,'(EN18.2,2x,EN18.2)') real(y_in(i)),aimag(y_in(i))
-        read(tx,*) yr,yi
-        y(i) = cmplx(yr,yi)
-      END DO
-      if (abs(ma) .lt. 0.001_4) then
-      minY=minval(real(y(:)),1)
-!     write(6,*)"MinReal Val= ",minY
-      maxY=MAXVAL(real(y(:)),1)
-!     write(6,*)"MaxReal Val= ",maxY
-      minYc=MINVAL(aimag(y(:)),1)
-!     write(6,*)"MinComplex Val= ",minYc
-      maxYc=MAXVAL(aimag(y(:)),1)
-!     write(6,*)"MaxComplex Val= ",maxYc
-      minY =MIN(minY,minYc)
-      maxY =MAX(maxY,maxYc)
-      else
-      maxy = ma
-      miny = -ma
-      end if
-      val = max(abs(miny),abs(maxy))
-      signo = 1
-      if (miny*maxy < 0) then
-        if (val - maxy > 0.0001) signo = -1
-      else
-        if (maxy < 0.0)  signo = -1
-      end if
-      nPow10y = 0
-      do i = 1,10
-!       if (
-      end do
-!     print*,"plotting"
-! Dislin plotting routines ...
-      CALL METAFL('PDF') !define intended display XWIN,PS,EPS,PDF
-!     write(titleN,'(a,a)') trim(titleN),'.eps' 
-!     titleN = trim(titleN)
-!     titleN = trim(titleN)
-      CALL SETFIL(trim(adjustl(titleN)))
-!     print*,"file: ",trim(adjustl(titleN))
-      call filmod('DELETE') ! para sobreescribir el archivo
-      CALL SETPAG('DA4P')
-      CALL PAGE(int(W+1200,4),int(H+350,4))
-      CALL PAGMOD('NONE')
-      CALL DISINI() ! dislin initialize
-      call errmod ("all", "off") 
-!     CALL PAGERA() ! plots a page border
-      CALL COMPLX ! sets a complex font
-      CALL TEXMOD ('ON') ! latex!!
-      CALL HWFONT()
-      CALL axspos (int(380,4) ,int(H+100,4)) !the position of an axis system. Lower left corner
-      call axslen (int(W+650,4) ,int(H,4)) !size of the axis system.
-      if (nPow10x .ne. 0) then
-       write(dumb,'(a,a,I0)') trim(xAx),'x10^',(nPow10x *(-1))
-       call name(trim(dumb),'X')
-      else
-       call name(trim(xAx),'X') 
-      end if
-      call name(trim(yAx),'Y') 
-      call labels('EXP','Y')
-      call labdig(int(2,4),'X') !number of decimal places for labels
-      call labdig(int(1,4),'Y')
-      call ticks (int(10,4) ,'X') 
-      call ticks (int(5,4) ,'Y') 
-!     call titlin ( titleN , 1 )
-      xstep = x(n)/6.0 ! incremen for labels
-      ystep = (maxY-minY)/6.0
-      
-      if (maxY * minY < 0.0) then
-       maxY = max(abs(minY),abs(maxY))
-       minY = -1.0 * maxY
-       ystep = (maxY-minY)/2.0 !solo 3 etiquetas
-       maxY = maxY - mod(maxY,ystep)
-       minY = -1.0 * maxY
-       ystep = (maxY-minY)/6.0
-       maxY = maxY + ystep
-       minY = -1.0 * maxY
-      end if
-      
-      
-      
-      
-!     print*,"maxmin= ",maxy,miny
-      call graf(real(x(1),4), & 
-                real(x(n)+x(2),4), & 
-                real(x(1),4), & 
-                real(xstep,4), & 
-                real(minY,4), & 
-                real(maxY,4), & 
-                real(minY,4), & 
-                real(ystep,4)) 
-      
-!     call title 
-      call color ('RED') 
-      call curve(real(x,4) ,real(y,4) ,int(n,4))
-      call color('BLUE')
-      call curve(real(x,4), real(aimag(y),4), int(n,4))
-      call color ('FORE') 
-      call dash() !sets a dashed line style
-      call xaxgit() !plots the line Y=0
-      
-      call legini(CBUF,int(2,4),int(20,4))
- !     nx = nxposn(x(n)*n + x(n)*n / 20.)
- !     ny = nyposn(minY + (maxY-minY)*0.7)
- !     print*,nx
- !     print*,ny
-      if (maxval(abs(aimag(y))) .gt. 0.05*maxval(abs(real(y)))) then
-      call legpos(int(1840,4),int(720,4))
-      write(dumb,'(a)') 'Re(z)'
- !     print*,dumb
-      call leglin(CBUF,dumb,int(1,4))
-      write(dumb,'(a)') 'Im(z)'
- !     print*,dumb
-      call leglin(CBUF,dumb,int(2,4))
-      call legtit('') ! or '' for nothing
-      call legend(CBUF,int(2,4))
-      end if
-      
-!     write(CTIT,'(a,ES11.4E2,a)') 'dt=',Dt,' seg'
-!     lentitle = NLMESS(CTIT)
-!     CALL MESSAG(CTIT,int((1700),4),int(200,4))
-      CALL MESSAG (CTIT, int(900,4), int(110,4))
-!     call errmod ("protocol", "off") !suppress dislin info
-      call disfin()      
-      
-!     print*,'plotted ',trim(titleN)
-      end subroutine plotXYcomp
-      
-      subroutine plotXYabs(y_in,Dt,n,titleN,xAx,yAx,W,H)
-      ! (Uo,Dt,size(Uo),'FIGURE_NAME.pdf','time[sec]','amplitude',1200,800) 
-      USE DISLIN
-      implicit none
-      real, intent(in)                              :: Dt
-      integer, intent(in)                           :: n,H,W
-      character(LEN=9), intent(in)                 :: xAx
-      character(LEN=100)                            :: titleN,yAx
-      COMPLEX*16, DIMENSION(n), intent(in) :: y_in
-      complex,    dimension(n)             :: y
-      
-      real, dimension(n) :: x
-      real maxY,minY,xstep,ystep
-      integer :: i
-!     integer :: Modo,nx,ny
-      character(LEN=100) :: dumb
-      CHARACTER(LEN=30) :: CBUF
-!     character(LEN=100),parameter :: f1='(F50.16,2x,F50.16)'
-!     
-      
-!     allocate(x(n))
-!     print*,size(y)
-      DO i = 1,n
-        x(i) = Dt*(i-1)
-        y(i) = cmplx(real(y_in(i)),aimag(y_in(i)),4) 
-!       write(6,*) x(i), y(i)
-      END DO
-      
-!     minY=MINVAL(real(y(:)),1)
-!     write(6,*)"MinReal Val= ",minY
-!     maxY=MAXVAL(real(y(:)),1)
-!     write(6,*)"MaxReal Val= ",maxY
-!     minYc=MINVAL(aimag(y(:)),1)
-!     write(6,*)"MinComplex Val= ",minYc
-!     maxYc=MAXVAL(aimag(y(:)),1)
-!     write(6,*)"MaxComplex Val= ",maxYc
-      minY =MINval(abs(y(:)))
-      maxY =MAXval(abs(y(:)))
-      
-      
-!     print*,"plotting"
-! Dislin plotting routines ...
-      CALL METAFL('PDF') !define intended display XWIN,PS,EPS,PDF
-!     write(titleN,'(a,a)') trim(titleN),'.eps' 
-!     titleN = trim(titleN)
-!     titleN = trim(titleN)
-      CALL SETFIL(trim(adjustl(titleN)))
-!     print*,"file: ",trim(adjustl(titleN))
-      call filmod('DELETE') ! para sobreescribir el archivo
-      CALL SETPAG('DA4P')
-      CALL PAGE(int(W+1200,4),int(H+350,4))
-      CALL PAGMOD('NONE')
-      CALL DISINI() ! dislin initialize 
-      call errmod ("all", "off")
-!     print*,"disini"
-!     CALL PAGERA() ! plots a page border
-      CALL COMPLX ! sets a complex font
-      CALL TEXMOD ('ON') ! latex!!
-      CALL HWFONT()
-      CALL axspos (int(370,4) ,int(H+100,4)) !the position of an axis system. Lower left corner
-      call axslen (int(W,4) ,int(H,4)) !size of the axis system.
-      call name(trim(xAx),'X') 
-      call name(trim(yAx),'Y') 
-      call labels('EXP','Y')
-      call labdig(int(1,4),'X') !number of decimal places for labels
-      call labdig(int(1,4),'Y')
-      call ticks (int(5,4) ,'XY') 
-!     call titlin ( titleN , 1 )
-      xstep = x(n)/6.0 ! incremen for labels
-      ystep = (maxY-minY)/6.0
-      
-      if (maxY * minY < 0.0) then
-       maxY = max(abs(minY),abs(maxY))
-       minY = -1.0 * maxY
-       ystep = (maxY-minY)/2.0 !solo 3 etiquetas
-       maxY = maxY - mod(maxY,ystep)
-       minY = -1.0 * maxY
-       ystep = (maxY-minY)/6.0
-       maxY = maxY + ystep
-       minY = -1.0 * maxY
-      end if
-      call graf(real(x(1),4), & 
-                real(x(n),4), & 
-                real(x(1),4), & 
-                real(xstep,4), & 
-                real(minY,4), & 
-                real(maxY,4), & 
-                real(minY,4), & 
-                real(ystep,4)) 
-      
-!     call title 
-      call color ('RED') 
-      call curve(real(x,4) ,real(abs(y),4) ,int(n,4))
-      call color ('FORE') 
-      call dash() !sets a dashed line style
-      call xaxgit() !plots the line Y=0
-      
-      call legini(CBUF,int(1,4),int(20,4))
- !     nx = nxposn(x(n)*n + x(n)*n / 20.)
- !     ny = nyposn(minY + (maxY-minY)*0.7)
- !     print*,nx
- !     print*,ny
-      call legpos(int(1600,4),int(320,4))
-      write(dumb,'(a)') 'abs(z)'
- !     print*,dumb
-      call leglin(CBUF,dumb,int(1,4))
-      call legtit('') ! or '' for nothing
-      call legend(CBUF,int(1,4))
-
-      call disfin()      
-      
-!     print*,'plotted ',trim(titleN)
-      end subroutine plotXYabs
-      
-      subroutine plotFK(thisFK,x,z,tt,xAx,yAx,outpf, imecS ,imecE,onlythisJ,JJ) 
-      use DISLIN
-      use waveNumVars, only : NFREC,NMAX,DFREC,DK
-      use glovars
-      implicit none
-      integer ,intent(in) :: outpf, imecS ,imecE
-      
-      !                     ,--- 0...frec
-      !                     | ,--- -k...+k
-      !                     | | ,--- iMec: 1:5
-      !                     | | | 
-      complex*16, dimension(NFREC+1,NMAX,3),intent(in) :: thisFK
-      real, intent(in) :: x,z
-      character(LEN=100),intent(in) :: tt
-      character(LEN=9), intent(in) :: xAx,yAx
-      
-      real, dimension(NMAX)             :: vVert
-      real, dimension(NFREC)            :: vHorz
-      real, dimension(NFREC,NMAX)       :: Mab,Mre,Mim
-      character(LEN=10), dimension(3)   :: nombre
-      character(LEN=100)                :: titulo,t2
-      integer :: i,ik,iMec!,Sf
-!     real :: k
-      real :: minX,minY,maxX,maxY,xstep,ystep,miV,maV,Vstep,mama!,x_i,z_i
-      real, dimension(41)   :: ZLVRAY
-      real, parameter :: p = 27. ! sharpness parameter
-      logical :: onlythisJ
-      integer :: JJ
-      
-      if(verbose>=2)write(outpf,'(a,a,a)') "will plot ",trim(tt),"..."
-            
-      Mab=0;Mre=0;Mim=0
-      nombre(1)= '_w.png'
-      nombre(2)= '_u.png'
-      nombre(3)= '_v.png'
-      
-      do i=1,NFREC
-         vHorz(i) = 0 + (i-1) * real(DFREC,4)  ! Hz
-      end do
-      !
-      do ik=1,nmax
-         vVert(ik) = 0 + (ik-1) * real(DK,4)
-      end do
-      
-      minY = 0.
-      maxY = vVert(size(vVert))
-      ystep = maxY / 10.
-      
-      minX = vHorz(1)
-      maxX = vHorz(size(vHorz))
-      xstep = maxX / 5.
-      
-      do iMec = imecS,imecE   
-      write(titulo,'(a,a,I0,a,I0,a,I0,a,I0,a,a)') trim(tt),'[', &
-      int(x),'.',abs(int((x-int(x))*10)),';', & 
-      int(z),'.',abs(int((z-int(z))*10)),']', & 
-      trim(nombre(iMec))
-!     print*,titulo,thisFK(1:NFREC,1:NMAX,iMec);cycle
-       Mre = real(thisFK(1:NFREC,1:NMAX,iMec),4)
-       Mim = real(aimag(thisFK(1:NFREC,1:NMAX,iMec)),4)
-       Mab = real(log(1. + exp(p)*abs(thisFK(1:NFREC,1:NMAX,iMec))) / & 
-           log(exp(p)+1.),4)
-       Mab = Mab / maxval(Mab)
-      
-      if (onlythisJ .eqv. .true.) then
-      CALL METAFL('PNG')
-      call filmod('DELETE')
-      CALL SETPAG('DA4L')
-      write(t2,'(a,a)') "0_Abs_",trim(titulo)
-      print*,trim(t2),'abs',sum(abs(thisFK(JJ,1:nmax,iMec)))*dK
-      CALL SETFIL(trim(t2))
-      call qplot(vVert(1:nmax),real(abs(thisFK(JJ,1:nmax,iMec)),4), nmax)
-      
-      write(t2,'(a,a)') "0_Rea_",trim(titulo)
-      print*,trim(t2),'rea',sum(real(thisFK(JJ,1:nmax,iMec)))*dK
-      CALL SETFIL(trim(t2))
-      call qplot(vVert(1:nmax),real(real(thisFK(JJ,1:nmax,iMec)),4), nmax)
-      
-      write(t2,'(a,a)') "0_Ima_",trim(titulo)
-      print*,trim(t2),'img',sum(aimag(thisFK(JJ,1:nmax,iMec)))*dK
-      CALL SETFIL(trim(t2))
-      call qplot(vVert(1:nmax),real(aimag(thisFK(JJ,1:nmax,iMec)),4), nmax)
-      cycle !iMec
-      end if
-      
-      ! shaded contour plot
-      CALL METAFL('PNG') !'PDF'
-      CALL SETFIL(trim(titulo))
-      if(verbose>=2) write(outpf,'(a)')trim(titulo)
-      call filmod('DELETE') ! para sobreescribir el archivo
-!     CALL PAGE (2000, 1100)
-!     Sf = 2
-      CALL PAGE (int(5500,4) , int(2400,4))
-      
-      call imgfmt('RGB')
-      call winsiz(int(1800,4),int(800,4))
-      CALL SCRMOD('REVERS') !fondo blanco
-      CALL DISINI()
-      call errmod ("all", "off")
-      CALL HEIGHT(int(30,4))
-      ! REAL
-      miV = minval(Mre)*0.1 !;print *, imec,"min",miV
-      maV = maxval(Mre)*0.1 !;print *, imec,"max",maV
-      if (isnan(mav)) then 
-      print*,"ruined real",tt
-      maV=1.0;miV=0.0
-      print*, Mre(30,:)
-      end if 
-      
-      mama = max(abs(miV),abs(maV))
-      miV = -mama
-      maV = mama
-      Vstep = (maV-miV)/40.0
-      DO i = 1,41
-        ZLVRAY(i) = miV + Vstep * (i-1)
-      end do
-      CALL axspos (int(360,4) ,int(2200,4)) !the position of an axis system. Lower left corner
-      call axslen (int(1000,4),int(2000,4)) !size of the axis system.
-      call labdig(int(2,4),'XY') !number of decimal places for labels
-      call labdig(int(1,4),'Z') !number of decimal places for labels
-      call labels('EXP','Z')
-      call name(trim(xAx),'X') 
-      call name(trim(yAx),'Y')
-      CALL SETVLT ('SPEC')
-     
-      call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
-                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
-                 real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
-                 
-      CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
-                  real(vVert,4), int(size(vVert),4), & 
-                  real(Mre,4), real(ZLVRAY,4),int(41,4))
-      CALL ENDGRF
-      ! imag
-      miV = minval(Mim)*0.1!;print *, imec,"min",miV
-      maV = maxval(Mim)*0.1!;print *, imec,"max",maV
-      if (isnan(mav)) then 
-      print*,"ruined imag",tt;maV=1.0;miV=0.0
-      print*, Mim(30,:)
-      end if 
-      
-      mama = max(abs(miV),abs(maV))
-      miV = -mama
-      maV = mama
-      Vstep = (maV-miV)/40.0
-      DO i = 1,41
-        ZLVRAY(i) = miV + Vstep * (i-1)
-      end do
-      CALL axspos (int(2150,4) ,int(2200,4)) !the position of an axis system. Lower left corner
-      call axslen (int(1000,4),int(2000,4)) !size of the axis system.
-      call labdig(int(2,4),'XY') !number of decimal places for labels
-      call labdig(int(1,4),'Z') !number of decimal places for labels
-      call labels('EXP','Z')
-      call name(trim(xAx),'X') 
-      call name(trim(" "),'Y')
-      CALL SETVLT ('SPEC')
-     
-      call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
-                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
-                 real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
-                 
-      CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
-                  real(vVert,4), int(size(vVert),4), & 
-                  real(Mim,4), real(ZLVRAY,4),int(41,4))
-      CALL ENDGRF
-      ! abs
-      miV = minval(Mab) !;print *, imec,"min",miV
-      maV = maxval(Mab) !;print *, imec,"max",maV
-      if (isnan(mav)) then 
-      print*,"ruined abs ",tt
-      CALL DISFIN()
-      cycle
-      end if 
-      Vstep = (maV-miV)/40.0
-      
-      DO i = 1,41
-        ZLVRAY(i) = miV + Vstep * (i-1)
-      end do
-      CALL axspos (int(4000,4) ,int(2200,4)) !the position of an axis system. Lower left corner
-      call axslen (int(1000,4),int(2000,4)) !size of the axis system.
-      call labdig(int(2,4),'XY') !number of decimal places for labels
-      call labdig(int(1,4),'Z') !number of decimal places for labels
-      call labels('EXP','Z')
-      call name(trim(xAx),'X') 
-      call name(trim(" "),'Y')
-      CALL SETVLT ('TEMP')
-     
-      call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
-                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
-                 real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
-                 
-      CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
-                  real(vVert,4), int(size(vVert),4), & 
-                  real(Mab,4), real(ZLVRAY,4),int(41,4))
-      
-      CALL ENDGRF
-      
-      CALL DISFIN()
-      
-      end do !iMec
-!     end do !iP
-      end subroutine plotFK
-      
-      subroutine drawPHI(titleN,comp)
-      use DISLIN
-      use resultVars, only : BP => BouPoints,nbpts, trac0vec ,n_top_sub,n_con_sub, n_val_sub
-      use geometryvars, only : nXI,Xcoord_ER,normXI, midPoint
-      use waveNumVars, only : smallestWL
-      implicit none
-      character(LEN=100) :: titleN
-      integer :: comp
-      real :: maxY,minY,maxX,minX,xstep,zstep, encuadre
-      integer :: i,J,tam,initial,final,Jinitial,Jfinal
-      real, dimension(5,2) :: rec
-      real, dimension(nBpts) :: phi
-      real :: maxPhi
-      integer*4 :: lentitle,sc
-      character(LEN=60) :: CTIT,mr,mi
-      sc=5
-       
-      minX = minval(real(Xcoord_ER(:,1,:),4))
-      maxX = maxval(real(Xcoord_ER(:,1,:),4))
-      xstep = real(((maxX-minX) / 5.0 ))
-      minX = minX-xstep
-      maxX = maxX+xstep
-      
-      minY = minval(real(Xcoord_ER(:,2,:),4))
-      maxY = maxval(real(Xcoord_ER(:,2,:),4))
-      zstep = real(((maxY-minY) / 10. ))
-      minY = minY-zstep*2
-      maxY = maxY+zstep*2
-      
-      encuadre = (maxY-minY)/(maxX-minX)
-      maxphi = 1.0_8
-      
-      if (comp .gt. 0) then 
-        tam = n_top_sub+n_con_sub
-        initial = 0
-        final = n_top_sub+n_con_sub
-        Jinitial = 1
-        Jfinal = n_top_sub+n_con_sub
-      else if (comp .lt. 0) then 
-        tam = n_con_sub+n_val_sub
-        initial = n_top_sub+n_con_sub
-        final = n_top_sub+2*n_con_sub+n_val_sub
-        Jinitial = n_top_sub+1
-        Jfinal = n_top_sub+n_con_sub+n_val_sub
-      end if
-      
-      
-      ! Dislin plotting routines 
-      CALL METAFL('PDF') ! define intended display  XWIN,PS,EPS,PDF
-      CALL SETFIL(trim(titleN))
-      call filmod('DELETE') ! para sobreescribir el archivo
-      CALL SETPAG('DA4P')
-      CALL PAGE(int(1200*sc,4),int(1100*sc,4))
-      CALL PAGMOD('NONE')
-      CALL DISINI() ! dislin initialize 
-      call errmod ("all", "off")
-!     CALL PAGERA() ! plots a page border
-      CALL COMPLX ! sets a complex font
-      CALL TEXMOD ('ON') ! latex!!
-      call incmrk (int(1,4))
-      CALL HWFONT()
-      CALL axspos (int(250*sc,4) ,int(950*sc,4)) !the position of an axis system. Lower left corner
-      call axslen (int(800*sc,4) ,int(800*sc*encuadre,4)) !size of the axis system. 
-      call labdig(int(1,4),'X') !number of decimal places for labels
-      call labdig(int(1,4),'Y')
-      call ticks (int(10,4) ,'X') 
-      call ticks (int(5,4) ,'Y') 
-      CALL AXENDS ('ENDS', 'XY')
-      !            low X   left Y   upp X   right Y
-      call setgrf("NAME", "NAME", "NONE", "LINE")
-      CALL SETVLT ('SPEC')
-      ! increment for labels 
-      
-      ! xini xfin yfirstvalue xstep ymin ymax yminvalueTicks yTicks
-      call graf(real(minX,4),real(maxX,4),real(minX,4),& 
-                real(xstep,4),real(maxY,4),real(minY,4),& 
-                real(maxY,4),real(-zstep,4))
-      phi = 0.0
-      if (comp .eq. 1) phi(1:tam) = real(real(trac0vec(2*initial+1:2*final:2)),4)
-      if (comp .eq. 2) phi(1:tam) = real(real(trac0vec(2*initial+2:2*final:2)),4)
-      if (comp .eq. 3) phi(1:tam) = real(real(trac0vec(initial+1:final)),4)
-      if (comp .eq. -1) phi(1:tam) = real(real(trac0vec(2*initial+1:2*final:2)),4)
-      if (comp .eq. -2) phi(1:tam) = real(real(trac0vec(2*initial+2:2*final:2)),4)
-      if (comp .eq. -3) phi(1:tam) = real(real(trac0vec(initial:final)),4)
-      maxPhi = maxval(abs(phi(1:tam)))
-      write(mr,'(EN18.2)') maxPhi
-      phi = phi / maxphi
-      
-      call color('RED')                                                    !
-!     CALL SHDPAT (int(16,4)) ! filled shading                              ! 
-      call mypat(45,5,3,1)
-      i = 1
-      do j=Jinitial,Jfinal
-      rec(1,1) = real(BP(j)%bord_A%x ,4)
-      rec(1,2) = real(BP(j)%bord_A%z ,4)
-      
-      rec(2,1) = real(BP(j)%bord_A%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(2,2) = real(BP(j)%bord_A%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
-      
-      rec(3,1) = real(BP(j)%bord_B%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(3,2) = real(BP(j)%bord_B%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
-      
-      rec(4,1) = real(BP(j)%bord_B%x ,4)
-      rec(4,2) = real(BP(j)%bord_B%z ,4)
-      
-      rec(5,1) = real(BP(j)%bord_A%x ,4)
-      rec(5,2) = real(BP(j)%bord_A%z ,4)
-      i = i + 1
-      CALL RLAREA(rec(:,1),rec(:,2),int(5,4))
-      end do !j                                                                !
-      phi = 0.0
-      
-      if (comp .eq. 1) phi(1:tam) = real(aimag(trac0vec(2*initial+1:2*final:2)),4)
-      if (comp .eq. 2) phi(1:tam) = real(aimag(trac0vec(2*initial+2:2*final:2)),4)
-      if (comp .eq. 3) phi(1:tam) = real(aimag(trac0vec(initial+1:final)),4)
-      if (comp .eq. -1) phi(1:tam) = real(aimag(trac0vec(2*initial+1:2*final:2)),4)
-      if (comp .eq. -2) phi(1:tam) = real(aimag(trac0vec(2*initial+2:2*final:2)),4)
-      if (comp .eq. -3) phi(1:tam) = real(aimag(trac0vec(initial:final)),4)
-      maxPhi = maxval(abs(phi(1:tam)))
-      write(mi,'(EN18.2)') maxphi
-      phi = phi / maxphi
-      
-      call color('BLUE')                                                    !
-!     CALL SHDPAT (int(16,4)) ! filled shading                              ! 
-      call mypat(45,5,3,1)
-      i = 1
-      do j=Jinitial,Jfinal
-      rec(1,1) = real(BP(j)%bord_A%x ,4)
-      rec(1,2) = real(BP(j)%bord_A%z ,4)
-      
-      rec(2,1) = real(BP(j)%bord_A%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(2,2) = real(BP(j)%bord_A%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
-      
-      rec(3,1) = real(BP(j)%bord_B%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(3,2) = real(BP(j)%bord_B%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
-      
-      rec(4,1) = real(BP(j)%bord_B%x ,4)
-      rec(4,2) = real(BP(j)%bord_B%z ,4)
-      
-      rec(5,1) = real(BP(j)%bord_A%x ,4)
-      rec(5,2) = real(BP(j)%bord_A%z ,4)
-      i = i + 1
-      CALL RLAREA(rec(:,1),rec(:,2),int(5,4))
-      end do !j                                                                !
-            
-!     ! dibujar topografia original                                   !
-!     call color ('FORE')                                             !
-!     call marker(int(-1,4)) ! sin marcadores                         !
-!     call PENWID(real(0.5,4))
-!     call curve(real(Xcoord(:,1),4),real(Xcoord(:,2),4),int(nXI,4))  !
-      
-      !normales -------------------------------------------------------------
-      call color('GREEN')                                                   !
-      CALL HSYMBL(int(7,4)) !size of symbols                                ! 
-      do j=1,nXI                                                            !
-      CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
-              real(midPoint(j,1)+normXI(j,1)*xstep*0.2,4), &                !
-              real(midPoint(j,2)+normXI(j,2)*xstep*0.2,4), int(1001,4))     !
-      end do                                                                !
-      
-      ! puntos centrales y gaussianos ------------------------------------
-      call incmrk(-1) ! -1 : only symbols                                !
-!     CALL HSYMBL(int(1,4)) !size of symbols                             !
-!     call color('BACK')                                                 !
-!     do j=1,nBpts                                                       !
-!     !             cuadritos rellenos                                   !
-!     CALL RLSYMB (16, real(BP(j)%bord_A%x,4), real(BP(j)%bord_A%z,4))   !
-!     end do                                                             !
-      CALL HSYMBL(int(0,4)) !size of symbols                             !
-      do j=1,nBpts                                                       !
-      call color('FORE')                                                 !
-      !             circulitos negros                                    !
-      CALL RLSYMB (17, real(BP(j)%center%x,4), real(BP(j)%center%z,4))   !
-!     call color('ORANGE')                                               !
-!     call marker(int(4,4)) !tachecitos                                  !
-!     call curve(real(BP(j)%Gq_xXx_coords(:,1),4), &                     !
-!                real(BP(j)%Gq_xXx_coords(:,2),4), &                     !
-!                int(size(BP(J)%Gq_xXx_coords(:,1)),4))                  !
-      end do !j 
-      
-      ! longitud de onda
-      call color ('FORE') 
-      CALL HSYMBL(int(6,4)) !size of symbols      !
-      CALL RLVEC (real((maxX+minX)/2- smallestWL/2,4), & 
-          real(maxY-(maxY-minY)*0.03,4), &           !
-                  real((maxX+minX)/2+ smallestWL/2,4), &     !
-          real(maxY-(maxY-minY)*0.03,4), int(1122,4)) 
-     
-      write(CTIT,'(a)') '$\lambda_{min}$'
-      lentitle = NLMESS(CTIT)
-      CALL HEIGHT (int(16*sc,4))
-      CALL MESSAG(CTIT,int((615*sc),4),int(900*sc,4))
-      
-      write(CTIT,'(a,a)') 'maxReal = ', trim(mr)
-      lentitle = NLMESS(CTIT)
-      CALL HEIGHT (int(12*sc,4))
-      CALL MESSAG(CTIT,int((25*sc),4),int(30*sc,4))
-      write(CTIT,'(a,a)') 'maxImag = ', trim(mi)
-      lentitle = NLMESS(CTIT)
-      CALL HEIGHT (int(12*sc,4))
-      CALL MESSAG(CTIT,int((25*sc),4),int(50*sc,4))
-      call disfin()
-      end subroutine drawPHI
-      
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom)
-      use DISLIN
-      use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
-      
-      use resultVars, only : Punto, IP => allpoints, nIpts 
-      
-      use sourceVars, only : Po,NFuentes, tipoFuente, PW_pol
-      use geometryvars, only : nXI,Xcoord_ER,normXI, & 
-                               midPoint, Xcoord_Voidonly, Xcoord_Incluonly
-      use glovars, only : verbose, workBoundary
-      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
-      
-      implicit none
-      type (Punto), dimension(:), pointer :: BP
-      integer, intent(in) :: nbpts
-      character(LEN=100) :: titleN
-      character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom
-      real :: maxY,minY,maxX,minX,xstep,zstep,encuadre
-      integer :: i,J,ifuente,sc
-      real*8, dimension(:,:),allocatable :: rec
-      real*8,dimension(2) :: theta,gamma
-      if (verbose >= 4) Write(6,'(a)') "Will plot geometry..."
-      sc=3
-      ! Boundary boundaries
-      maxX = MeshMaxX
-      minX = MeshMinX
-      maxY = MeshMaxZ
-      minY = MeshMinZ
-      
-      if (zoomGeom) then
-      minX = minval(real(Xcoord_ER(:,1,:),4))
-      maxX = maxval(real(Xcoord_ER(:,1,:),4))
-      xstep = real(((maxX-minX) / 5.0 ))
-      minX = minX-xstep
-      maxX = maxX+xstep
-      
-      minY = minval(real(Xcoord_ER(:,2,:),4))
-      maxY = maxval(real(Xcoord_ER(:,2,:),4))
-      zstep = real(((maxY-minY) / 10. ))
-      minY = minY-zstep
-      maxY = maxY+zstep
-      end if
-      
-      xstep = real(((maxX-minX) / 5.0 ))
-      zstep = real(((maxY-minY) / 10. ))
-      
-      encuadre = (maxY-minY)/(maxX-minX)
-      
-      ! Dislin plotting routines 
-      CALL METAFL(extension) ! define intended display  XWIN,PS,EPS,PDF
-      call imgfmt('RGB')
-      call winsiz(int(1200,4),int(1200,4)) !1200 ambos
-      CALL SCRMOD('REVERS') !fondo blanco
-      
-      CALL SETFIL(trim(titleN))
-      call filmod('DELETE') ! para sobreescribir el archivo
-      CALL SETPAG('DA4P')
-      CALL PAGE(int(3000,4),int(3000,4))
-      CALL PAGMOD('NONE')
-      CALL DISINI() ! dislin initialize 
-      call errmod ("all", "off")
-!     CALL PAGERA() ! plots a page border
-!     CALL COMPLX ! sets a complex font
-      call incmrk (int(1,4))
-!     CALL HWFONT()
-      CALL TRIPLX() !DISALF()
-      CALL axspos (int(300,4) ,int(2700,4)) !the position of an axis system. Lower left corner
-      call axslen (int(2600,4) ,int(2600*encuadre,4)) !size of the axis system. 
-      call labdig(int(1,4),'X') !number of decimal places for labels
-      call labdig(int(1,4),'Y')
-      call ticks (int(10,4) ,'XY') 
-      !            low X   left Y   upp X   right Y
-      call setgrf("NAME", "NAME", "NONE", "LINE")
-      CALL SETVLT ('SPEC')
-      ! increment for labels 
-      ! xini xfin yfirstvalue xstep ymin ymax yminvalueTicks yTicks
-      call graf(real(minX,4),real(maxX,4),real(minX,4),& 
-                real(xstep,4),real(maxY,4),real(minY,4),& 
-                real(maxY,4),real(-zstep,4))
-      
-      !estratigrafía --------------------------------------------
-      call shdpat(int(16,4)) !solid shade                       !
-      i = 1
-      if (Z(0) .lt. 0.0) i = 0
-      do J=i,N                                                  !
-         call SETRGB(col(J), col(J), col(J))                    !
-         call rlrec(real(minX,4),real(max(Z(J),minY),4),&       !
-                    real(maxX-minX,4),real(Z(J+1)-max(Z(J),minY),4))!
-         call color ('FORE')                                    !
-         call rline(real(minX,4),real(max(Z(J),minY),4), &      !
-                 real(maxX,4),real(max(Z(J),minY),4))           !
-      end do                                                    !
-      J = N+1                                                   !
-!     print*, "shade_layer",J," ",col(J)
-      call SETRGB(col(J), col(J), col(J))                       !
-      call rlrec(real(minX,4),real(Z(J),4),&                    !
-                    real(maxX-minX,4),real(maxY-Z(J),4))        !
-      call color ('FORE')                                       !
-      call rline(real(minX,4),real(Z(J),4), &                   !
-                 real(maxX,4),real(Z(J),4))                     !
-      ! Borrar estratos en la cuenca                                  !
-      call color ('BACK')                                             !
-      call shdpat(int(16,4))                                          !
-      if (abs(z(0)) .lt. 0.0001) then
-      call rlrec(real(minX,4),real(minY,4),&                          !
-                    real(maxX-minX,4),real(Z(1)-minY,4))              !
-      end if!
-      if (workboundary) then
-      !topografía -----------------------------------------------------
-      
-      ! dibujar inclusión
-      if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
-      allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))             !
-      i=1                                                             !
-      do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont    !
-      rec(i,1) = Xcoord_Incluonly(j,1,1)                              !
-      rec(i,2) = Xcoord_Incluonly(j,2,1)                              !
-      rec(i+1,1) = Xcoord_Incluonly(j,1,2)                            !
-      rec(i+1,2) = Xcoord_Incluonly(j,2,2)                            !
-      i=i+2                                                           !
-      end do                                                          !
-!     print*, "shadecolor_inc", shadecolor_inc
-      call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
-      CALL RLAREA(real(rec(:,1),4), & 
-                  real(rec(:,2),4), & 
-                  int(2*size(Xcoord_Incluonly(:,1,1)),4))  !
-      deallocate(rec) 
-      end if!
-      if (size(Xcoord_Voidonly(:,1,1)) .gt. 1) then
-      allocate(rec(2* (size(Xcoord_Voidonly(:,1,1))),2))              !
-      i = 1                                   
-      do j=1,size(Xcoord_Voidonly(:,1,1))                             !
-      rec(i,1) = Xcoord_Voidonly(j,1,1)                               !
-      rec(i,2) = Xcoord_Voidonly(j,2,1)                               !
-      rec(i+1,1) = Xcoord_Voidonly(j,1,2)                             !
-      rec(i+1,2) = Xcoord_Voidonly(j,2,2)                             !
-      i=i+2                                                           !
-      end do                                                          !
-      call color ('BACK')                                             !
-      call shdpat(int(16,4)) 
-      CALL RLAREA(real(rec(:,1),4), & 
-                  real(rec(:,2),4), & 
-                  int(2*size(Xcoord_Voidonly(:,1,1)),4))  !
-      deallocate(rec) 
-      end if                                                          !
-                                                      !                                                                !
-      ! dibujar topografia original                                   !
-      call color ('FORE')                                             !
-      call PENWID(real(0.5,4))                                        !
-      call marker(int(-1,4)) ! sin marcadores                         !
-      do j=1,nXI                                                      !
-      call rline(real(Xcoord_ER(j,1,1),4),real(Xcoord_ER(j,2,1),4), & !
-                 real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
-      end do                                                          !
-      
-      if (zoomGeom) then
-      !normales -------------------------------------------------------------
-      call color('GREEN')                                                   !
-      CALL HSYMBL(int(25,4)) !size of symbols                               ! 
-      do j=1,nXI                                                            !
-      CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
-              real(midPoint(j,1)+normXI(j,1)*xstep*0.1,4), &                !
-              real(midPoint(j,2)+normXI(j,2)*xstep*0.1,4), int(1001,4))     !
-      end do                                                                !
-      
-      ! puntos centrales y gaussianos ------------------------------------
-      call incmrk(-1) ! -1 : only symbols                                !
-      CALL HSYMBL(int(10,4)) !size of symbols                            !
-      call color('BACK')                                                 !
-      do j=1,nBpts                                                       !
-      !             cuadritos rellenos                                   !
-      CALL RLSYMB (16, real(BP(j)%bord_A%x,4), real(BP(j)%bord_A%z,4))   !
-      end do                                                             !
-      do j=1,nBpts                                                       !
-      CALL HSYMBL(int(5,4)) !size of symbols                             !
-      call color('FORE')                                                 !
-      !             circulitos negros                                    !
-      CALL RLSYMB (17, real(BP(j)%center%x,4), real(BP(j)%center%z,4))   !
-      call color('ORANGE')                                               !
-      CALL HSYMBL(int(3,4)) !size of symbols                             !
-      call marker(int(0,4)) !tachecitos                                  !
-      call curve(real(BP(j)%Gq_xXx_coords(:,1),4), &                     !
-                 real(BP(j)%Gq_xXx_coords(:,2),4), &                     !
-                 int(size(BP(J)%Gq_xXx_coords(:,1)),4))                  !
-      end do !j                                                          !
-      end if ! zoomGeom
-      end if !workboundary 
-      
-      !fuente ------------------------------------------------------------
-      call color('RED')                                                  !
-      do ifuente = 1,Nfuentes
-      if (tipoFuente .eq. 0) then !puntual
-      CALL HSYMBL(int(40,4)) !size of symbols                            !
-      CALL RLSYMB (15, real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4))         !
-      CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
-              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * xstep*0.3,4), &           !
-              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.3,4), int(1101,4))!
-      elseif (tipoFuente .eq. 1) then !onda plana
-      ! polarización
-      if (PW_pol .eq. 1) then !SV
-        theta(1) = cos(Po(ifuente)%gamma)
-        theta(2) = sin(Po(ifuente)%gamma)
-      elseif (PW_pol .eq. 2) then !P
-        theta(1) = sin(Po(ifuente)%gamma)
-        theta(2) = -cos(Po(ifuente)%gamma)
-      end if
-        gamma(1) = sin(Po(ifuente)%gamma)
-        gamma(2) = -cos(Po(ifuente)%gamma)
-      CALL HSYMBL(int(60,4)) !size of symbols
-      CALL RLVEC (real(Po(ifuente)%center%x + theta(2) * xstep*0.05,4), & 
-                  real(Po(ifuente)%center%z - theta(1) * xstep*0.05,4), &      !
-              real(Po(ifuente)%center%x + theta(2) * xstep*0.05 & 
-                                        + theta(1) * xstep*0.2,4), &           !
-              real(Po(ifuente)%center%z - theta(1) * xstep*0.05 &
-                                        + theta(2) * xstep*0.2,4), int(3101,4))!
-      ! dirección de propagación
-      CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
-              real(Po(ifuente)%center%x + gamma(1) * xstep*0.4,4), &           !
-              real(Po(ifuente)%center%z + gamma(2) * xstep*0.4,4), int(1111,4))!
-      ! frente de onda
-      CALL RLVEC (real(Po(ifuente)%center%x - gamma(2) * xstep*0.25,4),& 
-                  real(Po(ifuente)%center%z + gamma(1) * xstep*0.25,4), &            !
-              real(Po(ifuente)%center%x + gamma(2) * xstep*0.25,4), &           !
-              real(Po(ifuente)%center%z - gamma(1) * xstep*0.25,4), int(1100,4))!
-      elseif (tipoFuente .eq. 2) then !segmento
-        gamma(1) = sin(Po(ifuente)%gamma)
-        gamma(2) = -cos(Po(ifuente)%gamma)
-      CALL HSYMBL(int(60,4)) !size of symbols
-      ! segmento
-      CALL RLVEC (real(Po(ifuente)%center%x - gamma(2) * Po(ifuente)%length/2.,4),& 
-                  real(Po(ifuente)%center%z + gamma(1) * Po(ifuente)%length/2.,4), &            !
-              real(Po(ifuente)%center%x + gamma(2) * Po(ifuente)%length/2.,4), &           !
-              real(Po(ifuente)%center%z - gamma(1) * Po(ifuente)%length/2.,4), int(1100,4))!
-      CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
-              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * xstep*0.3,4), &           !
-              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.3,4), int(1101,4))!
-      end if !tipoFuente
-      end do
-      !receptores ------------------------------------------------------
-      CALL HSYMBL(int(25,4)) !size of symbols                          !
-      do j=1,nipts                                                     !
-        call color('BLUE')                                             !
-        !           triangle up                                        !
-        CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
-      end do                                                           !
-      
-      call disfin()
-      end subroutine drawBoundary
-      
-      subroutine plot_at_eta (J, tt)
-      use resultVars, only : Punto, allpoints, nIpts, nSabanapts
-      use dislin
-      use debugStuff
-      implicit none
-      integer :: iP,J
-      character(LEN=100) :: tt,t2
-      complex*16 :: BP
-      real, dimension(nSabanapts) :: x
-      complex*16, dimension(nSabanapts) :: y
-      
-      print*,"plot ", trim(tt)
-      CALL METAFL('PDF')
-      call filmod('DELETE')
-      CALL SETPAG('DA4L')
-      CALL SETFIL(trim(tt))
-        do iP = 1,nIpts; if (allpoints(iP)%isSabana) then
-           if (tt(1:1) .eq. 'W') BP = allpoints(iP)%resp(J)%W
-           if (tt(1:1) .eq. 'U') BP = allpoints(iP)%resp(J)%U
-           
-                y(iP-(nIpts - nSabanapts)) = BP
-                x(iP-(nIpts - nSabanapts)) = real(allpoints(ip)%center%x,4)
-        end if;end do
-!       call showMNmatrixZabs(nSabanapts,1, Sabana(1:nSabanapts,1),tt(1:5),6)
-        write(t2,'(a,a)') "0_Abs_",trim(tt)
-        CALL SETFIL(trim(t2))
-        CALL color('BLACK')
-        call qplot(x(1:nSabanapts),real(abs(y(1:nSabanapts)),4), nSabanapts)
-        
-        write(t2,'(a,a)') "0_Rea_",trim(tt)
-        CALL SETFIL(trim(t2))
-        CALL color('RED')
-        call qplot(x(1:nSabanapts),real(real(y(1:nSabanapts)),4), nSabanapts)
-        
-        write(t2,'(a,a)') "0_Ima_",trim(tt)
-        CALL SETFIL(trim(t2))
-        CALL color('BLUE')
-        call qplot(x(1:nSabanapts),real(aimag(y(1:nSabanapts)),4), nSabanapts)
-        
-        write(t2,'(a,a)') trim(tt),"_.txt"
-        OPEN(739,FILE=trim(t2),FORM="FORMATTED",ACTION='WRITE')
-        call showMNmatrixZ(nSabanapts,1,y(1:nSabanapts),t2(1:5),739)
-        close(739)
-        
-!       CALL color('BLACK')
-!       call qplcrv(x(1:nSabanapts),real(abs(Sabana(1:nSabanapts,1)),4), nSabanapts,'FIRST')
-!       call color('RED')
-!       call qplcrv(x(1:nSabanapts),real(real(Sabana(1:nSabanapts,1)),4), nSabanapts,'NEXT')
-!       call color('BLUE')
-!       call qplcrv(x(1:nSabanapts),real(aimag(Sabana(1:nSabanapts,1)),4), nSabanapts,'LAST')
-        
-      
-      end subroutine plot_at_eta
-      
-      
-      end module ploteo10pesos
       PROGRAM DWNLIBEM 
       use gloVars
       use refSolMatrixVars, only : ak,B
@@ -2369,7 +6,7 @@
       use debugStuff
       use resultVars
       use ploteo10pesos
-      use sourceVars, only : psv,sh,tipofuente
+      use sourceVars, only : Po,psv,sh,tipofuente
       use MeshVars, only : npixX
       use dislin
       use waveVars, only : t0
@@ -2378,11 +15,9 @@
       implicit none
       interface
         include 'interfaz.f'
-        subroutine diffField_at_iz(i_zF,dir_j,J,cOME,workA, ipivA)
+        subroutine diffField_at_iz(i_zF,dir_j,J,cOME)
           integer, intent(in) :: i_zF,dir_j,J
           complex*16, intent(in),target  :: cOME
-          complex*16, dimension(:),pointer :: workA
-          integer, dimension(:),pointer :: ipivA
         end subroutine diffField_at_iz
         
         subroutine intrplr_gloMat(k0,n,pt_cOME_i,pt_ipivA,pt_workA)
@@ -2395,6 +30,16 @@
           integer, dimension(:), pointer :: pt_ipivA
           complex*16, dimension(:),pointer :: pt_workA
         end subroutine intrplr_gloMat
+        
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores)
+      use resultVars, only : Punto
+      type (Punto), dimension(:), pointer :: BP
+      integer, intent(in) :: nbpts
+      character(LEN=100) :: titleN
+      character(LEN=3) :: extension
+      logical, intent(in) :: zoomGeom, plotReceptores
+      end subroutine drawBoundary
+        
       end interface
       integer :: J,l,iP,ik,iz,i,ip_x,ipxi,m
       integer :: dir,iPhi,iPhi_I,iPhi_F,ipxi_I,ipxi_F
@@ -2417,6 +62,7 @@
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
+      integer :: Mi,Ni
       !#< blue
       call system('clear')
       CALL get_command_argument(1, arg)
@@ -2478,20 +124,27 @@
         write(PrintNum,'(a,I0)') '   Number of fixed receptors: ',Npts
         allocate (allpoints(Npts))
         allpoints(iPtini:iPtfin)= inqPoints(iPtini:iPtfin); deallocate(inqPoints)
+     
       call setInqPointsRegions
       call setVideoPointsRegions
+!     print*,"hh"
  !#< blue
       call chdir(trim(adjustl(rutaOut)))
-         write(titleN,'(a)') '0_OriginalGeometry.pdf'
+         write(titleN,'(a)') '0___OriginalGeometry.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
-         call drawBoundary(BP,nbpts,titleN,extension,.false.)
+         call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.)
+         
+         write(titleN,'(a)') '0___Sensors.pdf'
+         write(extension,'(a)') 'PDF'
+         BP => BouPoints
+         call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.)
          
          if (workBoundary .eqv. .true.) then 
-         write(titleN,'(a)') '0_Topography.pdf'
+         write(titleN,'(a)') '0___Inclusion.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
-         call drawBoundary(BP,nbpts,titleN,extension,.true.)
+         call drawBoundary(BP,nbpts,titleN,extension,.true.,.false.)
          end if
       call chdir("..")
               
@@ -2523,16 +176,15 @@
       end if! argument
       
       if (SH) then 
-      i = 2*N+1
-      if (Z(0) .lt. 0.0) i = i + 1 !HS arriba
+        i = 2*N+1
+        if (Z(0) .lt. 0.0) i = i + 1 !HS arriba
       end if !
-      if (PSV) then 
-      i = 4*N+2
-      if (Z(0) .lt. 0.0) i = i + 2 !HS arriba
+        if (PSV) then 
+        i = 4*N+2
+        if (Z(0) .lt. 0.0) i = i + 2 !HS arriba
       end if
-      ik = 1
-      if (tipofuente .eq. 1) ik = 0 !onda plana
-        allocate (Ak(i,i,ik:2*nmax)); allocate (B (i,ik:2*nmax)) 
+      ik = 1 ;  if (tipofuente .eq. 1) ik = 0 !onda plana 
+        allocate (Ak(i,i,ik:2*nmax)); allocate (B(i,ik:2*nmax)) 
         allocate(ipivA(i)); allocate(workA((i)*(i)))
    !   to store the strata diffracted displacement: W,U,V,...
       do iP=iPtini,iPtfin
@@ -2667,7 +319,8 @@
         write(PrintNum,'(A,I0,A,EN18.2,A,EN18.2,A)', ADVANCE = "YES") &
         'w(',J,') | ',FREC," | ",result,"sec"
       end if
-      if (onlythisJ) write(PrintNum,*) "Frec = ",COME!#> 
+      if (onlythisJ) write(PrintNum,*) "Frec = ",COME, " eta = ",&
+      (ome*longitudcaracteristica_a)/(pi*beta0(N+1))!#> 
 !        print*,"come=",come
 !        write(6,'(A,EN10.2,2x)', ADVANCE = "NO") & 
 !        "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
@@ -2677,21 +330,24 @@
          call preparePointerTable(pota,.false.,smallestWL) !(solo DWNs)
     
        l = n_top_sub + 2* n_con_sub + n_val_sub
-       if (PSV) ik = 2* l ;  if (SH) ik = l
+       if (PSV) ik = 2 ;  if (SH) ik = 1
        i = 0
        if (.not. allocated(ibemMat))then
          i = 1
        else
-         if (size(ibemMat,1) .ne. ik) then 
+         if (size(ibemMat,1) .ne. ik * l) then 
          i = 1
-       deallocate(ibemMat);deallocate(trac0vec)
-       deallocate(IPIVbem);deallocate(auxGvector)
+         deallocate(ibemMat);deallocate(trac0vec)
+         deallocate(IPIVbem);deallocate(auxGvector)
          end if
-       end if
-       
+       end if!
        if (i .eq. 1) then
-       allocate(ibemMat(ik,ik));allocate(trac0vec(ik))
-       allocate(IPIVbem(ik));allocate(auxGvector(ik))
+        if (overDeterminedSystem) then
+         allocate(ibemMat(ik * (l+n_OD),ik * l));allocate(trac0vec(ik * (l+n_OD)))
+        else
+         allocate(ibemMat(ik * l,ik * l));allocate(trac0vec(ik * l))
+        end if
+        allocate(IPIVbem(ik * l));allocate(auxGvector(ik * l))
        end if
        ibemMat = z0 ; trac0vec = z0 ; auxGvector = z0
       end if!workbou
@@ -2722,7 +378,7 @@
        
        k0 = vecNK(J)
        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
-       call parImpar_gloMat
+       call parImpar_gloMat ! k negativo
        
 !     call ETIME(tarray, result)
 !     write(6,'(a,f10.3,a)') "Elapsed ",result,"seconds"       
@@ -2760,15 +416,20 @@
          if(skipdir(1) .and. skipdir(3)) cycle
         end if! dir
        if(.not. skipdir(dir)) then 
-         call diffField_at_iz(0,dir,J,cOME,pt_workA,pt_ipivA)
+         call diffField_at_iz(0,dir,J,cOME)
        end if
       
        ! fill IBEM matrix
        if (workboundary) then
+         if(.not. skipdir(dir)) then 
+          if (Po(1)%region .eq. 2) then
+           call termIndepR(dir,cOME)
+          end if
+         end if
       !********(campo difractda en medio estratificado)*********************
          do iz = 1,nZs !por cada Z de fuentes en tabla de segmentos tipo 0 y 1
            if (thereisavirtualsourceat(iz)) then ! (ipxi = 1,n_top_sub)
-             call diffField_at_iz(iz,dir,J,cOME,pt_workA, pt_ipivA)
+             call diffField_at_iz(iz,dir,J,cOME)
            end if 
          end do !iz
       
@@ -2787,111 +448,111 @@
          end if !n_vall
       
       !*****(funcions de Green de desplazamiento en la región R)*****************
-         call GreenReg_R(dir,cOME)
+         call GreenReg_R(J,dir,cOME)
        end if !workboundary
       end do !dir
      
       if (workboundary) then  !; print*,"solve ibem"
 !     call showMNmatrixZabs(2*nBpts,1, trac0vec,"  t0 ",PrintNum)
-      if (PSV) then      
-      l = n_top_sub + 2* n_con_sub + n_val_sub
-      ik = 2* l
-      iPIVbem = ik
-      !#< b
-      if (verbose .ge. 3) call showMNmatrixZ(ik,ik, ibemMat," mat ",6)
-      if (verbose .ge. 3) call showMNmatrixZ(ik,1, trac0vec,"  b  ",6)
-!                         call chdir(trim(adjustl(rutaOut)))
-!                         CALL chdir("phi")
-!                         write(titleN,'(a,I0,a)')'h_incidente_',J,'_E.pdf'
-!                         call drawPHI(titleN,1)
-!                         write(titleN,'(a,I0,a)')'v_incidente_',J,'_E.pdf'
-!                         call drawPHI(titleN,2)
-!                         if (n_con_sub .gt. 0) then
-!                           write(titleN,'(a,I0,a)')'h_incidente_',J,'_R.pdf'
-!                           call drawPHI(titleN,-1)
-!                           write(titleN,'(a,I0,a)')'v_incidente_',J,'_R.pdf'
-!                           call drawPHI(titleN,-2)
-!                         end if
-!                         CALL chdir(".."); CALL chdir("..")
-      !#>
-      call zgesv(ik,1,ibemMat,ik,IPIVbem,trac0vec,ik,info)
+      if (PSV) then 
+      ik = 2
+      l = n_top_sub + 2* n_con_sub + n_val_sub  
+      if (overDeterminedSystem) then !#< r -.-.-.-.-.-.-.-.-.-.-.-.- !#>
+      Mi = ik*(l + n_OD)
+      Ni = ik*l
+      call overDetermineSystem(J,ik*l+1,PSV)
+      call solveOverDetermineSystem(Mi,Ni)
+      Mi = Ni
+      else !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
+      iPIVbem = ik*l
+      Mi = ik*l
+      Ni = ik*l
+       
+!#< b
+!     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
+!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) 
+!      call chdir(trim(adjustl(rutaOut))) 
+!      open(421,FILE= "outA.m",action="write",status="replace")
+!      write(arg,'(a)') "Bf"
+!      call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
+!      write(arg,'(a)') "Mf"
+!      call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
+!      close(421)
+!      CALL chdir("..")
+!      stop 456 
+!#>
+      call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
+      
       if(info .ne. 0) stop "problem with ibem system"
       if (any(isnan(real(trac0vec)))) stop "2120 valio madres el ibem"
+      end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       !#< b
-                       if (verbose .ge. 1) then
-                          call chdir(trim(adjustl(rutaOut)))
-                          CALL chdir("phi")
-                          write(titleN,'(a,I0,a)')'h_phi_',J,'_E.pdf'
-                          call drawPHI(titleN,1)
-                          write(titleN,'(a,I0,a)')'v_phi_',J,'_E.pdf'
-                          call drawPHI(titleN,2)
-                          if (n_con_sub .gt. 0) then
-                            write(titleN,'(a,I0,a)')'h_phi_',J,'_R.pdf'
-                            call drawPHI(titleN,-1)
-                            write(titleN,'(a,I0,a)')'v_phi_',J,'_R.pdf'
-                            call drawPHI(titleN,-2)
-                          end if
-                          if(verbose .ge. 3)  call showMNmatrixZabs(ik,1, trac0vec," phi ",6)
-                          CALL chdir(".."); CALL chdir("..")
-                       end if!
-                       if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
+!     call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
+      if (verbose .ge. 1) then
+         call chdir(trim(adjustl(rutaOut)))
+         CALL chdir("phi")
+         write(titleN,'(a,I0,a)')'h_phi_',J,'_E.pdf'
+         call drawPHI(titleN,1)
+         write(titleN,'(a,I0,a)')'v_phi_',J,'_E.pdf'
+         call drawPHI(titleN,2)
+         if (n_con_sub .gt. 0) then
+            write(titleN,'(a,I0,a)')'h_phi_',J,'_R.pdf'
+            call drawPHI(titleN,-1)
+            write(titleN,'(a,I0,a)')'v_phi_',J,'_R.pdf'
+            call drawPHI(titleN,-2)
+         end if
+         if(verbose .ge. 3)  call showMNmatrixZabs(Mi,1, trac0vec," phi ",6)
+         CALL chdir(".."); CALL chdir("..")
+      end if!
+      if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
       !#>
       do iP_x = 1,nIpts !cada receptor X 
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
             iPhi_F = (n_top_sub + n_con_sub) * 2
             ipxi_I = 1
-            ipxi_F = n_top_sub + n_con_sub
+            ipxi_F =  n_top_sub + n_con_sub
           else if (allpoints(iP_x)%region .eq. 2) then !'incl'
             iPhi_I = (n_top_sub + n_con_sub) * 2 + 1
             iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
-            ipxi_I = n_top_sub + 1
-            ipxi_F = n_top_sub + n_con_sub + n_val_sub
+            ipxi_I =  n_top_sub + 1
+            ipxi_F =  n_top_sub + n_con_sub + n_val_sub
           else ! 'void'
             cycle
           end if
         do i=1,2 !dirección de desplazamiento {W,U} en ip_X !PSV
-          auxGvector(1:ik) = z0
+          auxGvector = z0 !(1:ik)
 !         print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
           iPxi = ipxi_I
-          do iPhi = iPhi_I,iPhi_F,2 ! recopilamos  G_ij
+!         do iPhi = iPhi_I,iPhi_F,2 ! recopilamos  G_ij
+          iPhi = iPhi_I
+          do iPxi = ipxi_I,ipxi_F
             auxGvector(iPhi)   = boupoints(iPxi)%G(iP_X,i,1) ! j=1 por fzas horizontales:
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! j=3 por fzas verticales:
-            iPxi = iPxi + 1
+!           iPxi = iPxi + 1 !siguiente segmento del contorno de esta región.
+            iPhi = iPhi + 2
           end do !iPhi         
-                           if (verbose .ge. 4) call showMNmatrixZ(ik,1,auxGvector," auxG",6)
-          
+          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
           if(i .eq. 1) allpoints(iP_x)%resp(J)%W = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%W
           if(i .eq. 2) allpoints(iP_x)%resp(J)%U = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%U
           
           l = i + 3 !componente de la tracción {Tz,Tx}
-          auxGvector(1:ik) = z0
+          auxGvector = z0 !(1:ik)
           iPxi = ipxi_I
           do iPhi = iPhi_I,iPhi_F,2
             auxGvector(iPhi)   = boupoints(iPxi)%G(iP_X,l,1) ! por fzas horizontales:
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,l,3) ! por fzas verticales:
             iPxi = iPxi + 1
           end do !iPhi         
-                           if (verbose .ge. 4) call showMNmatrixZ(ik,1,auxGvector," auxG",6)
+          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
           if(l .eq. 4) allpoints(iP_x)%resp(J)%Tz = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%Tz
           if(l .eq. 5) allpoints(iP_x)%resp(J)%Tx = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%Tx
       end do !i
       end do !iP_x
-      
-!       if (onlythisJ) then
-!         do iP_x = 1,nIpts
-!           print*,"ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"]", &
-!           "n = [",allpoints(iP_x)%normal%x,",",allpoints(iP_x)%normal%z,"]"
-!           print*,"   W=",allpoints(iP_x)%resp(J)%W
-!           print*,"   U=",allpoints(iP_x)%resp(J)%U
-!           print*,"   Tz=",allpoints(iP_x)%resp(J)%Tz
-!           print*,"   Tx=",allpoints(iP_x)%resp(J)%Tx 
-!         end do !iP_x
-!       end if!
       
       if (makeVideo) then 
       do m = 1,npixX
@@ -2913,7 +574,7 @@
 !         print*,m,iP_x-nIpts,"void"
             cycle
           end if
-          auxGvector(1:ik) = z0
+          auxGvector = z0 !(1:ik)
 !        print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
          iPxi = ipxi_I
          do iPhi = iPhi_I,iPhi_F,2
@@ -2921,7 +582,7 @@
            auxGvector(iPhi+1) = boupoints(iPxi)%Gmov(iP_X-nIpts,i,3,m) ! verticales
            iPxi = iPxi + 1
          end do !iPhi 
-!        if (verbose .ge. 4) call showMNmatrixZ(ik,1,auxGvector," auxG",6)
+!        if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
           fotogramas(iP_x-nIpts,m,J,i) = sum(trac0vec * auxGvector) + &
           allpoints(iP_x)%Wmov(J,i,m)
       end do !i
@@ -2931,14 +592,16 @@
       end if !PSV
 !     stop 2125
       if (SH) then
+      ik = 1
       l = n_top_sub + 2* n_con_sub + n_val_sub !cantidad de segmentos
-      ik = l !tamaño de la matrix
-      iPIVbem = ik
+      iPIVbem = ik * l
+      Mi = ik * l
+      Ni = ik * l
       !#< b
-      if (verbose .ge. 3) call showMNmatrixZ(ik,ik, ibemMat," mat ",6)
-      if (verbose .ge. 3) call showMNmatrixZ(ik,1, trac0vec,"  b  ",6)
+      if (verbose .ge. 3) call showMNmatrixZ(Mi,Ni, ibemMat," mat ",6)
+      if (verbose .ge. 3) call showMNmatrixZ(Mi,1, trac0vec,"  b  ",6)
       !#>
-      call zgesv(ik,1,ibemMat,ik,IPIVbem,trac0vec,ik,info)
+      call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
       if(info .ne. 0) stop "problem with ibem system"
       
       if (any(isnan(real(trac0vec)))) then ! NAN is not equal even to itself
@@ -2954,11 +617,11 @@
                             call drawPHI(titleN,-3)
                           end if!
          if (verbose .ge. 3) then 
-           call showMNmatrixZ(ik,1, trac0vec," phi ",6)
+           call showMNmatrixZ(Mi,1, trac0vec," phi ",6)
            write(titleN,'(a,I0,a)')'n_phiVal_',J,'.pdf'
-           write(CTIT,'(I0)') ik
+           write(CTIT,'(I0)') Mi
            write(yax,'(a)') 'abs(phi) '
-           call plotXYcomp(trac0vec(1:ik),1.0,ik,titleN, &
+           call plotXYcomp(trac0vec(1:Mi),1.0,Mi,titleN, &
            '  phi n  ',yax, CTIT,1200,800,0.0)
          end if
         CALL chdir(".."); CALL chdir("..")
@@ -2980,14 +643,14 @@
             cycle
           end if
       do i= 3,6,3!dirección de desplazamient V,Ty !SH
-         auxGvector(1:ik) = z0
+         auxGvector = z0 !(1:ik)
 !        print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
          iPxi = ipxi_I
          do iPhi = iPhi_I,iPhi_F
            auxGvector(iPhi) = boupoints(iPxi)%G(iP_X,i,2)
            iPxi = iPxi + 1
          end do !iPhi         
-          if (verbose .ge. 4) call showMNmatrixZ(ik,1,auxGvector," auxG",6)
+          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
           
           if (i .eq. 3) allpoints(iP_x)%W(J,i) = sum(trac0vec * auxGvector) + &
           allpoints(iP_x)%W(J,i) 
@@ -3020,7 +683,7 @@
 !         print*,m,iP_x-nIpts,"void"
             cycle
           end if
-          auxGvector(1:ik) = z0
+          auxGvector = z0 !(1:ik)
 !        print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
          iPxi = ipxi_I
          do iPhi = iPhi_I,iPhi_F
@@ -3028,7 +691,7 @@
            auxGvector(iPhi) = boupoints(iPxi)%Gmov(iP_X-nIpts,i,2,m)
            iPxi = iPxi + 1
          end do !iPhi 
-         if (verbose .ge. 4) call showMNmatrixZ(ik,1,auxGvector," auxG",6)
+         if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
           fotogramas(iP_x-nIpts,m,J,i) = sum(trac0vec * auxGvector) + &
           allpoints(iP_x)%Wmov(J,i,m) 
 !     end do !i
@@ -3057,6 +720,19 @@
       end if !SH
       end if !makevideo
       end if !workboundary
+      if (onlythisJ) then
+          print*,"";print*,"Rultados en puntos receptores: ------"
+          do iP_x = 1,nIpts
+           if (.not. allpoints(iP_x)%isSabana) then
+            print*,"ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"]", &
+            "n = [",allpoints(iP_x)%normal%x,",",allpoints(iP_x)%normal%z,"]"
+            print*,"   W=",allpoints(iP_x)%resp(J)%W
+            print*,"   U=",allpoints(iP_x)%resp(J)%U
+            print*,"   Tz=",allpoints(iP_x)%resp(J)%Tz
+            print*,"   Tx=",allpoints(iP_x)%resp(J)%Tx 
+           end if
+          end do !iP_x
+        end if!
 !     call ETIME(tarray, result)
 !     write(PrintNum,'(a,f10.3,a)') "Elapsed ",result,"seconds"
 !     print*,"deltaT=",result-lastresult
@@ -3065,7 +741,7 @@
       
 !     deallocate(B);deallocate(IPIV)
       if(verbose >= 1) write(PrintNum,'(a)')" done"
-      ! seismograms 
+      ! w->time & plot 
       call ETIME(tarray, result)
       if (result .ge. 60) then
       write(PrintNum,'(a,f10.3,a)') "Elapsed ",result/60,"minutes"
@@ -3276,6 +952,7 @@
       use glovars
       use GeometryVars , only : staywiththefinersubdivision,finersubdivisionJ,&
        longitudcaracteristica_a, fraccionDeSmallestWL_segm_de_esquina
+      use resultvars, only : overDeterminedSystem
       implicit none
       logical :: lexist
       CALL chdir("ins")
@@ -3289,10 +966,12 @@
       READ(35,'(I1)') verbose!; print*,"verbose =",verbose 
       READ(35,'(L1)') makevideo!; print*,"make a video =",makevideo
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
+      READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
       READ(35,*) multSubdiv!; print*,"division multiple = ", multSubdiv
       READ(35,*) staywiththefinersubdivision, finersubdivisionJ
+      READ(35,*) overDeterminedSystem
       READ(35,*) cKbeta!; print*,"multBminIntegrando = ", cKbeta
       read(35,*) periodicdamper!; print*,"Periodic sources damping factor = ", periodicdamper
       READ(35,*) useAzimi
@@ -3327,11 +1006,12 @@
       READ(7,'(I2)')N   !NUMBER OF LAYERS NOT COUNTING UPPER/LOWER HALF-SPACE
       READ(7,*)
       write(outpf,'(/,A,I2,A,/)') '  ',N,' layers'
-      ALLOCATE (Z(0:N+1)); ALLOCATE (AMU(0:N+2))
-      ALLOCATE (BETA0(0:N+2)); ALLOCATE (ALFA0(0:N+2)); ALLOCATE(ANU(0:N+2))
-      ALLOCATE (LAMBDA(0:N+2)); ALLOCATE (RHO(0:N+2))
+      ALLOCATE (Z(0:N+1));ALLOCATE (RHO(0:N+2)); ALLOCATE(ANU(0:N+2))
+      ALLOCATE (BETA0  (0:N+2)); ALLOCATE (ALFA0(0:N+2))
+      ALLOCATE (BETA   (0:N+2)); ALLOCATE (ALFA (0:N+2))
+      ALLOCATE (LAMBDA0(0:N+2)); ALLOCATE (AMU0 (0:N+2))
+      ALLOCATE (LAMBDA (0:N+2)); ALLOCATE (AMU  (0:N+2))
       allocate (layershadecolor(0:N+2))
-      ALLOCATE (ALFA(0:N+2)); ALLOCATE (BETA(0:N+2))
       
       Z(0)=real(1000,8);      Z(1)=real(0,8)
       if (verbose >= 1) write(outpf,'(a)')& 
@@ -3340,11 +1020,11 @@
          READ(7,*) H, ALF, BET, RO
         if (H .lt. 0.0) then
           Z(0) = real(H)
-          AMU(0)=cmplx(RO*BET**2.0,0.0,8)
+          AMU0(0)=RO*BET**2.0
           BETA0(0)=BET
           ALFA0(0)=ALF
           RHO(0) = RO
-          LAMBDA(0)=cmplx(RHO(0)*ALF**2.0 - real(2.)*real(AMU(0)),0.0,8) 
+          LAMBDA0(0)=RHO(0)*ALF**2.0 - real(2.)*real(AMU0(0))
           BEALF = beta0(0)/alfa0(0)
           anu(0) = (bealf**2 - 0.5)/(-1 + bealf**2)!#< b
          write(outpf,'(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
@@ -3352,11 +1032,11 @@
           READ(7,*) H, ALF, BET, RO
         end if
          Z(J+1)=Z(J)+real(H)
-         AMU(J)=cmplx(RO*BET**2.0,0.0,8)
+         AMU0(J)=RO*BET**2.0
          BETA0(J)=BET
          ALFA0(J)=ALF
          RHO(J) = RO
-         LAMBDA(J)=cmplx(RHO(J)*ALF**2.0 - real(2.)*real(AMU(J)),0.0,8)
+         LAMBDA0(J)=RHO(J)*ALF**2.0 - real(2.)*real(AMU0(J))
 !        BEALF=SQRT((0.5-ANU)/(1.0-ANU)) !IF POISSON RATIO IS GIVEN
          BEALF = beta0(J)/alfa0(J)
          anu(J) = (bealf**2 - 0.5)/(-1 + bealf**2)
@@ -3370,11 +1050,11 @@
       READ(7,*) H, ALF, BET, RO 
       if (H .lt. 0.0) then !(caso: semiespacio arriba, semiespacio abajo)
          Z(0) = real(H)
-         AMU(0)=cmplx(RO*BET**2.0,0.0,8)
+         AMU0(0)=RO*BET**2.0
          BETA0(0)=BET
          ALFA0(0)=ALF
          RHO(0) = RO
-         LAMBDA(0)=cmplx(RHO(0)*ALF**2.0 - real(2.)*real(AMU(0)),0.0,8) 
+         LAMBDA0(0)=RHO(0)*ALF**2.0 - real(2.)*real(AMU0(0))
          BEALF = beta0(0)/alfa0(0)
          anu(0) = (bealf**2 - 0.5)/(-1 + bealf**2)!#< b
          write(outpf,'(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
@@ -3382,11 +1062,11 @@
          RHO(0), real(LAMBDA(0)),real(anu(0)) !#>
          READ(7,*) H, ALF, BET, RO
       end if
-      AMU(N+1)=cmplx(RO*BET**2,0.0,8)
+      AMU0(N+1)=RO*BET**2
       BETA0(N+1)=BET
       ALFA0(N+1)=ALF
       RHO(N+1) = RO
-      LAMBDA(N+1)=cmplx(RHO(n+1)*ALF**2 - real(2.)*real(AMU(n+1)),0.0,8)
+      LAMBDA0(N+1)=RHO(n+1)*ALF**2 - real(2.)*real(AMU0(n+1))
       BEALF = beta0(N+1)/alfa0(N+1)
       anu(N+1) = (bealf**2 - 0.5)/(-1 + bealf**2) !#< b
          write(outpf,'(F7.1,2x,A, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
@@ -3547,7 +1227,8 @@
       subroutine getInquirePoints
       use resultVars, only : inqPoints, nIpts, iPtini,iPtfin, & 
                        nSabanapts, Sabana,sabZeroini,sabZerofin,&
-                       SabanaPlotIndividual, sabanaBajarAFrontera
+                       SabanaPlotIndividual, sabanaBajarAFrontera, & 
+                       n_OD,overDeterminedSystem
       use waveNumVars, only : NPTSTIME
       implicit none
       integer :: i,j,k,thelayeris,iIndex, nnsabanas,thisnsab
@@ -3585,20 +1266,25 @@
       inqPoints(:)%guardarMovieSiblings = .false.
       inqPoints(:)%isSabana = .false.
       inqPoints(:)%isSourceSegmentForce= .false.
+      inqPoints(:)%isOD= .false. ; n_OD = 0
       inqPoints(:)%region = 1
+      inqPoints(:)%boundaryIndex = 0
       READ(7,*) !  X        Z          nx       nz     guardarFK
       do i=1, nIpts 
          READ(7,*) inqPoints(i)%center%x, inqPoints(i)%center%z, &
-             inqPoints(i)%normal%x, inqPoints(i)%normal%z, auxGuardarFK
+             inqPoints(i)%normal%x, inqPoints(i)%normal%z, auxGuardarFK, & 
+             inqPoints(i)%isOD,inqPoints(i)%tipoFrontera
            inqPoints(i)%center%x = inqPoints(i)%center%x * escalax + offsetx
            inqPoints(i)%center%z = inqPoints(i)%center%z * escalay + offsety
-           
+           IF (inqPoints(i)%isOD) n_OD = n_OD +1
       !encontrar el layer en el que estan o 0 si está sobre la interfaz
            inqPoints(i)%layer = thelayeris(real(inqPoints(i)%center%z,8))
            if (auxGuardarFK .ge. 1 ) inqPoints(i)%guardarFK = .true.
            inqPoints(i)%isOnInterface = & 
                          tellisoninterface(real(inqPoints(i)%center%z,8))                         
       end do
+      if (.not. overDeterminedSystem) n_OD = 0
+      if (n_OD .eq. 0) overDeterminedSystem = .false.
       iIndex = nIpts
       if (nSabanapts .gt. 0) then
       allocate(Sabana(nSabanapts, NPTSTIME))
@@ -3693,7 +1379,7 @@
       end interface 
       
       logical :: skipdir(3),PSV,SH
-      integer :: thelayeris,efsource,i
+      integer :: thelayeris,efsource,i,regi
       logical :: lexist, tellisoninterface, intfsource
       real    :: xfsource,zfsource,l
       real*8  :: nxfsource,nyfsource,nzfsource, PW_theta
@@ -3712,7 +1398,7 @@
       allocate(Po(nFuentes))
       do i=1,nFuentes
        READ(77,*) xfsource, zfsource, nxfsource,&
-                 nyfsource, nzfsource, PW_theta, l
+                 nyfsource, nzfsource, PW_theta, l, regi
        Po(i)%center%x = xfsource
        Po(i)%center%z = zfsource
        Po(i)%normal%x = nxfsource 
@@ -3722,6 +1408,7 @@
        Po(i)%sinT = sin(PW_theta*pi/180.0)
        Po(i)%gamma = PW_theta*pi/180.0
        Po(i)%length = l
+       Po(i)%region = regi
        if (tipoFuente .eq. 1) then ! onda plana
          Po(i)%center%z = Z(N+1)
          efsource = N+1
@@ -3754,9 +1441,9 @@
       do i = 1,nFuentes
       write(Printnum,'(a)') &
        "---------------------------------------------------------------------------------"
-      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a)') & 
+      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a,I0)') & 
       "   Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
-      "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,"]"
+      "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,"] r= ",Po(i)%region
       end do
       
       skipdir = .true.
@@ -3831,22 +1518,22 @@
       !Read coordinates of collocation points and fix if there are
       !intersections with inferfaces. Also find normal vectors of segments.
       use GeometryVars, only: n_topo,n_cont,n_vall,nXI, Xcoord_ER, &
-      Xcoord_Voidonly, Xcoord_Incluonly,boxIncl_maxX,boxIncl_maxY,boxIncl_minX,boxIncl_minY, &
-      boxVoid_maxX,boxVoid_maxY,boxVoid_minX,boxVoid_minY, midPoint, &
-      normXI, origGeom, surf_poly
+      Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out,boxIncl_maxX,boxIncl_maxY, & 
+      boxIncl_minX,boxIncl_minY,boxVoid_maxX,boxVoid_maxY,boxVoid_minX,& 
+      boxVoid_minY, midPoint,normXI, origGeom, surf_poly
       use gloVars
       use fitting
-      use soilVars, only : Z,N,RHO,BETA0,ALFA0,shadecolor_inc,beta0
+      use soilVars, only : Z,N,RHO,BETA0,ALFA0,shadecolor_inc,LAMBDA0,ANU,AMU0
       use ploteo10pesos
       
       implicit none 
       logical :: lexist, huboCambios
       real*8, dimension(:,:,:), allocatable :: auxVector
-      real*8 :: l, m
+      real*8 :: l, m,BEALF
       integer :: iXI,e
       real*8 :: nuevoPx, escalax,escalay,offsetx,offsety,escala_n,minBeta,maxBeta
       
-      real     :: errT = 0.001
+      real     :: errT = 0.000001
       logical, dimension(:), allocatable  :: isOnIF
       real, dimension(:), allocatable :: auxA,auxB 
       CHARACTER(len=32) :: arg
@@ -3865,8 +1552,6 @@
       end if
       CALL get_command_argument(1, arg)
       IF ((LEN_TRIM(arg) .ne. 0) .and. (trim(arg) .eq. '-g')) verbose = 3 
-        
-        
       READ(77,*) 
       READ(77,*) n_topo
       READ(77,*) n_cont
@@ -3924,6 +1609,13 @@
       READ(77,*) ! Inclusion properties
       READ(77,*) ! Alfa(m/s) Beta(m/s) Dens(T/m3)
       READ(77,*) ALFA0(N+2),BETA0(N+2),RHO(N+2)
+      
+      AMU0(N+2)=RHO(N+2)*BETA0(N+2)**2.0
+      LAMBDA0(N+2)=RHO(N+2)*ALFA0(N+2)**2.0 - & 
+                        real(2.)*real(AMU0(N+2))
+      BEALF = BETA0(N+2)/ALFA0(N+2)
+      ANU(N+2) = (BEALF**2 - 0.5)/(-1 + BEALF**2)
+      
       if (allocated(Xcoord_Incluonly)) deallocate(Xcoord_Incluonly)
       allocate (Xcoord_Incluonly(n_cont + n_vall,2,2))
       do iXI = 1,n_cont + n_vall
@@ -3936,11 +1628,11 @@
       boxIncl_minY = minval(Xcoord_Incluonly(:,2,:))
       READ(77,*) ! and make anything inside is on the air
       READ(77,*) e
+      READ(77,*) escalax,escalay
+      READ(77,*) offsetx,offsety
       if (e .ne. 0) then
       if (allocated(Xcoord_Voidonly)) deallocate(Xcoord_Voidonly)
       allocate (Xcoord_Voidonly(e,2,2))
-      READ(77,*) escalax,escalay
-      READ(77,*) offsetx,offsety
       do iXI = 1,e
          READ(77,*) Xcoord_Voidonly(iXI,1,1),Xcoord_Voidonly(iXI,2,1),& 
                     Xcoord_Voidonly(iXI,1,2),Xcoord_Voidonly(iXI,2,2)
@@ -3953,6 +1645,24 @@
       boxVoid_minX = minval(Xcoord_Voidonly(:,1,:))
       boxVoid_minY = minval(Xcoord_Voidonly(:,2,:))
       end if 
+!     print*,flip12
+      if (flip12) then
+      READ(77,*) ! Borde de región E cuando flip12 .true.
+      READ(77,*) e 
+      READ(77,*) escalax,escalay
+      READ(77,*) offsetx,offsety
+      if (e .ne. 0) then
+      if (allocated(Xcoord_flip_out)) deallocate(Xcoord_flip_out)
+      allocate (Xcoord_flip_out(e,2,2))
+      do iXI = 1,e
+         READ(77,*) Xcoord_flip_out(iXI,1,1),Xcoord_flip_out(iXI,2,1),& 
+                    Xcoord_flip_out(iXI,1,2),Xcoord_flip_out(iXI,2,2)
+         Xcoord_flip_out(iXI,1,1:2) = Xcoord_flip_out(iXI,1,1:2) * escalax + offsetx
+         Xcoord_flip_out(iXI,2,1:2) = Xcoord_flip_out(iXI,2,1:2) * escalay + offsety
+!        print*,ixi,Xcoord_flip_out(iXI,1,1:2),Xcoord_flip_out(iXI,2,1:2)
+      end do
+      end if
+      end if
       close(77)
       CALL chdir("..")
       
@@ -3984,6 +1694,10 @@
                  nuevoPx = splitatY(surf_poly,1,real(Z(e),4),& 
                  real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
                end if !
+               if ((sqrt((Xcoord_ER(iXI,1,1)-nuevoPx)**2 + (Xcoord_ER(iXI,2,1) - Z(e))**2) .lt. 0.001) .or. &
+                   (sqrt((Xcoord_ER(iXI,1,2)-nuevoPx)**2 + (Xcoord_ER(iXI,2,2) - Z(e))**2) .lt. 0.001)) then
+                   cycle ! si es muy corto no lo queremos
+               end if
              if (verbose >= 4) then
               write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
               "(dn)Segment (x,z):[",Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1)," to" &
@@ -4023,6 +1737,10 @@
                  nuevoPx = splitatY(surf_poly,1,real(Z(e),4),& 
                  real(Xcoord_ER(iXI,1,1),4),real(Xcoord_ER(iXI,1,2),4))
                end if!
+               if ((sqrt((Xcoord_ER(iXI,1,1)-nuevoPx)**2 + (Xcoord_ER(iXI,2,1) - Z(e))**2) .lt. 0.001) .or. &
+                   (sqrt((Xcoord_ER(iXI,1,2)-nuevoPx)**2 + (Xcoord_ER(iXI,2,2) - Z(e))**2) .lt. 0.001)) then
+                   cycle ! si es muy corto no lo queremos
+               end if
              if (verbose >= 4) then
                write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
               "(dn)Segment (x,z):[",Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1)," to" &
@@ -4145,28 +1863,33 @@
       subroutine setVideoPointsRegions
       use peli, only : coords_Z,coords_X,fotogramas_Region
       use meshVars, only : npixX,npixZ
-      use glovars, only : makeVideo
+      use glovars, only : makeVideo, flip12
       use soilVars, only : Z
       implicit none
       integer :: i,j
+      integer, dimension(0:2) :: reg
       logical :: cn, adentroOafuera
+      ! !1 estr, 2 incl, 0 void
+      reg(0) = 0; reg(1)= 1; reg(2) = 2
+      if (flip12) then
+      reg(0) = 0; reg(1)= 2; reg(2) = 1
+      end if
       ! asigmar la region a cada pixel de la pelicula
       if (makeVideo .eqv. .false.) return
-      ! !1 estr, 2 incl, 0 void
        do i=1,npixZ
         do j=1,npixX
-          fotogramas_Region(i,j) = 1!'estr'
+          fotogramas_Region(i,j) = reg(1)!'estr'
           cn = adentroOafuera(coords_X(j), coords_Z(i),'incl')
           if (cn .eqv. .true.) then
-            fotogramas_Region(i,j) = 2!'incl' 
+            fotogramas_Region(i,j) = reg(2)!'incl' 
           end if
           cn = adentroOafuera(coords_X(j), coords_Z(i),'void')
           if (cn .eqv. .true.) then
-            fotogramas_Region(i,j) = 0!'void' 
+            fotogramas_Region(i,j) = reg(0)!'void' 
           end if
           if (abs(z(0)) .gt. 0.0001) then ! si no es cero
             if (coords_Z(i) .lt. 0.0) then
-              fotogramas_Region(i,j) = 0!'void'
+              fotogramas_Region(i,j) = reg(0)!'void'
             end if
           end if
         end do
@@ -4175,35 +1898,41 @@
       
       subroutine setInqPointsRegions
       use resultVars, only : allpoints,nIpts,nPts
-      use soilVars, only : Z
-      use glovars, only : verbose, Printnum
+!     use soilVars, only : Z
+      use glovars, only : verbose, Printnum, flip12
       implicit none
       integer :: i
+      integer, dimension(0:2) :: reg
       logical :: cn,adentroOafuera
       !!1 estr, 2 incl, 0 void
-      allpoints(1:nPts)%region = 1!'estr'
+      reg(0) = 0; reg(1)= 1; reg(2) = 2
+      if (flip12) then
+        reg(0) = 0; reg(1)= 2; reg(2) = 1
+      end if
+      allpoints(1:nPts)%region = reg(1)!'estr'
       do i = 1, nIpts
         cn = adentroOafuera(real(allpoints(i)%center%x,4), & 
                             real(allpoints(i)%center%z,4),'void')
+!       print*,i,cn;cycle
         if (cn .eqv. .true.) then
-            allpoints(i)%region = 0!'void' 
+            allpoints(i)%region = reg(0)!'void' 
+            cycle
         end if
-        
         cn = adentroOafuera(real(allpoints(i)%center%x,4), & 
                             real(allpoints(i)%center%z,4),'incl')
         if (cn .eqv. .true.) then
-            allpoints(i)%region = 2!'incl'
+            allpoints(i)%region = reg(2)!'incl'
         end if
-        if (abs(z(0)) .gt. 0.0001) then ! si no es cero
-          if (real(allpoints(i)%center%z,4) .lt. 0.0) then
-            allpoints(i)%region = 0!'void'
-          end if
-        end if
+!       if (abs(z(0)) .gt. 0.0001) then ! si no hay un semiespacio arriba
+!         if (real(allpoints(i)%center%z,4) .lt. 0.0) then
+!           allpoints(i)%region = reg(0)!'void'
+!         end if
+!       end if!
         if (verbose .ge. 2) then
-        write(Printnum,*)i,"[",allpoints(i)%center%x, & 
+        write(PrintNum,*)i,"[",allpoints(i)%center%x, & 
         ",",allpoints(i)%center%z,"] is ",allpoints(i)%region
         end if
-      end do
+      end do!;stop "setInqPointsRegions"
       end subroutine setInqPointsRegions
       
       function adentroOafuera(x,y,region)
@@ -4222,29 +1951,30 @@
        nullify(Xcoord_ER)
        
        adentroOafuera = .false.
-       
-       XcooBox_maxX = boxVoid_maxX
-       XcooBox_maxY = boxVoid_maxY
-       XcooBox_minX = boxVoid_minX
-       XcooBox_minY = boxVoid_minY
-       Xcoord_ER => Xcoord_Voidonly
-       
        if (region .eq. 'void') then
        XcooBox_maxX = boxVoid_maxX
        XcooBox_maxY = boxVoid_maxY
        XcooBox_minX = boxVoid_minX
        XcooBox_minY = boxVoid_minY
+       if (allocated( Xcoord_Voidonly)) then
        Xcoord_ER => Xcoord_Voidonly
+       else
+       return
+       end if
        else if (region .eq. 'incl') then
        XcooBox_maxX = boxIncl_maxX
        XcooBox_maxY = boxIncl_maxY
        XcooBox_minX = boxIncl_minX
        XcooBox_minY = boxIncl_minY
+       if (allocated( Xcoord_Incluonly)) then
        Xcoord_ER => Xcoord_Incluonly
+       else
+       return
+       end if
        else 
        return
        end if
-       
+!      print*,XcooBox_maxX,XcooBox_maxY,XcooBox_minX,XcooBox_minY
        nXI = size(Xcoord_ER(:,1,1))
           if (XcooBox_minX .le. x) then
           if (x .le. XcooBox_maxX) then
@@ -4481,19 +2211,20 @@
       use soilvars, only : N
       implicit none
       interface
-!        subroutine drawBoundary(BP,nb,titleN,extension, zoomGeom)
-!         use resultVars, only : Punto 
-!         type (Punto), dimension(:), pointer :: BP
-!         integer, intent(in) :: nb
-!         character(LEN=100) :: titleN
-!         character(LEN=3) :: extension
-!         logical, intent(in) :: zoomGeom
-!       end subroutine drawBoundary 
-        
          subroutine punGa (BP) 
           use resultVars, only : Punto 
           type (Punto), pointer :: BP
          end subroutine punGa
+         
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores)
+      use resultVars, only : Punto
+      type (Punto), dimension(:), pointer :: BP
+      integer, intent(in) :: nbpts
+      character(LEN=100) :: titleN
+      character(LEN=3) :: extension
+      logical, intent(in) :: zoomGeom, plotReceptores
+      end subroutine drawBoundary
+         
       end interface 
       
       integer, intent(in) :: iJ
@@ -4511,15 +2242,13 @@
       real*8 :: sixthofWL,f_frec,resi,deltax,deltaz
       character(LEN=100) :: txt
       character(LEN=3) :: extension
-      real*8     :: errT = 0.00001_8
+      real*8     :: errT = 0.000001_8
       type (segemntedcoords), dimension(:), allocatable :: subdiv
-      
       
       f_frec = frec
       smallestWL = minBeta / f_frec
       ! que la subdivision minima sea la correspondiente a 1/3 de fmax
       if ((onlythisJ .eqv. .false.) .and. (iJ * 1.0 < 0.33 * nfrec)) then
-!     if (.true.) then
         f_frec = 0.33 * nfrec * dfrec
         smallestWL = minBeta / f_frec
       end if
@@ -4756,7 +2485,7 @@
        write(txt,'(a,I0,a)') 'Division_at[J=',iJ,'].pdf'
        write(extension,'(a)') 'PDF'
        BP => BouPoints
-       call drawBoundary(BP,nBpts,txt, extension,.true.)
+       call drawBoundary(BP,nBpts,txt, extension,.true.,.false.)
        CALL chdir("..") !out of subdivs
        CALL chdir("..") !out of outs
       end if!
@@ -4941,7 +2670,7 @@
        "---------------------------------------------------------------------------------"
       if (ve .eq. 6) stop "argumento -a"
       end subroutine sourceAmplitudeFunction
-      subroutine diffField_at_iz(i_zF,dir_j,J,cOME_in,workA, ipivA)
+      subroutine diffField_at_iz(i_zF,dir_j,J,cOME_in)
 !#define ver 1
       ! esta función es llamada con cada profundidad donde hay
       ! por lo menos una fuente.
@@ -4952,131 +2681,123 @@
       use wavelets !fork 
       use dislin
       use sourceVars, only: tipofuente, nFuentes, PW_pol
-      use soilvars, only:alfa,beta,N,Z
+      use soilvars, only:N,Z,alfa0,beta0!,alfa,beta
       use, intrinsic :: iso_c_binding!, only : C_INT
       implicit none
       interface
-      include 'interfaz.f'
+        include 'interfaz.f'
+        function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k)
+          use soilvars, only:N
+          complex*16, dimension(1:5) :: PSVdiffByStrata
+          real*8, intent(in)           :: z_i,k
+          complex*16, intent(in)       :: cOME_i  
+          integer, intent(in)          :: e
+          complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
+        end function PSVdiffByStrata
       end interface
       integer, intent(in) :: i_zF,dir_j,J
       complex*16, intent(in),target  :: cOME_in
       logical,pointer :: intf
       integer, pointer :: ef
-      integer, dimension(:),pointer :: ipivA
       real*8,target :: k
       real*8, pointer :: zf,xf,pt_k
       complex*16, dimension(:,:), allocatable, target :: auxK,savedAuxK
       complex*16, target  :: cOME
       complex*16, pointer :: pt_cOME_i
-      complex*16,dimension(:),pointer :: workA
-      complex*16,dimension(:,:),pointer :: pointA, nullpoint
+      integer, dimension(:),allocatable,target :: ipivA
+      integer, dimension(:),pointer :: pt_ipivA
+      complex*16, dimension(:),allocatable,target :: workA
+      complex*16, dimension(:),pointer :: pt_workA
+      complex*16,dimension(:,:),pointer :: pointA
       type(Punto), pointer :: pXi,p_X
-      logical :: auxLogic ,porLoMenosUnoEsEstr!,skipK
-      integer :: tam,itabla_z,itabla_x,ik,iMec,mecS,mecE,&
+      logical :: auxLogic ,porLoMenosUnoEsEstr
+      integer :: ik,tam,itabla_z,itabla_x,iMec,mecS,mecE,&
                  nXis,n_Xs,iXi,dj,i_Fuente,i_FuenteFinal,po,ne
+      type(MecaElem)  :: Meca_diff, SHdiffByStrata
+      allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
 #ifdef ver
       real :: result,lastresult
       real, dimension(2) :: tarray
 #endif
-      real*8 :: nf(3)
-      complex*16 :: kx
-      type(MecaElem)  :: Meca_diff, SHdiffByStrata, PSVdiffByStrata
-      nullify(nullpoint)
-      allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
-      !ver = 1
-      !PSV
-      !  fza horiz     fza vert       !(para la crepa en espacio)
-!     sign(1,1) = -1 ; sign(1,2) = 1  !W        impar     par
-!     sign(2,1) = 1  ; sign(2,2) = -1 !U          par     impar
-!     sign(3,1) = -1 ; sign(3,2) = 1  !s33      impar     par
-!     sign(4,1) = 1  ; sign(4,2) = -1 !s31        par     impar
-!     sign(5,1) = -1 ; sign(5,2) = 1  !s11      impar     par
-!     !SH es par siempre.
       cOME = cOME_in 
       if (i_zF .eq. 0) then
-         itabla_x = 3 ! En la tabla: la fuente real
-         i_FuenteFinal = nFuentes
-         if (tipofuente .eq. 1) then ! onda plana incidente 
-            ! con incidencia de onda plana no usamos atenuación
-            cOME = real(cOME_in) * UR
-         end if
-      else; itabla_x = 2 + pota(i_zF,1) + 1 ! la primer fuente virtual
-            i_FuenteFinal = 1; end if       !  a esa profundidad
-      ! ------- para cada una de las fuentes en la tabla ---------------------------
+         itabla_x = 3 ! En la tabla (pota) de índices: la fuente real -> (0,3)
+         i_FuenteFinal = nFuentes ! Cantidad de fuentes reales
+         if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente ······················p
+            ! con incidencia de onda plana no usamos atenuación                  ·l
+            cOME = real(cOME_in) * UR!                                           ·a
+         end if! ·································································n
+      else; itabla_x = 2 + pota(i_zF,1) + 1 !    la primer fuente virtual
+            i_FuenteFinal = 1; end if       !        a esa profundidad
+      ! ------- para cada una de las fuentes en la tabla -------------------------
       do i_Fuente = 1,i_FuenteFinal
-       call asociar(pXi,i_Fuente,i_zF,itabla_x)
+       call asociar(pXi,i_Fuente,i_zF,itabla_x) ! asociar apuntador a fuente [pXi]
        xf=>pXi%center%x;zf=>pXi%center%z;ef=>pXi%layer;intf=>pXi%isOnInterface
-       nf(1) = pxi%normal%x; nf(2) = pxi%normal%y; nf(3) = pxi%normal%z
 #ifdef ver
        call ETIME(tarray, result)
        print*,"pXI%center%x",pXi%center%x,"pXI%center%z",pXi%center%z,& 
        "isboundary",pXi%isboundary, result
        lastresult = result
 #endif
-      ! vector de términos independientes / coeficientes de campo difractado ..........
-      if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente 
-          if (dir_j .eq. 2) then
-            if(PW_pol .eq. 3) k = real(cOME/beta(N+1)*sin(pXi%gamma))
-            tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1
-            pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana
-            pt_k => k; pt_come_i => cOME
-            call globalmatrix_SH(pointA,pt_k,pt_come_i)
-            call inverseA(pointA,ipivA,workA,tam)
-!           call SHvectorB_ondaplana(Bsh(:,0),k)
-            B(:,0) = matmul(Ak(:,:,0),B(:,0))
-          else
-            if(PW_pol .eq. 1) k = real(cOME/beta(N+1)*sin(pXi%gamma))
-            if(PW_pol .eq. 2) k = real(cOME/alfa(N+1)*sin(pXi%gamma))
-            tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2
-            pointA => Ak(1: tam,1: tam,0) !indice 0 reservado para onda plana
-            pt_k => k; pt_come_i => cOME
-            call globalmatrix_PSV(pointA,nullpoint,pt_k,pt_come_i)
-            call inverseA(pointA,ipivA,workA,tam)
-            call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)
-            B(:,0) = matmul(Ak(:,:,0),B(:,0))
-          end if
-      else ! onda plana / onda cilíndrica circular
-        po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)
-        B(:,po:ne) = 0
-!       print*,po,k_vec(po),ne,k_vec(ne);stop
-        if (dir_j .eq. 2) then
-         tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1
-         do ik = 1,po 
-           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
-           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
-         end do!
-         do ik = ne,2*NMAX 
-           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
-           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
-         end do
-        else
-         tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2
-         do ik = 1,po
-         call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))
-           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
-         end do!
-         do ik = ne,2*NMAX
-           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))
-           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
-         end do
-        end if
-!       do ik = 1,2*NMAX ! OPTIMIZAR ESTE!!!!
-!         if (dir_j .eq. 2) then
-!           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))
-!         else
-!           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik)) 
-!         end if
-!         B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))
-!       end do !ik
-      end if! onda cilíndrica circular
+      ! Si es la fuente real y es una onda plana no se usa el DWN. Se calcula para
+      ! el número de onda horizontal asociado al ángulo de incidencia ············
+      if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente   ·
+          if (dir_j .eq. 2) then! SH                                             ·
+            if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!          ·o
+            tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1!                       ·n
+            pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·d
+            pt_k => k; pt_come_i => cOME!                                        ·a
+            allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
+            pt_ipivA => ipivA; pt_workA => workA!                                ·
+            call globalmatrix_SH(pointA,pt_k,pt_come_i)!                         ·p
+            call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
+            B(:,0) = matmul(Ak(:,:,0),B(:,0))!                                   ·a
+          else!  P-SV                                                            ·n
+            if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!          ·a
+            if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(pXi%gamma))!          ·
+            tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
+            pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
+            pt_k => k; pt_come_i => cOME!                                        ·
+            allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
+            pt_ipivA => ipivA; pt_workA => workA!                                ·
+            call gloMat_PSV(pointA,pt_k,pt_come_i)!                              ·
+            call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
+            call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
+            B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
+          end if!                                                                ·
+      else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+      ! La fuente es cilíndrica, puede tratarse de la fuente real o una virtual ·· 
+        po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)                    !
+        B(:,po:ne) = 0                                                           !
+        if (dir_j .eq. 2) then                                                   !
+         tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
+         do ik = 1,po                                                            !n
+           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !d
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !a
+         end do                                                                  !                                     
+         do ik = ne,2*NMAX                                                       !c
+           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !i
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !l
+         end do                                                                  !i
+        else                                                                     !n        
+         tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
+         do ik = 1,po                                                            !r
+         call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))        !i
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
+         end do                                                                  !a
+         do ik = ne,2*NMAX                                                       !
+           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
+         end do                                                                  !
+        end if                                                                   !
+      end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
 #ifdef ver
        call ETIME(tarray, result)
        print*,"vector B,  x=inv(A)B (todas k) ",result-lastresult
        lastresult = result
        print*,"resultados para cada Z donde hay receptores:"
 #endif
-      ! resultados para cada Z donde hay receptores en el medio estratificado .......
-                          
+      ! resultados para cada Z donde hay receptores en el medio estratificado ...
       do itabla_z = 1,nZs
 #ifdef ver 
        print*,"  itabla_z",itabla_z,"de",nZs,"******************"
@@ -5101,56 +2822,50 @@
       ! ... elementos mecánicos a la profundidad p_X%center%z ........
       ! .... usando los coeficientes de las ondas en el estrato ......
       savedauxk = z0
-      if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana
-          if (dir_j .eq. 2) then
-            if(PW_pol .eq. 3) k = real(cOME/beta(N+1)*sin(pXi%gamma))
-                 Meca_diff = SHdiffByStrata(B(:,0), &
-                             p_X%center%z, p_X%layer, & 
-                             cOME,k,mecS,mecE,outpf)
-                 savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) 
-          else
-            if(PW_pol .eq. 1) k = real(cOME/beta(N+1)*sin(pXi%gamma))
-            if(PW_pol .eq. 2) k = real(cOME/alfa(N+1)*sin(pXi%gamma))
-                 Meca_diff = PSVdiffByStrata(B(:,0), &
-                              p_X%center%z, p_X%layer, &
-                              cOME,k,mecS,mecE,outpf)
-                 savedauxk(1,mecS:mecE) = Meca_diff%Rw(mecS:mecE)
-          end if
-      else ! onda plana incidente / onda cilíndrica circular            
-        do ik = 1,po!2*Nmax
-          if (dir_j .eq. 2) then !SH
-              Meca_diff = SHdiffByStrata(B(:,ik), &
-                             p_X%center%z, p_X%layer, & 
-                             cOME,k_vec(ik),mecS,mecE,outpf)
-             savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)
-          else !PSV
-              Meca_diff = PSVdiffByStrata(B(:,ik), &
-                              p_X%center%z, p_X%layer, &
-                              cOME,k_vec(ik),mecS,mecE,outpf)
-              savedauxk(ik,mecS:mecE) = Meca_diff%Rw(mecS:mecE)
-          end if
-        end do ! ik
-        do ik = ne,2*Nmax
-          if (dir_j .eq. 2) then !SH
-              Meca_diff = SHdiffByStrata(B(:,ik), &
-                             p_X%center%z, p_X%layer, & 
-                             cOME,k_vec(ik),mecS,mecE,outpf)
-             savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)
-          else !PSV
-              Meca_diff = PSVdiffByStrata(B(:,ik), &
-                              p_X%center%z, p_X%layer, &
-                              cOME,k_vec(ik),mecS,mecE,outpf)
-              savedauxk(ik,mecS:mecE) = Meca_diff%Rw(mecS:mecE)
-          end if
-        end do ! ik
-      end if! onda cilíndrica circular
+      if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana·············
+          if (dir_j .eq. 2) then!                                               ·
+            if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·
+                 Meca_diff = SHdiffByStrata(B(:,0), &!                          ·o
+                             p_X%center%z, p_X%layer, & !                       ·n
+                             cOME,k,mecS,mecE,outpf) !                          ·d
+                 savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) !          ·a
+          else !                                                                ·
+            if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·p
+            if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(pXi%gamma))!         ·l
+                 savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
+                              p_X%center%z, p_X%layer,cOME,k)!                  ·a
+          end if!                                                               ·
+      else ! onda plana incidente / onda cilíndrica circular ····················
+        do ik = 1,po                                                            !
+          if (dir_j .eq. 2) then !SH                                            !
+              Meca_diff = SHdiffByStrata(B(:,ik), &                             !
+                             p_X%center%z, p_X%layer, &                         !o
+                             cOME,k_vec(ik),mecS,mecE,outpf)                    !n
+              savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)              !d
+          else !PSV                                                             !a
+              savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik))           !i
+          end if                                                                !l
+        end do ! ik                                                             !i
+        do ik = ne,2*Nmax                                                       !n
+          if (dir_j .eq. 2) then !SH                                            !d
+              Meca_diff = SHdiffByStrata(B(:,ik), &                             !r
+                             p_X%center%z, p_X%layer, &                         !i
+                             cOME,k_vec(ik),mecS,mecE,outpf)                    !c
+             savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)               !a
+          else !PSV                                                             !
+             savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
+                                 p_X%center%z, p_X%layer,cOME,k_vec(ik))        !
+          end if                                                                !
+        end do ! ik                                                             !
+      end if! onda cilíndrica circular ··········································
       ! fase horizontal (fuente..receptor)
       ! para cada fuente a la profundidad iz ................... 
         if (i_zF .eq. 0) then
            nXis = 1 ! la fuente real es sólo una
         else
-           nXis = pota(i_zF,2) ! fuente virtual (pueden ser varias a la misa profundidad)
-        end if
+           nXis = pota(i_zF,2) ! fuente virtual (pueden ser varias 
+        end if                 !                 a la misa profundidad)
 #ifdef ver
        call ETIME(tarray, result)
        print*,"  obtenidos el mecanicos (todos los k)",result-lastresult
@@ -5187,63 +2902,64 @@
             ! reponer auxK original sin fase horizontal
           auxK(1:2*nmax,mecS:mecE) = savedAuxK(1:2*nmax,mecS:mecE)
             ! agregar información fase horizontal de fuente y receptor 
-          do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-            if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then  
-              if (dir_j .eq. 2) then
-                if(PW_pol .eq. 3) kx = cOME/beta(N+1)*sin(pXi%gamma)
-              else
-                if(PW_pol .eq. 1) kx = cOME/beta(N+1)*sin(pXi%gamma)
-                if(PW_pol .eq. 2) kx = cOME/alfa(N+1)*sin(pXi%gamma)
-              end if  
-                auxk(1,imec) = auxk(1,imec) * &           ! onda plana
-                exp(-UI*kx*(p_x%center%x - xf))           !
-                cycle !imec                               !
-            end if                                        !
-            do ik = 1,po
-                auxk(ik,imec) = auxk(ik,imec) * &
-                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))
-            end do !  ik
-            do ik = ne,2*Nmax
-                auxk(ik,imec) = auxk(ik,imec) * &
-                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))
-            end do !  ik
+          do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+            if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then !             ·
+              if (dir_j .eq. 2) then!                                       ·
+!               if(PW_pol .eq. 3) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·p
+                if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))! ·p
+              else!                                                         ·l
+!               if(PW_pol .eq. 1) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·a
+!               if(PW_pol .eq. 2) kx = cOME/alfa(N+1)*sin(pXi%gamma)!       ·n
+                if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(pXi%gamma))! ·a
+                if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(pXi%gamma))! ·n
+              end if  !                                                     ·a
+                auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
+                exp(-UI*k*(p_x%center%x - xf))            !                 ·
+                CYCLE ! imec                              !                 ·
+            end if ! ························································
+            do ik = 1,po                                                    !
+                auxk(ik,imec) = auxk(ik,imec) * &                           !
+                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
+            end do !  ik                                                    !i
+            do ik = ne,2*Nmax                                               !l
+                auxk(ik,imec) = auxk(ik,imec) * &                           !i
+                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!n
+            end do !  ik                                                    !d
 #ifdef ver
-       call ETIME(tarray, result)
-       print*,"        agregado fase horizontal",result-lastresult
-       lastresult = result
+       call ETIME(tarray, result)                                           !i
+       print*,"        agregado fase horizontal",result-lastresult          !c
+       lastresult = result                                                  !a
 #endif
-                ! guardar el FK por fuente real ---------------------
+                ! guardar el FK por fuente real ---------------------       !
                  if(plotFKS) then
                  if (i_zF .eq. 0) then 
-                 if (p_x%guardarFK .eqv. .true.) then 
+                 if (p_x%guardarFK .eqv. .true.) then                       !
                  if (dir_j .eq. 2) then 
                     if ( imec .eq. 1) then
-                      p_x%FK(J,1:nmax,3) = & 
+                      p_x%FK(J,1:nmax,3) = &                                !
                       p_x%FK(J,1:nmax,3) + auxK(1:nmax,imec) 
                     end if
                  else
-                    if( imec .le. 2) then
+                    if( imec .le. 2) then                                   !
                       p_x%FK(J,1:nmax,imec) = & 
                       p_x%FK(J,1:nmax,imec) + auxK(1:nmax,imec) 
                     end if
-                end if;end if;end if;end if!-------------------------
+                end if;end if;end if;end if!-------------------------       !
 #ifdef ver
        call ETIME(tarray, result)
-       print*,"        guardado el integrando",result-lastresult
+       print*,"        guardado el integrando",result-lastresult            !
        lastresult = result
 #endif
-      ! K -> X  ......................................................... 
+      ! K -> X  .........................................................   !
          if (p_x%guardarMovieSiblings .eqv. .false.) then
-             !auxk(:,imec) = auxk(:,imec) * (sqrt(2.0*nmax) * dk) !backward
-             !call fork(2*nmax,auxK(:,iMec),+1,Ver,outpf)
-             auxK(:,iMec) = FFTW(2*nmax,auxK(:,iMec),+1,dk) !backward
+             auxK(:,iMec) = FFTW(2*nmax,auxK(:,iMec),+1,dk) !backward       !
 #ifdef ver
-       call ETIME(tarray, result)
-       print*,"        fork non movie", result-lastresult
-       lastresult = result
+       call ETIME(tarray, result)                                           !
+       print*,"        fork non movie", result-lastresult                   !
+       lastresult = result                                                  !
 #endif
-         end if
-      end do !imec !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+         end if                                                             !
+      end do !imec !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
               !
               !                    |        RECEPTOR
               !                    | allpoint  |   boupoint
@@ -5255,14 +2971,16 @@
               if(p_x%isBoundary) then
                 if(i_zF .eq. 0) then ! pXi es la fuente real
                   ! term. indep.
-                  call fill_termindep(auxK(1,mecS:mecE),come,mecS,mecE,p_x,pXi,dir_j)
-                else
+                  call fill_termindep(auxK(1,mecS:mecE),& 
+                                      come,mecS,mecE,p_x,pXi,dir_j)
+                else ! pXi es una fuente virtual
                   ! func. Green tracciones para matriz IBEM
-                  call fill_ibemMat(i_zF,auxK(1,mecS:mecE),come,mecS,mecE,p_x,pXi,dir_j)
+                  call fill_ibemMat(i_zF,auxK(1,mecS:mecE),& 
+                                    come,mecS,mecE,p_x,pXi,dir_j)
                 end if
-              else ! p_x no es un punto de colocación
+              else ! p_x no es un punto de colocación, es un receptor
                 call fill_diffbyStrata(i_zF,J,auxK(1:2*nmax,mecS:mecE),& 
-                come,mecS,mecE,p_x,pXi,dir_j)
+                                       come,mecS,mecE,p_x,pXi,dir_j)
               end if ! isBoundary
 #ifdef ver 
       print*,"La función de Green resultado se distribuye";print*,"" 
@@ -5272,18 +2990,9 @@
       end do !itabla_z
       end do !i_Fuente
 #ifdef ver
-       stop "5270 end of diffField_at_iz"
+       stop "2921 end of diffField_at_iz"
 #endif
       end subroutine diffField_at_iz
-      
-      function skipK(ik,po,ne)
-!     use waveNumVars, only : vecNK
-      integer, intent(in) :: ik,po,ne!, J
-      logical :: skipK
-      skipK = .false.
-      if ((ik .ge. po) .and. (ik .le. ne)) skipK = .true.
-      end function skipK
-      
       
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
       subroutine gloMat_PSV(this_A,k,cOME_i)
@@ -5302,7 +3011,7 @@
       complex*16, dimension(4,4) :: diagMat
       complex*16 :: gamma,nu,xi,ega,enu,ck
       integer    :: i,iR,iC,e,bord
-      
+      this_A = 0 
       ck = -k*UR
       iR= 0;iC= 0;i=1
       if (Z(0) .lt. 0.0) then !Half-Space por arriba de z=0 
@@ -5405,187 +3114,174 @@
 !            stop "gloMat_PSV"
       end subroutine gloMat_PSV
       
-      ! Calcular para +k y -k al mismo tiempo. Se ahorran algunas operaciones
-      subroutine globalmatrix_PSV(this_A,this_An,k,cOME_i)
-      use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-      use gloVars, only : UI,UR,Z0
-      use debugStuff
-      implicit none
-      
-      complex*16,intent(inout),dimension(:,:),pointer :: this_A,this_An
-      real*8,     intent(in),pointer     :: k
-      complex*16, intent(in),pointer     :: cOME_i  
-      
-      real*8     :: z_i
-      complex*16, dimension(2,4) :: subMatDp,  subMatDn, & 
-                                    subMatSp,  subMatSn, &
-                                   subMatD0p, subMatD0n, & 
-                                   subMatS0p, subMatS0n
-      complex*16, dimension(4,4) :: diagMat
-      complex*16 :: gamma,nu,xi
-      complex*16 :: egammaN,enuN,egammaP,enuP
-      integer    :: i,iR,iC,e,bord
-      complex*16 :: mink_zp,mink_zn
-          iR= 0
-          iC= 0 
-          mink_zp = -k*UR ! porque armamos matrices para +k y para -k al mismo tiempo.
-          mink_zn =  k*UR
-      !la matriz global se llena por columnas con submatrices de cada estrato
-!     call showMNmatrixZ(size(this_A,1),& 
-!            size(this_A,2),this_A,"A    ",6)
-      i=1
-      if (Z(0) .lt. 0.0) then 
-        i = 0 !Half-Space por arriba de z=0 
-        iR= -2
-        iC= -2
-      end if
-      DO e = i,N+1
-          ! algunas valores constantes para todo el estrato
-          gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-          nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-          ! Se debe cumplir que la parte imaginaria del número de onda 
-          ! vertical debe ser menor que cero. La parte imaginaria contri-
-          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
-          ! nencial a medida que z es mayor que cero.
-          if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-          if(aimag(nu).gt.0.0)nu= conjg(nu)
-          
-          xi = k**2.0 - nu**2.0 
-          ! en fortran los elementos se indican por columnas:
-          subMatD0p = RESHAPE((/ -gamma, mink_zp, mink_zp,nu,& 
-                                 gamma, mink_zp, mink_zp,-nu /), &
-                           (/ 2,4 /))
-          subMatD0p = subMatD0p * UI
-          
-          subMatD0n = RESHAPE((/ -gamma, mink_zn, mink_zn,nu,& 
-                                 gamma, mink_zn, mink_zn,-nu /), &
-                           (/ 2,4 /))
-          subMatD0n = subMatD0n * UI
-          
-          subMatS0p = RESHAPE((/ xi,-2.0*k*gamma,-2.0*k*nu,-xi,& 
-                               xi,2.0*k*gamma,2.0*k*nu,-xi /),&
-                           (/2,4/)) 
-          subMatS0p = amu(e) * subMatS0p 
-          
-          subMatS0n = RESHAPE((/ xi, 2.0*k*gamma, 2.0*k*nu,-xi,& 
-                               xi,-2.0*k*gamma,-2.0*k*nu,-xi /),&
-                           (/2,4/)) 
-          subMatS0n = amu(e) * subMatS0n 
-          
-          ! la profundidad z de la frontera superior del estrato
-!         z_i = Z(e)   ! e=1  ->  z = z0 = 0
-!         z_f = Z(e+1) ! e=1  ->  z = z1 
-        do bord = 0,1
-          if ((e .eq. 0) .and. (bord .eq. 0)) cycle
-          if (e+bord > N+1) then ! si 1+0;1+1;2+0;[2+1] > 2
-            exit
-          end if                           
-          ! la profundidad z de la frontera superior del estrato
-                z_i = Z(e+bord)   ! e=1 , bord=0  ->  z = z0 = 0
-                                  ! e=1 , bord=1  ->  z = Z1 = h1
-          !downward waves
-          !  bord=0  ... 0 | bord=1  ... h(e)=Z(e+1)-Z(e)
-          !        -> 1    |       -> exp(-UI * nu * h(e))
-          if (e /= 0) then !(radiation condition upper HS)
-            egammaN = exp(-UI * gamma * (z_i-Z(e))) 
-            enuN = exp(-UI * nu * (z_i-Z(e)))       
-          else
-            egammaN = Z0
-            enuN = Z0
-          end if
-          !upward waves    
-          if (e /= N+1) then !(radiation condition)
-            egammaP = exp(UI * gamma * (z_i-Z(e+1))) !
-            enuP = exp(UI * nu * (z_i-Z(e+1)))
-          else
-            egammaP = Z0
-            enuP = Z0
-          end if
-            !la matrix diagonal
-         diagMat = RESHAPE((/ egammaN, Z0, Z0, Z0, & 
-                              Z0,    enuN, Z0, Z0, & 
-                              Z0, Z0, egammaP, Z0, & 
-                              Z0, Z0, Z0, enuP /), &
-                           (/ 4,4 /))
-          ! desplazamientos
-          subMatDp = matmul(subMatD0p,diagMat)
-          subMatDn = matmul(subMatD0n,diagMat)
-          ! esfuerzos
-          subMatSp = matmul(subMatS0p,diagMat)
-          subMatSn = matmul(subMatS0n,diagMat)
-!         call showMNmatrixZ(4,4,diagmat,"diag ",6)
-!         call showMNmatrixZ(2,4, subMatDp,"  Dp ",6)
-!         call showMNmatrixZ(2,4, subMatDn,"  Dn ",6)
-!         call showMNmatrixZ(2,4, subMatSp,"  Sp ",6)
-!         call showMNmatrixZ(2,4, subMatSn,"  Sn ",6)
-        !ensamble de la macro columna i
-          !evaluadas en el borde SUPERIOR del layer i
-          if (bord == 0 .AND. e /= 0 ) then 
-           if (e /= N+1) then !(radiation condition)
-            if (e/=i) then !(only stress bound.cond. in the surface
-             this_A( iR-1 : iR   , iC+1 : iC+4 ) = -subMatDp
-            end if
-             this_A( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatSp
-           else
-           if (e/=i) then !(only stress bound.cond. in the surface
-             this_A( iR-1 : iR   , iC+1 : iC+2 ) = -subMatDp(:,1:2)
-           end if
-             this_A( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatSp(:,1:2)
-            ! exit
-           end if
-          end if
-          
-          !evaluadas en el borde INFERIOR del layer i
-          if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
-           if (e /= 0) then !(radiation condition upward)
-            ! ambas ondas
-            this_A( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatDp
-            this_A( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatSp
-           else
-            ! solo onda hacia arriba
-            this_A( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatDp(:,3:4)
-            this_A( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatSp(:,3:4)
-           end if
-          end if
-         !
-      if (associated(this_An)) then
-          if (bord == 0 .AND. e /= 0 ) then 
-           if (e /= N+1) then !(radiation condition)
-            if (e/=i) then !(only stress bound.cond. in the surface
-            this_An( iR-1 : iR   , iC+1 : iC+4 ) = -subMatDn
-            end if
-            this_An( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatSn
-           else
-           if (e/=i) then !(only stress bound.cond. in the surface
-            this_An( iR-1 : iR   , iC+1 : iC+2 ) = -subMatDn(:,1:2)
-           end if
-            this_An( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatSn(:,1:2)
-           end if
-          end if
-          !evaluadas en el borde INFERIOR del layer i
-          if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
-           if (e /= 0) then !(radiation condition upward)
-            ! ambas ondas
-            this_An( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatDn
-            this_An( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatSn
-           else
-            ! solo onda hacia arriba
-            this_An( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatDn(:,3:4)
-            this_An( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatSn(:,3:4)
-           end if
-          end if
-      end if
-        end do !bord loop del borde i superior o nferior
-          iR= iR+4 
-          iC= iC+4
-!         print*,"bord=",bord,"e=",e,"IR=",IR,"IC=",IC
-!         call showMNmatrixZ(size(this_A,1),& 
-!            size(this_A,2),this_A,"A    ",6)
-      END DO !{e} loop de las macro columnas para cada estrato
-!            call showMNmatrixZ(size(this_A,1),& 
-!            size(this_A,2),this_A,"A    ",6) 
-!            stop 5652
-      end subroutine globalmatrix_PSV
+!     ! Calcular para +k y -k al mismo tiempo. Se ahorran algunas operaciones
+!     subroutine globalmatrix_PSV(this_A,this_An,k,cOME_i)
+!     use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
+!     use gloVars, only : UI,UR,Z0
+!     use debugStuff
+!     implicit none
+!     
+!     complex*16,intent(inout),dimension(:,:),pointer :: this_A,this_An
+!     real*8,     intent(in),pointer     :: k
+!     complex*16, intent(in),pointer     :: cOME_i  
+!     
+!     real*8     :: z_i
+!     complex*16, dimension(2,4) :: subMatDp,  subMatDn, & 
+!                                   subMatSp,  subMatSn, &
+!                                  subMatD0p, subMatD0n, & 
+!                                  subMatS0p, subMatS0n
+!     complex*16, dimension(4,4) :: diagMat
+!     complex*16 :: gamma,nu,xi
+!     complex*16 :: egammaN,enuN,egammaP,enuP
+!     integer    :: i,iR,iC,e,bord
+!     complex*16 :: mink_zp,mink_zn
+!         iR= 0
+!         iC= 0 
+!         mink_zp = -k*UR ! porque armamos matrices para +k y para -k al mismo tiempo.
+!         mink_zn =  k*UR
+!     !la matriz global se llena por columnas con submatrices de cada estrato
+!     i=1
+!     if (Z(0) .lt. 0.0) then 
+!       i = 0 !Half-Space por arriba de z=0 
+!       iR= -2
+!       iC= -2
+!     end if
+!     DO e = i,N+1
+!         ! algunas valores constantes para todo el estrato
+!         gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
+!         nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+!         ! Se debe cumplir que la parte imaginaria del número de onda 
+!         ! vertical debe ser menor que cero. La parte imaginaria contri-
+!         ! buye a tener ondas planas inhomogéneas con decaimiento expo-
+!         ! nencial a medida que z es mayor que cero.
+!         if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+!         if(aimag(nu).gt.0.0)nu= conjg(nu)
+!         
+!         xi = k**2.0 - nu**2.0 
+!         ! en fortran los elementos se indican por columnas:
+!         subMatD0p = RESHAPE((/ -gamma, mink_zp, mink_zp,nu,& 
+!                                gamma, mink_zp, mink_zp,-nu /), &
+!                          (/ 2,4 /))
+!         subMatD0p = subMatD0p * UI
+!         
+!         subMatD0n = RESHAPE((/ -gamma, mink_zn, mink_zn,nu,& 
+!                                gamma, mink_zn, mink_zn,-nu /), &
+!                          (/ 2,4 /))
+!         subMatD0n = subMatD0n * UI
+!         
+!         subMatS0p = RESHAPE((/ xi,-2.0*k*gamma,-2.0*k*nu,-xi,& 
+!                              xi,2.0*k*gamma,2.0*k*nu,-xi /),&
+!                          (/2,4/)) 
+!         subMatS0p = amu(e) * subMatS0p 
+!         
+!         subMatS0n = RESHAPE((/ xi, 2.0*k*gamma, 2.0*k*nu,-xi,& 
+!                              xi,-2.0*k*gamma,-2.0*k*nu,-xi /),&
+!                          (/2,4/)) 
+!         subMatS0n = amu(e) * subMatS0n 
+!         
+!         ! la profundidad z de la frontera superior del estrato
+!!         z_i = Z(e)   ! e=1  ->  z = z0 = 0
+!!         z_f = Z(e+1) ! e=1  ->  z = z1 
+!       do bord = 0,1
+!         if ((e .eq. 0) .and. (bord .eq. 0)) cycle
+!         if (e+bord > N+1) then ! si 1+0;1+1;2+0;[2+1] > 2
+!           exit
+!         end if                           
+!         ! la profundidad z de la frontera superior del estrato
+!               z_i = Z(e+bord)   ! e=1 , bord=0  ->  z = z0 = 0
+!                                 ! e=1 , bord=1  ->  z = Z1 = h1
+!         !downward waves
+!         !  bord=0  ... 0 | bord=1  ... h(e)=Z(e+1)-Z(e)
+!         !        -> 1    |       -> exp(-UI * nu * h(e))
+!         if (e /= 0) then !(radiation condition upper HS)
+!           egammaN = exp(-UI * gamma * (z_i-Z(e))) 
+!           enuN = exp(-UI * nu * (z_i-Z(e)))       
+!         else
+!           egammaN = Z0
+!           enuN = Z0
+!         end if
+!         !upward waves    
+!         if (e /= N+1) then !(radiation condition)
+!           egammaP = exp(UI * gamma * (z_i-Z(e+1))) !
+!           enuP = exp(UI * nu * (z_i-Z(e+1)))
+!         else
+!           egammaP = Z0
+!           enuP = Z0
+!         end if
+!           !la matrix diagonal
+!        diagMat = RESHAPE((/ egammaN, Z0, Z0, Z0, & 
+!                             Z0,    enuN, Z0, Z0, & 
+!                             Z0, Z0, egammaP, Z0, & 
+!                             Z0, Z0, Z0, enuP /), &
+!                          (/ 4,4 /))
+!         ! desplazamientos
+!         subMatDp = matmul(subMatD0p,diagMat)
+!         subMatDn = matmul(subMatD0n,diagMat)
+!         ! esfuerzos
+!         subMatSp = matmul(subMatS0p,diagMat)
+!         subMatSn = matmul(subMatS0n,diagMat)
+!       !ensamble de la macro columna i
+!         !evaluadas en el borde SUPERIOR del layer i
+!         if (bord == 0 .AND. e /= 0 ) then 
+!          if (e /= N+1) then !(radiation condition)
+!           if (e/=i) then !(only stress bound.cond. in the surface
+!            this_A( iR-1 : iR   , iC+1 : iC+4 ) = -subMatDp
+!           end if
+!            this_A( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatSp
+!          else
+!          if (e/=i) then !(only stress bound.cond. in the surface
+!            this_A( iR-1 : iR   , iC+1 : iC+2 ) = -subMatDp(:,1:2)
+!          end if
+!            this_A( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatSp(:,1:2)
+!           ! exit
+!          end if
+!         end if
+!         
+!         !evaluadas en el borde INFERIOR del layer i
+!         if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
+!          if (e /= 0) then !(radiation condition upward)
+!           ! ambas ondas
+!           this_A( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatDp
+!           this_A( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatSp
+!          else
+!           ! solo onda hacia arriba
+!           this_A( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatDp(:,3:4)
+!           this_A( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatSp(:,3:4)
+!          end if
+!         end if
+!        !
+!     if (associated(this_An)) then
+!         if (bord == 0 .AND. e /= 0 ) then 
+!          if (e /= N+1) then !(radiation condition)
+!           if (e/=i) then !(only stress bound.cond. in the surface
+!           this_An( iR-1 : iR   , iC+1 : iC+4 ) = -subMatDn
+!           end if
+!           this_An( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatSn
+!          else
+!          if (e/=i) then !(only stress bound.cond. in the surface
+!           this_An( iR-1 : iR   , iC+1 : iC+2 ) = -subMatDn(:,1:2)
+!          end if
+!           this_An( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatSn(:,1:2)
+!          end if
+!         end if
+!         !evaluadas en el borde INFERIOR del layer i
+!         if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
+!          if (e /= 0) then !(radiation condition upward)
+!           ! ambas ondas
+!           this_An( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatDn
+!           this_An( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatSn
+!          else
+!           ! solo onda hacia arriba
+!           this_An( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatDn(:,3:4)
+!           this_An( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatSn(:,3:4)
+!          end if
+!         end if
+!     end if
+!       end do !bord loop del borde i superior o nferior
+!         iR= iR+4 
+!         iC= iC+4
+!     END DO !{e} loop de las macro columnas para cada estrato
+!     end subroutine globalmatrix_PSV
       
       subroutine globalmatrix_SH(this_A,k,cOME_i)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
@@ -5944,7 +3640,7 @@
       subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
-      use debugStuff
+!     use debugStuff
       use resultvars, only : Punto
       use sourceVars, only: tipofuente
       implicit none
@@ -6199,62 +3895,68 @@
       end subroutine PSVvectorB_force
       
       subroutine PSVvectorB_ondaplana(this_B,come,gamma)
-      use soilvars, only : n,lambda,amu,Z,beta,alfa
+      use soilvars, only : n,lambda0,amu0,alfa0,beta0,Z!,beta,alfa
       use glovars, only:UI,z0
-      use sourceVars, only: PW_pol!,Po
+      use sourceVars, only: PW_pol
+      use debugStuff
       implicit none
-      complex*16, intent(inout), dimension(4*N+2) :: this_B
-      complex*16, intent(in)    :: come
+      complex*16, intent(inout), dimension(1:4*N+2) :: this_B
+      complex*16, intent(in)    :: come ! no trae amortiguamiento
       real*8, intent(in) :: gamma
       integer :: i,e
-      real*8,dimension(2) :: theta
+      real*8,dimension(1:2) :: theta
       complex*16 :: kx,kz,U,W,c
-      
-      this_B = Z0 
+      real*8 :: z_loc
+      !     Colocamos la onda incindente en la interfaz
+      !     con el semiespacio de abajo.
       e = N+1 
-      !                 (colocamos en la onda en interfaz con HS)
-      !                                           (z - zf) 
-      
+      z_loc = 0! (Z(N+1)- Z(N+1)) 
       if (PW_pol .eq. 1) then
-        c = beta(N+1) !SV
+        c = beta0(N+1) !SV
         theta(1) = cos(gamma)
         theta(2) = sin(gamma)
       elseif (PW_pol .eq. 2) then 
-        c = alfa(N+1) !P
+        c = alfa0(N+1) !P
         theta(1) = sin(gamma)
         theta(2) = -cos(gamma)
       end if
       
       kx = come/c * sin(gamma)
       kz = come/c * cos(gamma)
-      U = (theta(1))* exp(UI * kz * (Z(N+1)- Z(N+1)))
-      W = (theta(2))* exp(UI * kz * (Z(N+1)- Z(N+1)))
+      U = (theta(1))* exp(UI * kz * (z_loc))
+      W = (theta(2))* exp(UI * kz * (z_loc))
       
       i=0
-      if (Z(0) .lt. 0.0) then 
-        i = 2
-        this_B(1+4*(e-1)-2 + i) = W !  w
-        this_B(1+4*(e-1)-1 + i) = U !  u
-      end if!
-      if (e .ne. 1) then
-        this_B(1+4*(e-1)-2 + i) = W !  w
-        this_B(1+4*(e-1)-1 + i) = U !  u
-      end if 
+      this_B(1:4*N+2) = Z0 
+      if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
+        i = 2                                                !
+        this_B(1+4*(e-1)-2 + i) = W !  w                     !
+        this_B(1+4*(e-1)-1 + i) = U !  u                     !
+      end if                                                 !  
+      ! ······················································
+      if (e .ne. 1) then                                     ! 
+        this_B(1+4*(e-1)-2 + i) = W !  w                     !
+        this_B(1+4*(e-1)-1 + i) = U !  u                     !
+      end if                                                 !
+      !.......................................................
       
-      this_B(1+4*(e-1)   + i) = UI * ( & 
-                            ( W * kz * (LAMBDA(e) + 2.0*AMU(e))) &
-                          - ( U * kx * LAMBDA(e))) ! szz
-      this_B(1+4*(e-1)+1 + i) = UI * AMU(e) &
-                          * ( kz * U - kx * W ) ! szx
-      !                   sxx = UI * ( & 
-      !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) &
-      !                   + ( W * kz * LAMBDA(e)))
+      ! Tracciones en la frontera de la región de la fuente.........
+      this_B(1+4*(e-1)   + i) = UI * ( &                           !
+                            ( W * kz * (LAMBDA0(e) + 2.0*AMU0(e))) & !
+                          - ( U * kx * LAMBDA0(e))) ! szz           !
+      this_B(1+4*(e-1)+1 + i) = UI * AMU0(e) &                      !
+                          * ( kz * U - kx * W ) ! szx              !
+      !                   sxx = UI * ( &                           !
+      !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
+      !                   + ( W * kz * LAMBDA(e)))                 !
+      !............................................................!
+!     call showMNmatrixZ(4*N+2,1, this_B ,"  B  ",6)
       end subroutine PSVvectorB_ondaplana
       
       subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
-      use debugStuff
+!     use debugStuff
       use resultvars, only : Punto
       use sourceVars, only : tipofuente!,PW_theta
       implicit none
@@ -6388,39 +4090,38 @@
 ! G_stra - coefficients
       ! coeficientes de las ondas planas emitidias en cada interfaz 
       ! para representar el campo difractado por estratigrafía
-      function PSVdiffByStrata(coefOndas_PSV, & 
-                         z_i,e,cOME_i,k,mecStart,mecEnd,outpf)
+      function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-      use gloVars, only : verbose,UI,UR,Z0
+      use gloVars, only : PrintNum,verbose,UI,UR,Z0
       use resultVars, only : MecaElem
       implicit none
-           
-      type (MecaElem)              :: PSVdiffByStrata
-      real*8, intent(in)           ::  z_i
-      real*8, intent(in)           :: k
+      
+      complex*16, dimension(1:5) :: PSVdiffByStrata
+!     type (MecaElem)              :: PSVdiffByStrata
+      real*8, intent(in)           ::  z_i,k
       complex*16, intent(in)       :: cOME_i  
-      integer, intent(in)          :: e,outpf,mecStart,mecEnd
-      complex*16, dimension(4*N+2),intent(in) :: coefOndas_PSV
+      integer, intent(in)          :: e!,outpf,mecStart,mecEnd
+      complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
       complex*16 :: gamma,nu,xi,eta
       complex*16 :: egammaN,enuN,egammaP,enuP
       complex*16, dimension(2,4) :: subMatD
       complex*16, dimension(3,4) :: subMatS
       complex*16, dimension(4,4) :: diagMat
-      complex*16, dimension(4,1) :: coeffsPSV
-      complex*16, dimension(2,1) :: resD
-      complex*16, dimension(3,1) :: resS
-      integer :: i
+      complex*16, dimension(1:4) :: coeffsPSV
+      complex*16, dimension(1:2) :: resD
+      complex*16, dimension(1:3) :: resS
+      integer :: i !#< b
       if (verbose > 4) then
-       write(outpf,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
+       write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
                     "PSVdiffByStrata at w:", & 
                     real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
-      end if
-      PSVdiffByStrata%Rw(1:5) = z0
+      end if !#> 
+      PSVdiffByStrata = 0
+!     PSVdiffByStrata%Rw(1:5) = z0
       gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
       nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
       if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
       if(aimag(nu).gt.0.0)nu= conjg(nu)
-      
       xi = k**2.0 - nu**2.0
       eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
           
@@ -6452,24 +4153,16 @@
       if (z(0) .lt. 0.0) i = 2
       
         if (e .eq. 0) then! semiespacio de arriba
-          coeffsPSV(1:2,1) = (/z0,z0/)
-          coeffsPSV(3:4,1) = coefOndas_PSV(1 : 2)
+          coeffsPSV(1:2) = (/z0,z0/)
+          coeffsPSV(3:4) = coefOndas_PSV(1 : 2)
         elseif (e .eq. N+1) then ! semiespacio de abajo
-          coeffsPSV(1:2,1) = coefOndas_PSV(4*(e-1)+1+i: 4*(e-1)+2+i)
-          coeffsPSV(3:4,1) = (/z0,z0/)
+          coeffsPSV(1:2) = coefOndas_PSV(4*(e-1)+1+i: 4*(e-1)+2+i)
+          coeffsPSV(3:4) = (/z0,z0/)
         else! estrato
-          coeffsPSV(1:4,1) = coefOndas_PSV(4*(e-1)+1+i : 4*(e-1)+4+i)
-        end if
-
-!       if (e /= N+1) then ! estrato
-!         coeffsPSV(1:4,1) = coefOndas_PSV(4*(e-1)+1 : 4*(e-1)+4)
-!       else ! semiespacio de abajo
-!         coeffsPSV(1:2,1) = coefOndas_PSV(4*(e-1)+1 : 4*(e-1)+2)
-!         coeffsPSV(3:4,1) = (/z0,z0/)
-!       end if       
+          coeffsPSV(1:4) = coefOndas_PSV(4*(e-1)+1+i : 4*(e-1)+4+i)
+        end if      
  
       ! desplazamientos
-      if (mecStart .eq. 1)then
         ! {W}
         ! {U}
         subMatD = RESHAPE((/ -gamma,-k*UR,-k*UR,nu, & 
@@ -6477,19 +4170,14 @@
                            (/ 2,4 /))
 
         subMatD = UI * subMatD
-        subMatD = matmul(subMatD,diagMat) !
-        
+        subMatD = matmul(subMatD,diagMat)
         ! Pdown Sdown Pup Sup
         resD = matmul(subMatD, coeffsPSV)
-!       
-        PSVdiffByStrata%Rw(1) = resD(1,1) !W
-        PSVdiffByStrata%Rw(2) = resD(2,1) !U
         
-      end if ! desplazamientos
-      
+        PSVdiffByStrata(1) = resD(1) !W
+        PSVdiffByStrata(2) = resD(2) !U
+       
       ! esfuerzos
-      if (mecEnd .eq. 5) then
-     
         subMatS = RESHAPE((/ xi,      -2.0*k*gamma,     eta,     &
                           -2.0*k*nu,     -xi,        2.0*k*nu,   &
                            xi,       2.0*k*gamma,     eta,       &
@@ -6497,14 +4185,12 @@
                            (/3,4/))      
      
         subMatS = amu(e) * subMatS
-        subMatS = matmul(subMatS,diagMat) !* signo
+        subMatS = matmul(subMatS,diagMat)
         resS = matmul(subMatS, coeffsPSV)
         
-        PSVdiffByStrata%Rw(3) = resS(1,1) !s33
-        PSVdiffByStrata%Rw(4) = resS(2,1) !s31
-        PSVdiffByStrata%Rw(5) = resS(3,1) !s11 
-      end if ! esfuerzos
-        
+        PSVdiffByStrata(3) = resS(1) !s33
+        PSVdiffByStrata(4) = resS(2) !s31
+        PSVdiffByStrata(5) = resS(3) !s11 
       end function PSVdiffByStrata
       
       function SHdiffByStrata(coefOndas_SH,  & 
@@ -6587,150 +4273,13 @@
           
       end function SHdiffByStrata
       
-      subroutine reffField_by_(ipXi,dir_j,cOME)
-      ! llenamos una columna de la matriz del ibem en la región
-      ! de condiciones de continuidad entre E y R y front libre en R (misma columna)
-      use glovars, only : z0,UR
-      use resultVars, only : Punto,ibemMat,FFres,n_top_sub,n_con_sub,n_val_sub, boupoints
-      implicit none
-      interface !porque recibe un puntero como argumento
-         subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
-         use resultvars, only : Punto,FFres
-         type (FFres), intent(out) :: FF
-         integer,    intent(in)     :: mecS,mecE, i_zF
-         type(Punto),intent(in), pointer :: p_X,pXi
-         complex*16, intent(in)     :: cOME
-         integer, intent(in) :: dir_j
-         end subroutine FFpsv
-         
-         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
-         use resultvars, only : Punto,FFres
-         type (FFres), intent(out) :: FF !V,Ty
-         integer,    intent(in)     :: mecS,mecE, i_zF
-         type(Punto),intent(in), pointer :: p_X,pXi
-         complex*16, intent(in)     :: cOME 
-         end subroutine FFsh
-      end interface
-      integer, intent(in) :: ipXi,dir_j ! ip_X : n_topo+1,n_topo+n_cont
-      complex*16, intent(in),target  :: cOME
-      type(Punto), pointer :: pXi,p_X
-      integer :: ip_X,dj
-      type(FFres),target :: FF
-!     real*8 :: r
-!     complex*16 :: greenexG22
-      
-      nullify(pXi)
-      pXi => boupoints(ipXi)
-      
-      do ip_X = n_top_sub +1, n_top_sub + n_con_sub + n_val_sub
-        nullify(p_X)
-        p_X => boupoints(ip_X)
-        
-      if (dir_j .eq. 2) then ! SH
-        call FFsh(-1,FF,p_X,pXi,cOME,1,3)
-       if(p_X%tipoFrontera .lt. 2) then
-      !  |  Tyy  |
-        if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
-           ibemMat(p_x%boundaryIndex, &
-                   pXi%boundaryIndex + n_con_sub) = 0.5_8*UR
-        else
-           ibemMat(p_x%boundaryIndex, &
-                   pXi%boundaryIndex + n_con_sub) = - FF%Ty
-        end if
-           ! y si es un p. de coloc. en frontera con continuidad
-        if (p_X%tipoFrontera .eq.1) then 
-      !  |   V   |
-!       r = sqrt((p_x%center%x-pXi%center%x)**2. + (p_x%center%z-pXi%center%z)**2.)
-!       FF%V = greenexG22(cOME/beta(N+2),r,pXi%length*2,N+2)
-      
-           ibemMat(p_x%boundaryIndex + n_con_sub, & 
-                   pXi%boundaryIndex + n_con_sub) = - FF%V!/2
-        end if
-           ! y si es un p. de coloc. en frontera libre
-       else !p_X%tipoFrontera .eq. 2
-      !  |  Tyy  |
-           if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
-               ibemMat(p_x%boundaryIndex + n_con_sub, &
-                   pXi%boundaryIndex + n_con_sub) = - 0.5_8*UR
-           else
-               ibemMat(p_x%boundaryIndex + n_con_sub, & 
-                   pXi%boundaryIndex + n_con_sub) = FF%Ty
-           end if
-       end if
-      else !PSV **********************************************************************
-        dj = dir_j
-        call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5)
-        if (dj .eq. 3) dj = 2
-      if(p_X%tipoFrontera .lt. 2) then
-      !  |  Txx Txz  |   
-      !  |  Tzx Tzz  |
-        if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
-          if (dir_j .eq. 1) then
-            ibemMat(p_x%boundaryIndex *2 - 1, & 
-                   (pXi%boundaryIndex *2 - 1) + 2* n_con_sub) = 0.5_8*UR
-            ibemMat(p_x%boundaryIndex *2    , & 
-                   (pXi%boundaryIndex *2 - 1) + 2* n_con_sub) = z0
-          else if(dir_j .eq. 3) then
-            ibemMat(p_x%boundaryIndex *2 - 1, & 
-                   (pXi%boundaryIndex *2 - 0) + 2* n_con_sub) = z0
-            ibemMat(p_x%boundaryIndex *2 , & 
-                   (pXi%boundaryIndex *2 - 0) + 2* n_con_sub) = 0.5_8*UR
-           end if
-        else
-          ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
-                 (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%Tx
-          ibemMat(p_x%boundaryIndex *2 -(1 - 1), & 
-                 (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%Tz
-        end if
-           ! y si es un p. de coloc. en frontera con continuidad
-        if (p_X% tipoFrontera .eq.1) then
-      !  |   W   |
-      !  |   U   |
-!      if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
-!         call greenexPSV(FF,dir_j,p_X,pXi,cOME)
-!      end if
-          ibemMat((p_x%boundaryIndex *2 -(1 - 0)) + 2* n_con_sub, & 
-                  (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%W
-                       
-          ibemMat((p_x%boundaryIndex *2 -(1 - 1)) + 2* n_con_sub, & 
-                  (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%U
-        end if
-          ! y si es un p. de coloc. en frontera libre
-      else !p_X%tipoFrontera .eq. 2
-      !  |  Txx Txz  |   
-      !  |  Tzx Tzz  |
-           if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
-               if (dir_j .eq. 1) then
-            ibemMat((p_x%boundaryIndex *2 - 1)+ 2* n_con_sub, & 
-                    (pXi%boundaryIndex *2 - 1)+ 2* n_con_sub) = -0.5_8*UR
-            ibemMat((p_x%boundaryIndex *2    )+ 2* n_con_sub, & 
-                    (pXi%boundaryIndex *2 - 1)+ 2* n_con_sub) = z0
-               else if(dir_j .eq. 3) then
-            ibemMat((p_x%boundaryIndex *2 - 1)+ 2* n_con_sub, & 
-                    (pXi%boundaryIndex *2 - 0)+ 2* n_con_sub) = z0
-            ibemMat((p_x%boundaryIndex *2    )+ 2* n_con_sub, & 
-                    (pXi%boundaryIndex *2 - 0)+ 2* n_con_sub) = -0.5_8*UR
-                end if
-           else
-            ibemMat((p_x%boundaryIndex *2 -(1 - 0) )+ 2* n_con_sub, & 
-                    (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = FF%Tx
-            ibemMat((p_x%boundaryIndex *2 -(1 - 1) )+ 2* n_con_sub, & 
-                    (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = FF%Tz
-           end if
-      end if
-      end if !dir_j
-      end do !ip_X
-      
-      end subroutine reffField_by_
-      
-      
 ! G_full space 
       Subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
       ! Sanchez-Sesma y Campillo, 1991.  Mismo resultado que:
       ! Kaussel, Fundamental solutions in elastodynamics... pag 38
-      use soilVars ,only : alfa,beta,amu,lambda,rho,N,Z
-      use gloVars, only:UI,one,z0
-      use hank
+      use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N,Z
+      use gloVars, only:UI,UR,one,z0
+      use hank !     use specfun
       use resultvars, only : Punto,FFres
       use sourceVars, only: tipofuente, PW_pol
       use Gquadrature, only : Gquad_n
@@ -6745,9 +4294,9 @@
         end subroutine greenexPSV
       end interface
       type (FFres), intent(out) :: FF
-      integer,    intent(in)     :: mecS,mecE, i_zF
+      integer,    intent(in)  :: mecS,mecE, i_zF
       type(Punto),intent(in), pointer :: p_X,pXi
-      complex*16, intent(in)     :: cOME
+      complex*16, intent(in) :: cOME
       integer, intent(in) :: dir_j
       
       real*8 :: r,gamma(2)
@@ -6755,6 +4304,7 @@
       complex*16 :: omeP,omeS
       complex*16 :: H0s,H1s,H2s,H0p,H1p,H2p !Hankel 
       complex*16 :: szz,szx,sxx
+      complex*16 :: ome
       integer :: i,j
       integer, pointer :: e
       real*8 :: nX(2)
@@ -6765,6 +4315,7 @@
       integer :: el_tipo_de_fuente
       integer, target :: estrato
       logical :: estratosIguales,XinoEstaEnInterfaz,usarGreenex
+      
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0
       estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
@@ -6776,69 +4327,80 @@
       
       el_tipo_de_fuente = 2 !(fuente segmento)
       if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente !(puntual:0 u onda plana:1) 
-      if (i_zF .eq. -1) then !(campo refractado en frontera d1R (inclusion))
+      if (i_zF .eq. -1) then !(campo refractado en inclusion)
         estratosIguales = .true.
         XinoEstaEnInterfaz = .true.
       end if!  
+      
+      if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) then
+        if (p_X%region .eq. pXI%region) estratosIguales = .true.
+        XinoEstaEnInterfaz = .true.
+        estrato = N+2
+        e => estrato
+        nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
+      end if
+      
+      if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then 
+        if (p_x%layer   .eq. pXi%layer) estratosIguales = .true.
+      end if!
+      
       if (estratosIguales .eqv. .true.) then !should I
       estrato = p_x%layer
       e => p_x%layer
       nx(1) = p_X%normal%x; nx(2) = p_X%normal%z 
       xf => one; zf => one !para que no chiste el compilador
-!     if (i_zF .eq. -2) then
-!       NmasDos = N+2
-!       e => NmasDos !(en la inclusión)
-!       nx(1) = -p_X%normal%x; nx(2) = -p_X%normal%z !las normales volteadas
-!     end if!
       if (i_zF .eq. -1) then !(en la inclusión)
         estrato = N+2
         e => estrato
         nx(1) = p_X%normal%x; nx(2) = p_X%normal%z !las normales sin voltear
       end if!
         
-      if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! es una onda plana incidente -´-´-´-´-´-´-´-´-´- onda plana
-!      if (p_x%isOnInterface .eqv. .true.) return  ! creo 
-       if (PW_pol .eq. 1) then
-        c = beta(N+1) !SV
-        theta(1) = cos(pxi%gamma)
-        theta(2) = sin(pxi%gamma)
-       elseif (PW_pol .eq. 2) then 
-        c = alfa(N+1) !P
-        theta(1) = sin(pxi%gamma)
-        theta(2) = -cos(pxi%gamma)
-       end if
-        kx = come/c * sin(pxi%gamma)
-        kz = come/c * cos(pxi%gamma)
-        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) & 
-              * exp(-UI * kx * (p_x%center%x - pXi%center%x))
-        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) & 
-              * exp(-UI * kx * (p_x%center%x - pXi%center%x))
-        !szz,szx,sxx
-        szz = UI * ( &
-                    ( FF%W * kz * (LAMBDA(e) + 2.0* AMU(e))) &
-                  - ( FF%U * kx * LAMBDA(e)))
-        szx = UI * AMU(e) * ( kz * FF%U - kx * FF%W )
-        sxx = UI * ( & 
-                  - ( FF%U * kx * (LAMBDA(e) + 2.0*AMU(e))) &
-                  + ( FF%W * kz * LAMBDA(e)))
-        FF%Tx = sxx * nx(1) + szx * nx(2)
-        FF%Tz = szx * nx(1) + szz * nx(2)
-        return
-      end if! fin onda plana -´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´-´- fin onda plana          
+      if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
+!      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
+       ome = real(cOME) * UR                                                !
+       if (PW_pol .eq. 1) then                                              !
+        c = beta0(N+1) !SV                                                  !
+        theta(1) = cos(pxi%gamma)                                           !
+        theta(2) = sin(pxi%gamma)                                           !
+       elseif (PW_pol .eq. 2) then                                          !
+        c = alfa0(N+1) !P                                                   !
+        theta(1) = sin(pxi%gamma)                                           !
+        theta(2) = -cos(pxi%gamma)                                          !
+       end if                                                               !
+        kx = ome/c * sin(pxi%gamma)                                         !
+        kz = ome/c * cos(pxi%gamma)                                         !
+        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+              * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
+        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+              * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
+        szz = UI * ( &                                                      !
+                    ( FF%W * kz * (LAMBDA0(e) + 2.0* AMU0(e))) &            !
+                  - ( FF%U * kx * LAMBDA0(e)))                              !
+        szx = UI * AMU0(e) * ( kz * FF%U - kx * FF%W )                      !
+        sxx = UI * ( &                                                      !
+                  - ( FF%U * kx * (LAMBDA0(e) + 2.0*AMU0(e))) &             !
+                  + ( FF%W * kz * LAMBDA0(e)))                              !
+        FF%Tx = sxx * nx(1) + szx * nx(2)                                   !
+        FF%Tz = szx * nx(1) + szz * nx(2)                                   !
+        return                                                              !
+      end if! fin onda plana -´-´-´-´-´-´-´-´-´-´-´-´-´-´--´-´ fin onda plana          
       if (XinoEstaEnInterfaz .eqv. .true.) then 
         xf => pXi%center%x
         zf => pXi%center%z
         r = sqrt((p_x%center%x-xf)**2. + (p_x%center%z-zf)**2.) 
         
         ! para funciones de Greeen en frontera con cont. de desplazamiento
-        if ((pXi%isboundary .eqv. .true.) .and. (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
+        if ((pXi%isboundary .eqv. .true.) .and. & 
+            (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
 !       if (p_x%boundaryIndex .eq. pXi%boundaryIndex) usarGreenex = .true.
 
         ! para campo cercano por fuente virtual
-        if ((pXi%isboundary .eqv. .true.) .and. (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+        if ((pXi%isboundary .eqv. .true.) .and. & 
+            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+        ! si fuente real y cilindrica entonces no
+        if (el_tipo_de_fuente .eq. 0) usarGreenex = .false. 
         
-        if (el_tipo_de_fuente .eq. 0) usarGreenex = .false. ! si fuente real y cilindrica entonces no
-        !usarGreenex = .false. !*++++++++++++++++++++++++++++++++++++++++++++++++
+        if (p_X%isOD) usarGreenex = .false.
       if (usarGreenex .eqv. .false.) then
       if (el_tipo_de_fuente .eq. 0) then !; print*,"fuente real y cilindrica"
         nGq = 1
@@ -6846,10 +4408,8 @@
       else !.eq. 2 ; print*,"fuente segmento (real o virtual para IBEM)"
         if (pXi%isBoundary) nGq = Gquad_n ! IBEM
         if (pXi%isSourceSegmentForce) nGq = Gquad_n ! fuente segmento
-        if (nGq .ne. Gquad_n) stop "chin 6600"
+!       if (nGq .ne. Gquad_n) stop "chin 6600"
       end if
-      !print*,""
-      !print*,p_x%center%x,p_x%center%z,pXi%center%x,pXi%center%z,pxi%length
       do iGq = 1,nGq
         if (nGq .gt. 1) then
           xf => pXi%Gq_xXx_coords(iGq,1)
@@ -6875,10 +4435,12 @@
       if (mecS .eq. 1) then
       ! W
       i = 2
-      FF%W = FF%W + (-UI/8.0/rho(e)*(A*deltaij(i,j)-(2.*gamma(i)*gamma(j)-deltaij(i,j))*B)) * GqC
+      FF%W = FF%W + (-UI/8.0/rho(e)*& 
+      (A*deltaij(i,j)-(2.*gamma(i)*gamma(j)-deltaij(i,j))*B)) * GqC
       ! U
       i = 1
-      FF%U = FF%U + (-UI/8.0/rho(e)*(A*deltaij(i,j)-(2.*gamma(i)*gamma(j)-deltaij(i,j))*B)) * GqC
+      FF%U = FF%U + (-UI/8.0/rho(e)*& 
+      (A*deltaij(i,j)-(2.*gamma(i)*gamma(j)-deltaij(i,j))*B)) * GqC
       end if!mecs1
       
       if (mecE .eq. 5) then
@@ -6892,15 +4454,18 @@
       FF%Tz = FF%Tz + (& 
       amu(e)*UI /(2.*rho(e)*r)*(& 
       (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
-      + (B + Dkr/(2.*beta(e)**2.))*(gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
       (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
       ) * GqC
       
       ! TX
       i = 1
       FF%Tx = FF%Tx + ( & 
-      amu(e)*UI /(2.*rho(e)*r)*((B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
-      + (B + Dkr/(2.*beta(e)**2.))*(gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      amu(e)*UI /(2.*rho(e)*r)*(& 
+      (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
       (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
       ) * GqC
       end if !mece5
@@ -6908,12 +4473,7 @@
       
       else !...............................                          
         call greenexPSV(FF,dir_j,p_X,pXi,estrato,cOME) ! W,U
-!       print*,""
-!       print*,p_X%boundaryIndex," x=",p_X%center,"is bou",p_x%isboundary
-!       print*,pXi%boundaryIndex,"xi=",pXi%center,"is bou",pXi%isboundary
-        
       end if ! greenex o gaussiana
-      !if (p_x%isboundary .eqv. .false.) stop 6668
       end if !on the interface
       end if !should I?
       end subroutine FFpsv
@@ -6921,7 +4481,7 @@
       subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
       use soilVars ,only : amu,beta,N,z
       use gloVars, only:UR,UI,z0,ONE
-      use hank
+      use hank !use specfun
       use resultvars, only : Punto,FFres
       use sourceVars, only: tipofuente
       use Gquadrature, only : Gquad_n
@@ -6942,6 +4502,8 @@
       integer, target :: NmasDos
       logical :: estratosIguales,noEstaEnInterfaz,usarGreenex
       complex*16 :: greenexG22
+!     integer :: NM
+!     complex*16, dimension(0:1) :: CBJ,CDJ,CBY,CDY
       
       FF%V=z0;FF%Ty=z0
       estratosIguales = .false.
@@ -7016,7 +4578,10 @@
       gamma(1) = (p_X%center%x - xf) / r ! gamma x                !     !
       gamma(2) = (p_X%center%z - zf) / r ! gamma z                !     !
       omeS = cOME * r / beta(e)                                   !     !
-      call hankels(omeS,H0s,H1s) ! Hankel de segunda especie      !     !     
+      call hankels(omeS,H0s,H1s) ! Hankel de segunda especie      !     !  
+!     call CJYNB(1,omeS,NM,CBJ,CDJ,CBY,CDY)
+!     H0s = CBJ(0)-UI*CBY(0)
+!     H1s = CBJ(1)-UI*CBY(1) 
       if(mecS .eq. 1) FF%V = FF%V + (-UI/(4.*amu(e))*H0s) * C     !     !
       if(mecE .eq. 3) then                                        !     !
 !     FF%s32 = FF%s32 + (UI*cOME*(p_x%center%z-zf)) &             !     !
@@ -7177,10 +4742,10 @@
         deltaij = real(1.,8)
       end if
       end function deltaij
-      
-! IBEM - matrix,termindep
+!#< r IBEM - termIndep !#>
       subroutine fill_termindep(auxK,come,mecS,mecE,p_x,pXi,dir_j)
-      use resultvars, only:Punto,FFres,trac0vec,n_con_sub
+      use resultvars, only:Punto,FFres,trac0vec,n_con_sub,n_top_sub
+      use sourceVars, only: tipofuente
       implicit none
       interface
          subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
@@ -7209,22 +4774,27 @@
       type(FFres),target :: FF
       real*8 :: nf(3)
       complex*16 :: TractionPSV, TractionSH
-!     print*,"termindep"
+      
       ! aquí siempre la fuente es la fuente real.
       ! esta función se ejecuta se ejecuta tantas veces como las necesarias para llenar trac0vec
       nf(1) = pXi%normal%x
       nf(2) = pXi%normal%y
       nf(3) = pXi%normal%z
       ! si es onda plana no importa nf conque sea unitario.
-!     print*,nf;stop
-      ! SH
-      if (dir_j .eq. 2) then
+      if (tipofuente .eq. 1) nf(1:3) = 1 ! fuente real y onda plana
+      
+      if (pXi%region .eq. 2) then 
+        auxK(1,mecS:mecE) = 0
+        if (p_x%boundaryIndex .le. n_top_sub) return
+        nf(1:3) = -nf(1:3)
+      end if !
+      
+      if (dir_j .eq. 2) then ! SH
         call FFsh(0,FF,p_X,pXi,cOME,1,3)
       !  | Ty |
         trac0vec(p_x%boundaryIndex) = & 
         trac0vec(p_x%boundaryIndex) - (& 
-          (TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty) &
-           * nf(dir_j))
+          (TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty) * nf(dir_j))
            
         if (p_X%tipoFrontera .eq.1) then !los desplazamientos
       !  |   V   |
@@ -7233,20 +4803,18 @@
           (auxk(1,1) + FF%V)* nf(dir_j)
         end if
       else !PSV 
-      
-        call FFpsv(0,FF,dir_j,p_X,pXi,cOME,3,5)
+        call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5)
       !  | Tx |
       !  | Tz |
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) = &
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) - (&
-          (TractionPSV(auxk(1,3:5), p_x%normal,0) + FF%Tx) &
-                     * nf(dir_j))
+          (TractionPSV(auxk(1,3:5), p_x%normal,0) + FF%Tx) * nf(dir_j)) !ok
+          
         trac0vec(p_x%boundaryIndex *2 - (1 - 1)) = &
         trac0vec(p_x%boundaryIndex *2 - (1 - 1)) - (&
-          (TractionPSV(auxk(1,3:5), p_x%normal,1) + FF%Tz) &
-                     * nf(dir_j))
+          (TractionPSV(auxk(1,3:5), p_x%normal,1) + FF%Tz) * nf(dir_j)) !ok
+          
        if (p_X%tipoFrontera .eq.1) then !los desplazamientos
-       call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,2)
       !  |   W   |
       !  |   U   |
         trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) = &
@@ -7260,6 +4828,64 @@
       end if !dir_j
       end subroutine fill_termindep
       
+      subroutine termIndepR(dir_j,cOME)
+      use sourceVars, only : Po,nFuentes,tipofuente
+      use resultvars, only : trac0vec,Punto,FFres,& 
+            boupoints,n_con_sub,n_top_sub,n_val_sub
+      implicit none
+      interface
+        subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF
+         integer,    intent(in)     :: mecS,mecE, i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME
+         integer, intent(in) :: dir_j
+         end subroutine FFpsv
+         
+         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF !V,Ty
+         integer,    intent(in)     :: mecS,mecE,i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME 
+         end subroutine FFsh
+      end interface
+      integer, intent(in) :: dir_j
+      complex*16, intent(in)  :: cOME
+      type(FFres),target :: FF
+      type(Punto), pointer :: p_X
+      real*8 :: nf(3)
+      integer :: iPo,ip_X
+      
+      do iPo =1,nFuentes
+!     print*,",ipo",ipo
+      nf(1) = Po(iPo)%normal%x
+      nf(2) = Po(iPo)%normal%y
+      nf(3) = Po(iPo)%normal%z
+!     print*,nf
+      if (tipofuente .eq. 1) nf(1:3) = 1 ! fuente real y onda plana
+      
+      if (dir_j .eq. 2) then ! SH
+        stop "termIndepR _ falta"
+      else !PSV
+        do ip_X = n_top_sub + n_con_sub + 1, n_top_sub + n_con_sub + n_val_sub
+          nullify(p_X)
+          p_X => boupoints(ip_X)
+!         print*,ip_x,p_x%center,p_x%tipoFrontera
+          call FFpsv(0,FF,dir_j,p_X,Po(iPo),cOME,3,5)
+      !  | Tx |
+      !  | Tz |
+        trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) = &
+        trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) - (FF%Tx * nf(dir_j)) 
+          
+        trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) = &
+        trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) - (FF%Tz * nf(dir_j))
+        end do
+      end if !dir_j
+      end do !iPo
+      end subroutine termIndepR
+!#< r IBEM - reg E        !#>
       subroutine fill_ibemMat(i_zF,auxK,come,mecS,mecE,p_x,pXi,dir_j)
       use resultvars, only:Punto,FFres,ibemMat,n_con_sub
       use glovars, only : z0,UR
@@ -7327,6 +4953,9 @@
                     pXi%boundaryIndex *2 ) = 0.5_8*UR
           end if!
         else
+          if (i_zF .le. 0) then 
+            print*,i_zF;print*,p_X%center;print*,pXi%center
+            stop "fill_ibemMat: (i_zF .le. 0)"; end if
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,3,5)
           ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
                   pXi%boundaryIndex *2 -(2 - dj)) = &
@@ -7337,8 +4966,8 @@
         end if
            ! y si es un p. de coloc. en frontera con continuidad
         if (p_X% tipoFrontera .eq.1) then 
-      !  |   W   |
-      !  |   U   |
+      !  |  Wx   Wz  |
+      !  |  Ux   Uz  |
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,2)
           ibemMat((p_x%boundaryIndex *2 -(1 - 0)) + 2* n_con_sub, & 
                    pXi%boundaryIndex *2 -(2 - dj)) = (auxK(1,1) + FF%W)
@@ -7349,13 +4978,13 @@
       end if !dir_j
       
       end subroutine fill_ibemMat
-      
+            
       subroutine fill_diffbyStrata(i_zf,J,auxK,come,mecS,mecE,p_x,pXi,dir_j)
       use resultvars, only:Punto,FFres, nIpts
       use waveNumVars, only : NMAX,k_vec,dk,vecNK
       use meshvars, only: npixX,MeshMaxX,MeshMinX 
       use wavelets !fork
-      use soilvars, only:alfa,beta,N
+      use soilvars, only:alfa0,beta0,N
       use sourceVars, only: tipofuente, PW_pol
       use glovars, only : UI
       use peli, only : fotogramas_Region
@@ -7380,7 +5009,7 @@
       end interface 
       type(Punto), pointer :: p_X,pXi,p_Xmov
       type(Punto),target :: p_xaux
-      integer :: i,ik,i_zf,iMec,mecS,mecE,J
+      integer :: i,ik,i_zf,iMec,mecS,mecE,J,mecaElemEnd,po,ne
       integer, intent(in) :: dir_j
       complex*16, dimension(2*nmax,mecS:mecE), target :: auxK
       complex*16, dimension(2*nmax,mecS:mecE) :: auxKmo
@@ -7389,8 +5018,6 @@
       complex*16, intent(in)  :: cOME
       type(FFres),target :: FF
       real*8 :: nf(3)
-      integer :: mecaElemEnd,po,ne
-!     print*,"fill"
       nf(1) = pXi%normal%x
       nf(2) = pXi%normal%y
       nf(3) = pXi%normal%z
@@ -7421,12 +5048,11 @@
            ! si es incidencia de una onda plana para una k y cycle imec
            if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana
              if (dir_j .eq. 2) then
-               if(PW_pol .eq. 3) kx = cOME/beta(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 3) kx = real(cOME)/beta0(N+1)*sin(pXi%gamma)
              else
-               if(PW_pol .eq. 1) kx = cOME/beta(N+1)*sin(pXi%gamma)
-               if(PW_pol .eq. 2) kx = cOME/alfa(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 1) kx = real(cOME)/beta0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 2) kx = real(cOME)/alfa0(N+1)*sin(pXi%gamma)
              end if
-             
              auxkmo(1,imec) = auxk(1,imec) * & 
              exp(-UI*kx*(p_Xmov%center%x))
              cycle !imec 
@@ -7488,8 +5114,9 @@
        end if
       else !PSV
        call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,5)  !incidencia directa
+       
        if(i_zf .eq.0) then
-!        call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,5)
+        if (pXi%region .ne. p_x%region) return
          p_x%resp(J)%W = p_x%resp(J)%W + (auxK(1,1) + FF%W) * nf(dir_j) !W
          p_x%resp(J)%U = p_x%resp(J)%U + (auxK(1,2) + FF%U) * nf(dir_j) !U
          p_x%resp(J)%Tz = p_x%resp(J)%Tz + &
@@ -7513,97 +5140,7 @@
       end if !dir_j
       end if ! guardarMovieSiblings
       end subroutine fill_diffbyStrata
-      
-      subroutine GreenReg_R(dir_j,cOME) !Región R
-      use resultvars, only:Punto,FFres, nIpts, nBpts,allpoints, & 
-                           boupoints, n_top_sub
-      use glovars, only: makeVideo
-      use peli, only : coords_Z,coords_X,fotogramas_Region
-      use meshVars, only : npixX,npixZ
-      implicit none
-      interface
-      subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
-         use resultvars, only : Punto,FFres
-         type (FFres), intent(out) :: FF
-         integer,    intent(in)     :: mecS,mecE, i_zF
-         type(Punto),intent(in), pointer :: p_X,pXi
-         complex*16, intent(in)     :: cOME
-         integer, intent(in) :: dir_j
-         end subroutine FFpsv
-         
-         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
-         use resultvars, only : Punto,FFres
-         type (FFres), intent(out) :: FF !V,Ty
-         integer,    intent(in)     :: mecS,mecE,i_zF
-         type(Punto),intent(in), pointer :: p_X,pXi
-         complex*16, intent(in)     :: cOME 
-         end subroutine FFsh
-      end interface
-      integer, intent(in) :: dir_j
-      complex*16, intent(in)  :: cOME
-      integer :: iP_x,iPXi
-      type(Punto), pointer :: p_X,pXi,p_Xmov
-      integer :: i,j
-      type(Punto),target :: p_xaux
-      type(FFres),target :: FF
-      
-      ! ciclar en todos los puntos y averiguar se le corresponde
-      do iP_x = 1, nIpts ! (todos los puntos receptores menos las fronteras)
-      p_X => allpoints(iP_x)
-        if (p_x%isboundary) stop "p_x is boundary \ G on region R 7013"
-        if (p_x%region .ne. 2) cycle !'incl'
-        ! para todas las fuentes en la región R
-      do iPXi = n_top_sub+1,nBpts
-      pXi => boupoints(iPXi)
-      
-      if (dir_j .eq. 2) then ! SH
-       call FFsh(-1,FF,p_X,pXi,cOME,1,3)
-          pXi%G(p_x%pointIndex,3,dir_j) = FF%V ! V
-          pXi%G(p_x%pointIndex,6,dir_j) = FF%Ty ! Ty
-      else !PSV
-       call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5) 
-         pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W
-         pXi%G(p_X%pointIndex,2,dir_j) = FF%U !U
-         pXi%G(p_X%pointIndex,4,dir_j) = FF%Tz !Tz
-         pXi%G(p_X%pointIndex,5,dir_j) = FF%Tx !Tx
-      end if !dir_j
-      
-      end do !iPXi
-      end do !iP_x
-      
-      if (makeVideo) then
-      do i=1,npixZ
-        do j=1,npixX
-          if (fotogramas_Region(i,j) .eq. 2) then !'incl'
-            p_xaux%center%x = coords_X(j)
-            p_xaux%center%z = coords_Z(i)
-!     print*,""
-!     print*,"this is mov incl",j,i," (",p_xaux%center%x,",",p_xaux%center%z,")"
-            p_xaux%normal%x = 1.0_8 !
-            p_xaux%normal%y = 1.0_8 !  no se usan 
-            p_xaux%normal%z = 1.0_8 !
-            p_xaux%region = 2!'incl'
-            p_Xmov => p_xaux
-               
-            ! para todas las fuentes en la región R
-            do iPXi = n_top_sub +1,nBpts
-              pXi => boupoints(iPXi)
-              if (dir_j .eq. 2) then ! SH
-                call FFsh(-1,FF,p_Xmov,pXi,cOME,1,1)
-                pXi%Gmov(i,3,dir_j,j) = FF%V ! V
-!               print*,ipXi,i+nIpts,j,"=",FF%V
-              else !PSV
-                call FFpsv(-1,FF,dir_j,p_Xmov,pXi,cOME,1,1)
-!               print*,ipXi,j,i,"=",FF%W,FF%U
-                pXi%Gmov(i,1,dir_j,j) = FF%W ! W
-                pXi%Gmov(i,2,dir_j,j) = FF%U ! U
-              end if !dir_j
-            end do !ipXi         
-          end if ! si 
-        end do !j
-      end do !i
-      end if ! makeVideo
-      end subroutine GreenReg_R
+                
 
       function TractionPSV(RW,normal,l)
       use resultVars, only: Punto3d
@@ -7650,6 +5187,485 @@
       end function TractionSH
                         
             
+!#< r IBEM - reg R        !#>
+      subroutine reffField_by_(ipXi,dir_j,cOME)
+      ! llenamos una columna de la matriz del ibem en la región
+      ! de condiciones de continuidad entre E y R y front libre en R (misma columna)
+      use glovars, only : z0,UR
+      use resultVars, only : Punto,ibemMat,FFres,n_top_sub,n_con_sub,n_val_sub, boupoints
+      implicit none
+      interface !porque recibe un puntero como argumento
+         subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF
+         integer,    intent(in)     :: mecS,mecE, i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME
+         integer, intent(in) :: dir_j
+         end subroutine FFpsv
+         
+         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF !V,Ty
+         integer,    intent(in)     :: mecS,mecE, i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME 
+         end subroutine FFsh
+      end interface
+      integer, intent(in) :: ipXi,dir_j ! ip_X : n_topo+1,n_topo+n_cont
+      complex*16, intent(in),target  :: cOME
+      type(Punto), pointer :: pXi,p_X
+      integer :: ip_X,dj
+      type(FFres),target :: FF
+!     real*8 :: r
+!     complex*16 :: greenexG22
+      
+      nullify(pXi)
+      pXi => boupoints(ipXi)
+      
+      do ip_X = n_top_sub +1, n_top_sub + n_con_sub + n_val_sub
+        nullify(p_X)
+        p_X => boupoints(ip_X)
+        
+      if (dir_j .eq. 2) then ! SH
+        call FFsh(-1,FF,p_X,pXi,cOME,1,3)
+       if(p_X%tipoFrontera .lt. 2) then
+      !  |  Tyy  |
+        if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
+           ibemMat(p_x%boundaryIndex, &
+                   pXi%boundaryIndex + n_con_sub) = 0.5_8*UR
+        else
+           ibemMat(p_x%boundaryIndex, &
+                   pXi%boundaryIndex + n_con_sub) = - FF%Ty
+        end if
+           ! y si es un p. de coloc. en frontera con continuidad
+        if (p_X%tipoFrontera .eq.1) then 
+      !  |   V   |
+!       r = sqrt((p_x%center%x-pXi%center%x)**2. + (p_x%center%z-pXi%center%z)**2.)
+!       FF%V = greenexG22(cOME/beta(N+2),r,pXi%length*2,N+2)
+      
+           ibemMat(p_x%boundaryIndex + n_con_sub, & 
+                   pXi%boundaryIndex + n_con_sub) = - FF%V
+        end if
+           ! y si es un p. de coloc. en frontera libre
+       else !p_X%tipoFrontera .eq. 2
+      !  |  Tyy  |
+           if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
+               ibemMat(p_x%boundaryIndex + n_con_sub, &
+                   pXi%boundaryIndex + n_con_sub) = - 0.5_8*UR
+           else
+               ibemMat(p_x%boundaryIndex + n_con_sub, & 
+                   pXi%boundaryIndex + n_con_sub) = FF%Ty
+           end if
+       end if
+      else !PSV **********************************************************************
+        dj = dir_j
+        call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5)
+        if (dj .eq. 3) dj = 2
+      if(p_X%tipoFrontera .lt. 2) then
+      !  |  Txx Txz  |   
+      !  |  Tzx Tzz  |
+        if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
+          if (dir_j .eq. 1) then
+            ibemMat(p_x%boundaryIndex *2 - 1, & 
+                   (pXi%boundaryIndex *2 - 1) + 2* n_con_sub) = 0.5_8*UR
+            ibemMat(p_x%boundaryIndex *2    , & 
+                   (pXi%boundaryIndex *2 - 1) + 2* n_con_sub) = z0
+          else if(dir_j .eq. 3) then
+            ibemMat(p_x%boundaryIndex *2 - 1, & 
+                   (pXi%boundaryIndex *2 - 0) + 2* n_con_sub) = z0
+            ibemMat(p_x%boundaryIndex *2 , & 
+                   (pXi%boundaryIndex *2 - 0) + 2* n_con_sub) = 0.5_8*UR
+           end if
+        else
+          ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
+                 (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%Tx
+          ibemMat(p_x%boundaryIndex *2 -(1 - 1), & 
+                 (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%Tz
+        end if
+           ! y si es un p. de coloc. en frontera con continuidad
+        if (p_X% tipoFrontera .eq.1) then
+      !  |   W   |
+      !  |   U   |
+!      if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
+!         call greenexPSV(FF,dir_j,p_X,pXi,cOME)
+!      end if
+          ibemMat((p_x%boundaryIndex *2 -(1 - 0)) + 2* n_con_sub, & 
+                  (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%W
+                       
+          ibemMat((p_x%boundaryIndex *2 -(1 - 1)) + 2* n_con_sub, & 
+                  (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = - FF%U
+        end if
+          ! y si es un p. de coloc. en frontera libre
+      else !p_X%tipoFrontera .eq. 2
+      !  |  Txx Txz  |   
+      !  |  Tzx Tzz  |
+           if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
+               if (dir_j .eq. 1) then
+            ibemMat((p_x%boundaryIndex *2 - 1)+ 2* n_con_sub, & 
+                    (pXi%boundaryIndex *2 - 1)+ 2* n_con_sub) = -0.5_8*UR
+            ibemMat((p_x%boundaryIndex *2    )+ 2* n_con_sub, & 
+                    (pXi%boundaryIndex *2 - 1)+ 2* n_con_sub) = z0
+               else if(dir_j .eq. 3) then
+            ibemMat((p_x%boundaryIndex *2 - 1)+ 2* n_con_sub, & 
+                    (pXi%boundaryIndex *2 - 0)+ 2* n_con_sub) = z0
+            ibemMat((p_x%boundaryIndex *2    )+ 2* n_con_sub, & 
+                    (pXi%boundaryIndex *2 - 0)+ 2* n_con_sub) = -0.5_8*UR
+                end if
+           else
+            ibemMat((p_x%boundaryIndex *2 -(1 - 0) )+ 2* n_con_sub, & 
+                    (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = FF%Tx
+            ibemMat((p_x%boundaryIndex *2 -(1 - 1) )+ 2* n_con_sub, & 
+                    (pXi%boundaryIndex *2 -(2 - dj))+ 2* n_con_sub) = FF%Tz
+           end if
+      end if
+      end if !dir_j
+      end do !ip_X
+      
+      end subroutine reffField_by_
+      
+      subroutine GreenReg_R(Jfrec,dir_j,cOME) !Región R
+      use resultvars, only:Punto,FFres, nIpts, nBpts,allpoints, & 
+                           boupoints, n_top_sub
+      use glovars, only: makeVideo
+      use peli, only : coords_Z,coords_X,fotogramas_Region
+      use meshVars, only : npixX,npixZ
+      use sourceVars, only : Po,nFuentes
+      implicit none
+      interface
+      subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF
+         integer,    intent(in)     :: mecS,mecE, i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME
+         integer, intent(in) :: dir_j
+         end subroutine FFpsv
+         
+         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF !V,Ty
+         integer,    intent(in)     :: mecS,mecE,i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME 
+         end subroutine FFsh
+      end interface
+      integer, intent(in) :: Jfrec,dir_j
+      complex*16, intent(in)  :: cOME
+      integer :: iP_x,iPXi
+      type(Punto), pointer :: p_X,pXi,p_Xmov
+      integer :: i,j,iPo
+      type(Punto),target :: p_xaux
+      type(FFres),target :: FF
+      real*8 :: nf(3)
+      ! ciclar en todos los puntos y averiguar se le corresponde
+      do iP_x = 1, nIpts ! (todos los puntos receptores menos las fronteras)
+      p_X => allpoints(iP_x)
+        if (p_x%isboundary) stop "GreenReg_R: p_x is boundary "
+        if (p_x%region .ne. 2) cycle !'incl'
+        ! para todas las fuentes en la región R
+      do iPXi = n_top_sub+1,nBpts
+      pXi => boupoints(iPXi)
+      
+      if (dir_j .eq. 2) then ! SH
+       call FFsh(-1,FF,p_X,pXi,cOME,1,3)
+          pXi%G(p_x%pointIndex,3,dir_j) = FF%V ! V
+          pXi%G(p_x%pointIndex,6,dir_j) = FF%Ty ! Ty
+      else !PSV
+       call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5) 
+         pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W
+         pXi%G(p_X%pointIndex,2,dir_j) = FF%U !U
+         pXi%G(p_X%pointIndex,4,dir_j) = FF%Tz !Tz
+         pXi%G(p_X%pointIndex,5,dir_j) = FF%Tx !Tx
+      end if !dir_j
+      
+      end do !iPXi
+      
+      ! y la fuente real
+      do iPo = 1,nfuentes
+      if (Po(iPo)%region .eq. 2) then
+      pXi => Po(iPo)
+      nf(1) = pXi%normal%x
+      nf(2) = pXi%normal%y
+      nf(3) = pXi%normal%z
+      if (dir_j .eq. 2) then ! SH
+       call FFsh(0,FF,p_X,pXi,cOME,1,3)
+          p_x%resp(Jfrec)%V = p_x%resp(Jfrec)%V + (FF%V) * nf(dir_j) ! V
+          p_x%resp(Jfrec)%Ty = p_x%resp(Jfrec)%Ty + (FF%Ty) * nf(dir_j)
+      else !PSV
+       call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5) 
+         if (pXi%region .ne. p_x%region) cycle
+         p_x%resp(Jfrec)%W = p_x%resp(Jfrec)%W + (FF%W) * nf(dir_j) !W
+         p_x%resp(Jfrec)%U = p_x%resp(Jfrec)%U + (FF%U) * nf(dir_j) !U
+         p_x%resp(Jfrec)%Tz = p_x%resp(Jfrec)%Tz + (FF%Tz) * nf(dir_j)
+         p_x%resp(Jfrec)%Tx = p_x%resp(Jfrec)%Tx + (FF%Tx) * nf(dir_j)
+      end if !dir_j
+      end if
+      end do
+      end do !iP_x
+      
+      if (makeVideo) then
+      do i=1,npixZ
+        do j=1,npixX
+          if (fotogramas_Region(i,j) .eq. 2) then !'incl'
+            p_xaux%center%x = coords_X(j)
+            p_xaux%center%z = coords_Z(i)
+!     print*,""
+!     print*,"this is mov incl",j,i," (",p_xaux%center%x,",",p_xaux%center%z,")"
+            p_xaux%normal%x = 1.0_8 !
+            p_xaux%normal%y = 1.0_8 !  no se usan 
+            p_xaux%normal%z = 1.0_8 !
+            p_xaux%region = 2!'incl'
+            p_Xmov => p_xaux
+               
+            ! para todas las fuentes en la región R
+            do iPXi = n_top_sub +1,nBpts
+              pXi => boupoints(iPXi)
+              if (dir_j .eq. 2) then ! SH
+                call FFsh(-1,FF,p_Xmov,pXi,cOME,1,1)
+                pXi%Gmov(i,3,dir_j,j) = FF%V ! V
+!               print*,ipXi,i+nIpts,j,"=",FF%V
+              else !PSV
+                call FFpsv(-1,FF,dir_j,p_Xmov,pXi,cOME,1,1)
+!               print*,ipXi,j,i,"=",FF%W,FF%U
+                pXi%Gmov(i,1,dir_j,j) = FF%W ! W
+                pXi%Gmov(i,2,dir_j,j) = FF%U ! U
+              end if !dir_j
+            end do !ipXi   
+            
+            ! y la fuente real
+            do iPo = 1,nfuentes
+              if (Po(iPo)%region .eq. 2) then
+                pXi => Po(iPo)
+                nf(1) = pXi%normal%x
+                nf(2) = pXi%normal%y
+                nf(3) = pXi%normal%z
+                if (abs(nf(dir_j)) .lt. 0.0001) cycle
+                
+                if (dir_j .eq. 2) then ! SH
+                  call FFsh(0,FF,p_X,pXi,cOME,1,1)
+         p_x%Wmov(Jfrec,3,i) = p_x%Wmov(Jfrec,3,i) + FF%V * nf(dir_j) !V
+                else !PSV
+                  call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5) 
+                  if (pXi%region .ne. p_x%region) cycle
+         p_x%Wmov(Jfrec,1,i) = p_x%Wmov(Jfrec,1,i) + FF%W * nf(dir_j) !W
+         p_x%Wmov(Jfrec,2,i) = p_x%Wmov(Jfrec,2,i) + FF%U * nf(dir_j) !U
+                end if !dir_j
+              end if
+            end do
+          end if ! si 
+        end do !j
+      end do !i
+      end if ! makeVideo
+      end subroutine GreenReg_R
+      
+!#< r IBEM - overDet        !#> 
+      subroutine overDetermineSystem(J,ren,PSV)
+      use resultvars, only: nIpts,& 
+      ibemMat,trac0vec,allpoints,boupoints,Punto,FFres,& 
+      n_top_sub,n_con_sub,n_val_sub
+      use waveNumVars, only : cOME
+      implicit none
+      interface
+      subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF
+         integer,    intent(in)     :: mecS,mecE, i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME
+         integer, intent(in) :: dir_j
+         end subroutine FFpsv
+         
+         subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: FF !V,Ty
+         integer,    intent(in)     :: mecS,mecE,i_zF
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16, intent(in)     :: cOME 
+         end subroutine FFsh
+      end interface
+      integer, intent(in) :: J
+      integer :: ren,renStep,col
+      logical, intent(in) :: PSV
+      type(Punto), pointer :: pXi,p_X
+      integer :: iP_x,iPxi,ipxi_I,ipxi_F,dj,dir_j!,iPhi_I,iPhi_F
+      type(FFres),target :: FF
+!     print*,"ren=",ren !primer renglon del primer elemento de sobredeterminado
+      do iP_x = 1,nIpts  !cada receptor X
+      p_X => allpoints(iP_x) 
+!     col = 1
+      if (.not. p_X%isOD) cycle!; print*,"iP_X = ",iP_x,"  iP_XCen=",p_X%center
+      if (PSV) then
+       if (p_X% tipoFrontera .eq.0) then!; print*,"frontera tipo trontera libre en medio estrat"
+          ipxi_I = 1
+          ipxi_F = n_top_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            do dir_j=1,3,2 !por fuerza hozintal 1 y vertical 3->2
+            dj = dir_j; if (dj .eq. 3) dj = 2!; print*,"dir_j ",dir_j," dj ",dj
+            !  |  Txx Txz  |
+            !  |  Tzx Tzz  |
+            col = pXi%boundaryIndex *2 -(2 - dj)
+              ibemMat(ren,   col) = pXi%G(p_X%pointIndex,5,dir_j) !Tx
+              ibemMat(ren+1, col) = pXi%G(p_X%pointIndex,4,dir_j) !Tz
+            end do !dj
+          end do !iPxi
+            !  | Tx |
+            !  | Tz |
+              trac0vec(ren  ) = p_x%resp(J)%Tx
+              trac0vec(ren+1) = p_x%resp(J)%Tz
+          renStep = 2
+       else if (p_X%tipoFrontera .eq.1) then !; print*,"frontera tipo continuidad"
+          ipxi_I = 1
+          ipxi_F = n_top_sub + n_con_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            do dir_j=1,3,2 !por fuerza hozintal 1 y vertical 3->2
+            dj = dir_j; if (dj .eq. 3) dj = 2!; print*,"dir_j ",dir_j," dj ",dj
+            !  |  Txx Txz  |
+            !  |  Tzx Tzz  |
+            col = pXi%boundaryIndex *2 -(2 - dj)
+              ibemMat(ren,   col) = pXi%G(p_X%pointIndex,5,dir_j) !Tx
+              ibemMat(ren+1, col) = pXi%G(p_X%pointIndex,4,dir_j) !Tz
+            !  |  Wx   Wz  |
+            !  |  Ux   Uz  |
+              ibemMat(ren+2, col) = pXi%G(p_X%pointIndex,1,dir_j) !W
+              ibemMat(ren+3, col) = pXi%G(p_X%pointIndex,2,dir_j) !U
+            end do !dj
+          end do !iPxi
+          ipxi_I = n_top_sub + 1
+          ipxi_F = n_top_sub + n_con_sub + n_val_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            do dir_j=1,3,2 !por fuerza hozintal 1 y vertical 3->2
+            dj = dir_j; if (dj .eq. 3) dj = 2!; print*,"dir_j ",dir_j," dj ",dj
+            call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5)
+            !  |  Txx Txz  |
+            !  |  Tzx Tzz  |
+            col = pXi%boundaryIndex *2 -(2 - dj)+ 2* n_con_sub
+              ibemMat(ren,   col) = -FF%Tx !Tx
+              ibemMat(ren+1, col) = -FF%Tz !Tz
+            !  |  Wx   Wz  |
+            !  |  Ux   Uz  |
+              ibemMat(ren+2, col) = -FF%W !W
+              ibemMat(ren+3, col) = -FF%U !U
+            end do !dj
+          end do !iPxi
+            !  | Tx |
+            !  | Tz |
+            !  | W  |
+            !  | U  |
+              trac0vec(ren  ) = p_x%resp(J)%Tx
+              trac0vec(ren+1) = p_x%resp(J)%Tz
+              trac0vec(ren+2) = p_x%resp(J)%W
+              trac0vec(ren+3) = p_x%resp(J)%U
+          renStep = 4
+       else if (p_X%tipoFrontera .eq.2) then!; print*,"frontera tipo frontera libre en inclusión elástica"
+          ipxi_I = n_top_sub + 1
+          ipxi_F = n_top_sub + n_con_sub + n_val_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            do dir_j=1,3,2 !por fuerza hozintal 1 y vertical 3->2
+            dj = dir_j; if (dj .eq. 3) dj = 2!; print*,"dir_j ",dir_j," dj ",dj
+            call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,3,5)
+            !  |  Txx Txz  |
+            !  |  Tzx Tzz  |
+            col = pXi%boundaryIndex *2 -(2 - dj)+ 2* n_con_sub
+              ibemMat(ren,   col) =  FF%Tx !Tx
+              ibemMat(ren+1, col) =  FF%Tz !Tz
+            end do !dj
+          end do !iPxi
+            !  | Tx |
+            !  | Tz |
+              trac0vec(ren  ) = p_x%resp(J)%Tx
+              trac0vec(ren+1) = p_x%resp(J)%Tz
+          renStep = 2
+       end if !%tipoFrontera
+      else !PSV / SH
+         stop "overDetermineSystem: Falta SH sobreDet"
+      end if !PSV/SH
+      ren = ren + renStep
+      end do !iP_x
+      end subroutine overDetermineSystem
+      
+      subroutine solveOverDetermineSystem(M,N)
+      use resultvars, only: A => ibemMat, B => trac0vec
+      use debugStuff
+      use glovars, only : v => verbose
+      implicit none
+      integer :: M,N,NRHS,LDA,LDB,LWORK,LWMAX,INFO
+      complex*16, dimension(:), allocatable :: WORK
+      complex*16, dimension(:,:), allocatable :: copyA
+      CHARACTER(len=32) :: arg
+      EXTERNAL  :: ZGELS
+      INTRINSIC :: INT,MIN
+!     real*8,dimension(:),allocatable :: S,Rwork
+!     real*8 :: Rcond
+      NRHS = 1
+      LWMAX = 500
+      LDA = M
+      LDB = M
+      allocate(WORK(LWMAX))
+      
+      if (v .gt. 2) then !#< b
+      write(arg,*) "  A  "
+      call showMNmatrixZ(M,N   , A,arg,6)
+!     call scripToMatlabMNmatrixZ(M,N,A(1:M,1:N),arg,6)
+      write(arg,*) "  B  "
+      call showMNmatrixZ(M,NRHS, B,"  b  ",6) 
+!     call scripToMatlabMNmatrixZ(M,1,B(1:M),arg,6)
+      allocate(copyA(size(A,1),size(A,2)))
+      copyA = A; end if!#>
+      ! Using QR ----------------------------------------
+      
+      ! Query the optimal workspace.............
+      LWORK = -1                               !
+      call ZGELS('No transpose', M, N, NRHS, & !
+                 A, LDA,                     & !
+                 B, M, WORK,                 & !
+                 LWORK,INFO )                  !
+      LWORK = int(WORK(1))                     !
+      deallocate(WORK); allocate(WORK(LWORK))  !
+      !········································· 
+      WORK = 0 !#< b
+!     print*,"M",M
+!     print*,"M",N
+!     print*,"NRHS",NRHS
+!     print*,"LDA",LDA
+!     print*,"LDB",LDB
+!     print*,'LWORK=',LWORK !#>
+      
+      call ZGELS('No transpose', M, N, NRHS, & 
+                 A, LDA,                     & 
+                 B, M, WORK,                 & 
+                 LWORK,INFO ) 
+      
+      !Check for the full rank.
+      IF( INFO.GT.0 ) THEN
+         WRITE(*,*)'The diagonal element ',INFO,' of the triangular '
+         WRITE(*,*)'factor of A is zero, so that A does not have full '
+         WRITE(*,*)'rank; the minimum norm solution could not be '
+         WRITE(*,*)'computed.'
+         STOP "solveOverDetermineSystem"
+      END IF
+      
+      ! Using single value decomposition
+!     allocate(Rwork(5*MN))
+!     allocate(S(MN))
+!     Rcond = dble(-1) !for machine precision
+!     Rcond = 1E-8
+!     call ZGELSS(Mi,Ni,1,ibemMat,Mi,trac0vec,Mi,& 
+!                 S, RCOND, RANK,WORK, LWORK, RWORK, INFO )
+!     print*,"Rank",Rank;print*,"S",S
+      
+      if (v .gt. 2) then  !#< b
+      write(arg,*) "phi  "
+      call showMNmatrixZ(N,NRHS,B(1:N),arg,6)  
+      call scripToMatlabMNmatrixZ(N,NRHS,B(1:N),arg,6)
+      call showMNmatrixZ(M,NRHS, matmul(copyA(1:M,1:N),B(1:N)),"  bBA",6)
+      end if!#>
+      end subroutine solveOverDetermineSystem
+
 ! Sismo/Foto- gramas 
       subroutine W_to_t(W,nombre,yAx,iP,x_i,z_i)
       use waveNumVars, only : NFREC,DFREC, NPTSTIME, OMEI, t_vec
@@ -8158,6 +6174,16 @@
       use resultvars, only : Punto,BouPoints,nbpts
       use ploteo10pesos
       implicit none
+      interface
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores)
+      use resultVars, only : Punto
+      type (Punto), dimension(:), pointer :: BP
+      integer, intent(in) :: nbpts
+      character(LEN=100) :: titleN
+      character(LEN=3) :: extension
+      logical, intent(in) :: zoomGeom, plotReceptores
+      end subroutine drawBoundary
+      end interface
       real, dimension(:,:,:), allocatable :: xvmat,yvmat
       real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep,encuadre, tlabel, madmax, escalaFlechas
       integer :: i,ii,j,n_maxtime,iT
@@ -8323,7 +6349,7 @@
       write(titleN,'(a)') 'foto_0.png'
       write(extension,'(a)') 'PNG'
       BP => BouPoints
-      call drawBoundary(BP,nbpts,titleN, extension,.false.)
+      call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.)
       
       write(titleN,'(a)')'ffmpeg -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
       call system(trim(titleN))
@@ -8349,6 +6375,16 @@
       use resultvars, only : Punto,BouPoints,nbpts
       use ploteo10pesos !las rutinas externas no requieren interfaz 
       implicit none
+      interface
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores)
+      use resultVars, only : Punto
+      type (Punto), dimension(:), pointer :: BP
+      integer, intent(in) :: nbpts
+      character(LEN=100) :: titleN
+      character(LEN=3) :: extension
+      logical, intent(in) :: zoomGeom, plotReceptores
+      end subroutine drawBoundary
+      end interface
       integer ,intent(in) :: imec
       real :: Sm(npixX,npixZ)
       character(LEN=3), dimension(3) :: nombre
@@ -8579,7 +6615,7 @@
       write(path,'(a,a)') nombre(iMec),'0.png'
       write(extension,'(a)') 'PNG'
       BP => BouPoints
-      call drawBoundary(BP,nbpts, path, extension,.false.)
+      call drawBoundary(BP,nbpts, path, extension,.false.,.false.)
       
       write(path,'(a,a,a)')'ffmpeg -i ',nombre(iMec), & 
                   '%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
@@ -8627,3 +6663,359 @@
       end if !verbose 2
       end subroutine Hollywood           
       
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores)
+      
+      ! my interface
+!     interface
+!     subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores)
+!     use resultVars, only : Punto
+!     type (Punto), dimension(:), pointer :: BP
+!     integer, intent(in) :: nbpts
+!     character(LEN=100) :: titleN
+!     character(LEN=3) :: extension
+!     logical, intent(in) :: zoomGeom, plotReceptores
+!     end subroutine drawBoundary
+!     end interface
+      
+      
+      use DISLIN
+      use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
+      use resultVars, only : Punto, IP => allpoints, nIpts ,overDeterminedSystem
+      use sourceVars, only : Po,NFuentes, tipoFuente, PW_pol
+      use geometryvars, only : nXI,Xcoord_ER,normXI, & 
+                               midPoint, Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out
+      use glovars, only : verbose, workBoundary,flip12
+      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
+      
+      implicit none
+      type (Punto), dimension(:), pointer :: BP
+      integer, intent(in) :: nbpts
+      character(LEN=100) :: titleN
+      character(LEN=3) :: extension
+      logical, intent(in) :: zoomGeom, plotReceptores
+      real :: maxY,minY,maxX,minX,xstep,zstep,encuadre
+      integer :: i,J,ifuente,sc
+      real*8, dimension(:,:),allocatable :: rec
+      real*8,dimension(2) :: theta,gamma
+      if (verbose >= 4) Write(6,'(a)') "Will plot geometry..."
+      sc=3
+      ! Boundary boundaries
+      maxX = MeshMaxX
+      minX = MeshMinX
+      maxY = MeshMaxZ
+      minY = MeshMinZ
+      
+      
+      xstep = real(((maxX-minX) / 5.0 ))
+      zstep = real(((maxY-minY) / 10. ))
+      encuadre = (maxY-minY)/(maxX-minX)
+
+      if (zoomGeom) then
+      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
+      minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
+      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
+      minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
+      end if
+      
+      ! Dislin plotting routines 
+      CALL METAFL(extension) ! define intended display  XWIN,PS,EPS,PDF
+      call imgfmt('RGB')
+      call winsiz(int(1200,4),int(1200,4)) !1200 ambos
+      CALL SCRMOD('REVERS') !fondo blanco
+      
+      CALL SETFIL(trim(titleN))
+      call filmod('DELETE') ! para sobreescribir el archivo
+      CALL SETPAG('DA4P')
+      CALL PAGE(int(3000,4),int(3000,4))
+      CALL PAGMOD('NONE')
+      CALL DISINI() ! dislin initialize 
+      call errmod ("all", "off")
+!     CALL PAGERA() ! plots a page border
+!     CALL COMPLX ! sets a complex font
+      call incmrk (int(1,4))
+!     CALL HWFONT()
+      CALL TRIPLX() !DISALF()
+      CALL axspos (int(300,4) ,int(2700,4)) !the position of an axis system. Lower left corner
+      call axslen (int(2600,4) ,int(2600*encuadre,4)) !size of the axis system. 
+      call labdig(int(1,4),'X') !number of decimal places for labels
+      call labdig(int(1,4),'Y')
+      call ticks (int(10,4) ,'XY') 
+      !            low X   left Y   upp X   right Y
+      call setgrf("NAME", "NAME", "NONE", "LINE")
+      CALL SETVLT ('SPEC')
+      ! increment for labels 
+      ! xini xfin yfirstvalue xstep ymin ymax yminvalueTicks yTicks
+      call graf(real(minX,4),real(maxX,4),real(minX,4),& 
+                real(xstep,4),real(maxY,4),real(minY,4),& 
+                real(maxY,4),real(-zstep,4))
+      
+      !estratigrafía --------------------------------------------
+      call shdpat(int(16,4)) !solid shade                       !
+      i = 1
+      if (Z(0) .lt. 0.0) i = 0
+      do J=i,N                                                  !
+         call SETRGB(col(J), col(J), col(J))                    !
+         call rlrec(real(minX,4),real(max(Z(J),minY),4),&       !
+                    real(maxX-minX,4),real(Z(J+1)-max(Z(J),minY),4))!
+         call color ('FORE')                                    !
+         call rline(real(minX,4),real(max(Z(J),minY),4), &      !
+                 real(maxX,4),real(max(Z(J),minY),4))           !
+      end do                                                    !
+      J = N+1                                                   !
+!     print*, "shade_layer",J," ",col(J)
+      call SETRGB(col(J), col(J), col(J))                       !
+      call rlrec(real(minX,4),real(Z(J),4),&                    !
+                    real(maxX-minX,4),real(maxY-Z(J),4))        !
+      call color ('FORE')                                       !
+      call rline(real(minX,4),real(Z(J),4), &                   !
+                 real(maxX,4),real(Z(J),4))                     !
+      ! Borrar estratos en la cuenca                                  !
+      call color ('BACK')                                             !
+      call shdpat(int(16,4))                                          !
+      if (abs(z(0)) .lt. 0.0001) then
+      call rlrec(real(minX,4),real(minY,4),&                          !
+                    real(maxX-minX,4),real(Z(1)-minY,4))              !
+      end if!
+      if (workboundary) then
+      !topografía -----------------------------------------------------
+      
+      ! dibujar inclusión
+      if (flip12) then ! Xcoord_flip_out
+      if (allocated(Xcoord_flip_out)) then
+      if (size(Xcoord_flip_out(:,1,1)) .gt. 1) then
+!     do j = 1,8
+!        print*,j,Xcoord_flip_out(j,1,1:2),Xcoord_flip_out(j,2,1:2)
+!     end do
+      allocate(rec(2* (size(Xcoord_flip_out(:,1,1))),2))              !
+      i=1                                                             !
+      do j=1,size(Xcoord_flip_out (:,1,1))!n_topo+1,n_topo+n_cont    !
+      rec(i,1) = Xcoord_flip_out(j,1,1)                              !
+      rec(i,2) = Xcoord_flip_out(j,2,1)                              !
+      rec(i+1,1) = Xcoord_flip_out(j,1,2)                            !
+      rec(i+1,2) = Xcoord_flip_out(j,2,2)                            !
+!     print*,j,rec(i,1),rec(i,2),rec(i+1,1),rec(i+1,2)
+      i=i+2                                       !
+      end do
+      call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
+      CALL RLAREA(real(rec(:,1),4), & 
+                  real(rec(:,2),4), & 
+                  int(2*size(Xcoord_flip_out(:,1,1)),4))  !
+      deallocate(rec) 
+      end if
+      end if
+      else ! --------
+      if (allocated(Xcoord_Incluonly)) then
+      if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
+      allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))             !
+      i=1                                                             !
+      do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont    !
+      rec(i,1) = Xcoord_Incluonly(j,1,1)                              !
+      rec(i,2) = Xcoord_Incluonly(j,2,1)                              !
+      rec(i+1,1) = Xcoord_Incluonly(j,1,2)                            !
+      rec(i+1,2) = Xcoord_Incluonly(j,2,2)                            !
+      i=i+2                                                           !
+      end do
+      
+!     print*, "shadecolor_inc", shadecolor_inc
+      call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
+      CALL RLAREA(real(rec(:,1),4), & 
+                  real(rec(:,2),4), & 
+                  int(2*size(Xcoord_Incluonly(:,1,1)),4))  !
+      deallocate(rec) !
+      end if                                                    !
+      end if
+      end if!
+      if (size(Xcoord_Voidonly(:,1,1)) .gt. 1) then
+      allocate(rec(2* (size(Xcoord_Voidonly(:,1,1))),2))              !
+      i = 1                                   
+      do j=1,size(Xcoord_Voidonly(:,1,1))                             !
+      rec(i,1) = Xcoord_Voidonly(j,1,1)                               !
+      rec(i,2) = Xcoord_Voidonly(j,2,1)                               !
+      rec(i+1,1) = Xcoord_Voidonly(j,1,2)                             !
+      rec(i+1,2) = Xcoord_Voidonly(j,2,2)                             !
+      i=i+2                                                           !
+      end do                                                          !
+      call color ('BACK')                                             !
+      call shdpat(int(16,4)) 
+      CALL RLAREA(real(rec(:,1),4), & 
+                  real(rec(:,2),4), & 
+                  int(2*size(Xcoord_Voidonly(:,1,1)),4))  !
+      deallocate(rec) 
+      end if                                                          !
+                                                      !                                                                !
+      ! dibujar topografia original                                   !
+      call color ('FORE')                                             !
+      call PENWID(real(0.5,4))                                        !
+      call marker(int(-1,4)) ! sin marcadores                         !
+      do j=1,nXI                                                      !
+      call rline(real(Xcoord_ER(j,1,1),4),real(Xcoord_ER(j,2,1),4), & !
+                 real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
+      end do                                                          !
+      
+      if (zoomGeom) then
+      !normales -------------------------------------------------------------
+      call color('GREEN')                                                   !
+      CALL HSYMBL(int(25,4)) !size of symbols                               ! 
+      do j=1,nXI                                                            !
+      CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
+              real(midPoint(j,1)+normXI(j,1)*xstep*0.1,4), &                !
+              real(midPoint(j,2)+normXI(j,2)*xstep*0.1,4), int(1001,4))     !
+      end do                                                                !
+      
+      ! puntos centrales y gaussianos ------------------------------------
+      call incmrk(-1) ! -1 : only symbols                                !
+      CALL HSYMBL(int(10,4)) !size of symbols                            !
+      call color('BACK')                                                 !
+      do j=1,nBpts                                                       !
+      !             cuadritos rellenos                                   !
+      CALL RLSYMB (16, real(BP(j)%bord_A%x,4), real(BP(j)%bord_A%z,4))   !
+      end do                                                             !
+      do j=1,nBpts                                                       !
+      CALL HSYMBL(int(5,4)) !size of symbols                             !
+      call color('FORE')                                                 !
+      !             circulitos negros                                    !
+      CALL RLSYMB (17, real(BP(j)%center%x,4), real(BP(j)%center%z,4))   !
+      call color('ORANGE')                                               !
+      CALL HSYMBL(int(3,4)) !size of symbols                             !
+      call marker(int(0,4)) !tachecitos                                  !
+      call curve(real(BP(j)%Gq_xXx_coords(:,1),4), &                     !
+                 real(BP(j)%Gq_xXx_coords(:,2),4), &                     !
+                 int(size(BP(J)%Gq_xXx_coords(:,1)),4))                  !
+      end do !j                                                          !
+      end if ! zoomGeom
+      end if !workboundary 
+      
+      !fuente ------------------------------------------------------------
+      call color('RED')                                                  !
+      do ifuente = 1,Nfuentes                          
+      if (tipoFuente .eq. 0) then !puntual
+      CALL HSYMBL(int(40,4)) !size of symbols                            !
+      CALL RLSYMB (8, real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4))!star     !
+      CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
+              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * xstep*0.3,4), &           !
+              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.3,4), int(1101,4))!
+      elseif (tipoFuente .eq. 1) then !onda plana
+      ! polarización
+      if (PW_pol .eq. 1) then !SV
+        theta(1) = cos(Po(ifuente)%gamma)
+        theta(2) = sin(Po(ifuente)%gamma)
+      elseif (PW_pol .eq. 2) then !P
+        theta(1) = sin(Po(ifuente)%gamma)
+        theta(2) = -cos(Po(ifuente)%gamma)
+      end if
+        gamma(1) = sin(Po(ifuente)%gamma)
+        gamma(2) = -cos(Po(ifuente)%gamma)
+      CALL HSYMBL(int(60,4)) !size of symbols
+      CALL RLVEC (real(Po(ifuente)%center%x + theta(2) * xstep*0.05,4), & 
+                  real(Po(ifuente)%center%z - theta(1) * xstep*0.05,4), &      !
+              real(Po(ifuente)%center%x + theta(2) * xstep*0.05 & 
+                                        + theta(1) * xstep*0.2,4), &           !
+              real(Po(ifuente)%center%z - theta(1) * xstep*0.05 &
+                                        + theta(2) * xstep*0.2,4), int(3101,4))!
+      ! dirección de propagación
+      CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &!
+              real(Po(ifuente)%center%x + gamma(1) * xstep*0.4,4), &           !
+              real(Po(ifuente)%center%z + gamma(2) * xstep*0.4,4), int(1111,4))!
+      ! frente de onda
+      CALL RLVEC (real(Po(ifuente)%center%x - gamma(2) * xstep*0.25,4),&        !
+                  real(Po(ifuente)%center%z + gamma(1) * xstep*0.25,4), &       !
+              real(Po(ifuente)%center%x + gamma(2) * xstep*0.25,4), &           !
+              real(Po(ifuente)%center%z - gamma(1) * xstep*0.25,4), int(1100,4))!
+      elseif (tipoFuente .eq. 2) then !segmento
+        gamma(1) = sin(Po(ifuente)%gamma)
+        gamma(2) = -cos(Po(ifuente)%gamma)
+      CALL HSYMBL(int(60,4)) !size of symbols
+      ! segmento
+      CALL RLVEC (real(Po(ifuente)%center%x - gamma(2) * Po(ifuente)%length/2.,4),&        !
+                  real(Po(ifuente)%center%z + gamma(1) * Po(ifuente)%length/2.,4), &       !
+              real(Po(ifuente)%center%x + gamma(2) * Po(ifuente)%length/2.,4), &           !
+              real(Po(ifuente)%center%z - gamma(1) * Po(ifuente)%length/2.,4), int(1100,4))!
+      CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
+              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * xstep*0.3,4), &           !
+              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.3,4), int(1101,4))!
+      end if !tipoFuente
+      end do
+      if (plotReceptores) then
+      !receptores ----------------------------------------------------------
+      CALL HSYMBL(int(25,4)) !size of symbols                              !
+      call color('BLUE')                                                   !
+      do j=1,nipts                                                         !
+        if (IP(j)%isOD) then                                               !
+          if (overDeterminedSystem) then                                   !
+            CALL RLSYMB (0, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
+            CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
+              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.1,4), &       !
+              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.1,4), &       !
+              int(1001,4))                                                 !
+          end if                                                           !
+        else                                                               !
+          CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))  !
+        end if                                                             !
+      end do                                                               !
+      end if
+      call disfin()
+      end subroutine drawBoundary
+      
+
+      subroutine plot_at_eta (J, tt)
+      use resultVars, only : Punto, allpoints, nIpts, nSabanapts
+      use dislin
+      use debugStuff
+      implicit none
+      integer :: iP,J
+      character(LEN=100) :: tt,t2
+      complex*16 :: BP
+      real, dimension(nSabanapts) :: x
+      complex*16, dimension(nSabanapts) :: y
+      real*8 :: chNa
+      logical :: warning
+      warning = .false.
+      print*,"plot ", trim(tt)
+      CALL METAFL('PDF')
+      call filmod('DELETE')
+      CALL SETPAG('DA4L')
+      CALL SETFIL(trim(tt))
+        do iP = 1,nIpts; if (allpoints(iP)%isSabana) then
+           if (tt(1:1) .eq. 'W') BP = allpoints(iP)%resp(J)%W
+           if (tt(1:1) .eq. 'U') BP = allpoints(iP)%resp(J)%U
+           chNa = abs(BP)
+           if (chNa .eq. chNa+1) then; BP = 0; warning = .true.; end if
+!          print*,iP,BP
+           y(iP-(nIpts - nSabanapts)) = BP
+           x(iP-(nIpts - nSabanapts)) = real(allpoints(ip)%center%x,4)
+        end if;end do
+        write(t2,'(a,a)') trim(tt),"_.txt"
+        OPEN(739,FILE=trim(t2),FORM="FORMATTED",ACTION='WRITE')
+        call showMNmatrixZ(nSabanapts,1,y(1:nSabanapts),t2(1:5),739)
+        close(739)
+        
+        if (warning) then 
+        print*,trim(tt), ": One or more values are either NaN or inf"
+        else
+        
+!       call showMNmatrixZabs(nSabanapts,1, Sabana(1:nSabanapts,1),tt(1:5),6)
+        write(t2,'(a,a)') "0__Abs_",trim(tt)
+        CALL SETFIL(trim(t2))
+        CALL color('BLACK')
+        call qplot(x(1:nSabanapts),real(abs(y(1:nSabanapts)),4), nSabanapts)
+        
+        write(t2,'(a,a)') "0__Rea_",trim(tt)
+        CALL SETFIL(trim(t2))
+        CALL color('RED')
+        call qplot(x(1:nSabanapts),real(real(y(1:nSabanapts)),4), nSabanapts)
+        
+        write(t2,'(a,a)') "0__Ima_",trim(tt)
+        CALL SETFIL(trim(t2))
+        CALL color('BLUE')
+        call qplot(x(1:nSabanapts),real(aimag(y(1:nSabanapts)),4), nSabanapts)
+        end if
+                
+!       CALL color('BLACK')
+!       call qplcrv(x(1:nSabanapts),real(abs(Sabana(1:nSabanapts,1)),4), nSabanapts,'FIRST')
+!       call color('RED')
+!       call qplcrv(x(1:nSabanapts),real(real(Sabana(1:nSabanapts,1)),4), nSabanapts,'NEXT')
+!       call color('BLUE')
+!       call qplcrv(x(1:nSabanapts),real(aimag(Sabana(1:nSabanapts,1)),4), nSabanapts,'LAST')
+        
+      
+      end subroutine plot_at_eta
