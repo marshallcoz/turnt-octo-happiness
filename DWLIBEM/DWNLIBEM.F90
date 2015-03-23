@@ -418,7 +418,6 @@
        if(.not. skipdir(dir)) then 
          call diffField_at_iz(0,dir,J,cOME)
        end if
-      
        ! fill IBEM matrix
        if (workboundary) then
          if(.not. skipdir(dir)) then 
@@ -432,21 +431,18 @@
              call diffField_at_iz(iz,dir,J,cOME)
            end if 
          end do !iz
-      
       !********(campo refractado en inclusión y FF de inclusion (columnas xi=d2))***  
          if (n_con_sub .gt. 0) then 
            do iPxi = n_top_sub +1, n_top_sub + n_con_sub
              call reffField_by_(iPxi,dir,cOME)
            end do ! iPxi
          end if !n_cont
-      
       !********(frontera libre en inclusión (columnas de xi=d1))*****************
          if (n_val_sub .gt. 0) then
            do iPxi = n_top_sub + n_con_sub +1, n_top_sub + n_con_sub + n_val_sub
              call reffField_by_(iPxi,dir,cOME)
            end do ! iPxi
          end if !n_vall
-      
       !*****(funcions de Green de desplazamiento en la región R)*****************
          call GreenReg_R(J,dir,cOME)
        end if !workboundary
@@ -484,7 +480,7 @@
       call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
       
       if(info .ne. 0) stop "problem with ibem system"
-      if (any(isnan(real(trac0vec)))) stop "2120 valio madres el ibem"
+      if (any(isnan(real(trac0vec)))) stop "487 valió madres el ibem"
       end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       !#< b
 !     call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
@@ -509,44 +505,38 @@
       do iP_x = 1,nIpts !cada receptor X 
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
-            iPhi_F = (n_top_sub + n_con_sub) * 2
+!           iPhi_F = (n_top_sub + n_con_sub) * 2
             ipxi_I = 1
             ipxi_F =  n_top_sub + n_con_sub
           else if (allpoints(iP_x)%region .eq. 2) then !'incl'
             iPhi_I = (n_top_sub + n_con_sub) * 2 + 1
-            iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
+!           iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
             ipxi_I =  n_top_sub + 1
             ipxi_F =  n_top_sub + n_con_sub + n_val_sub
           else ! 'void'
             cycle
           end if
         do i=1,2 !dirección de desplazamiento {W,U} en ip_X !PSV
-          auxGvector = z0 !(1:ik)
-!         print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
-          iPxi = ipxi_I
-!         do iPhi = iPhi_I,iPhi_F,2 ! recopilamos  G_ij
-          iPhi = iPhi_I
-          do iPxi = ipxi_I,ipxi_F
-            auxGvector(iPhi)   = boupoints(iPxi)%G(iP_X,i,1) ! j=1 por fzas horizontales:
-            auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! j=3 por fzas verticales:
-!           iPxi = iPxi + 1 !siguiente segmento del contorno de esta región.
+          auxGvector = z0
+          iPhi = iPhi_I 
+          do iPxi = ipxi_I,ipxi_F ! recopilamos  G_ij
+            auxGvector(iPhi)   = boupoints(iPxi)%G(iP_X,i,1) ! por fzas horizontales:
+            auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! por fzas verticales:
             iPhi = iPhi + 2
-          end do !iPhi         
-          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
+          end do         
           if(i .eq. 1) allpoints(iP_x)%resp(J)%W = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%W
           if(i .eq. 2) allpoints(iP_x)%resp(J)%U = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%U
           
           l = i + 3 !componente de la tracción {Tz,Tx}
-          auxGvector = z0 !(1:ik)
-          iPxi = ipxi_I
-          do iPhi = iPhi_I,iPhi_F,2
+          auxGvector = z0
+          iPhi = iPhi_I 
+          do iPxi = ipxi_I,ipxi_F ! recopilamos  G_ij
             auxGvector(iPhi)   = boupoints(iPxi)%G(iP_X,l,1) ! por fzas horizontales:
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,l,3) ! por fzas verticales:
-            iPxi = iPxi + 1
-          end do !iPhi         
-          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
+            iPhi = iPhi + 2 
+          end do
           if(l .eq. 4) allpoints(iP_x)%resp(J)%Tz = sum(trac0vec * auxGvector) + &
                        allpoints(iP_x)%resp(J)%Tz
           if(l .eq. 5) allpoints(iP_x)%resp(J)%Tx = sum(trac0vec * auxGvector) + &
@@ -561,30 +551,28 @@
           if (fotogramas_Region(iP_x-nIpts,m) .eq. 1) then !'estr'
 !         print*,m,iP_x-nIpts,"estr"
             iPhi_I = 1
-            iPhi_F = (n_top_sub + n_con_sub) * 2
+!           iPhi_F = (n_top_sub + n_con_sub) * 2
             ipxi_I = 1
             ipxi_F = n_top_sub + n_con_sub
           else if (fotogramas_Region(iP_x-nIpts,m) .eq. 2) then !'incl'
 !         print*,m,iP_x-nIpts,"incl"
             iPhi_I = (n_top_sub + n_con_sub) * 2 + 1
-            iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
+!           iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
             ipxi_I = n_top_sub + 1
             ipxi_F = n_top_sub + n_con_sub + n_val_sub
           else ! 'void'
 !         print*,m,iP_x-nIpts,"void"
             cycle
           end if
-          auxGvector = z0 !(1:ik)
-!        print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
-         iPxi = ipxi_I
-         do iPhi = iPhi_I,iPhi_F,2
-           auxGvector(iPhi)   = boupoints(iPxi)%Gmov(iP_X-nIpts,i,1,m) ! horizontales
-           auxGvector(iPhi+1) = boupoints(iPxi)%Gmov(iP_X-nIpts,i,3,m) ! verticales
-           iPxi = iPxi + 1
-         end do !iPhi 
-!        if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
+          auxGvector = z0
+          iPhi = iPhi_I 
+          do iPxi = ipxi_I,ipxi_F ! recopilamos  G_ij
+            auxGvector(iPhi)   = boupoints(iPxi)%Gmov(iP_X-nIpts,i,1,m) ! por fzas horizontales:
+            auxGvector(iPhi+1) = boupoints(iPxi)%Gmov(iP_X-nIpts,i,3,m) ! por fzas verticales:
+            iPhi = iPhi + 2
+          end do 
           fotogramas(iP_x-nIpts,m,J,i) = sum(trac0vec * auxGvector) + &
-          allpoints(iP_x)%Wmov(J,i,m)
+                                         allpoints(iP_x)%Wmov(J,i,m)
       end do !i
       end do !iP_x
       end do !m
@@ -1077,9 +1065,10 @@
       if (abs(minBeta - maxBeta) .lt. 0.01) then
        layershadecolor(i:N+1) = 0.8_4
       else
-      do J=i,N+1
-       layershadecolor(J)= real(0.7-(maxBeta-beta0(J))*((0.7-0.85)/(maxBeta-minBeta)),4)
-      end do
+       do J=i,N+1
+        layershadecolor(J)= real(0.6-(maxBeta-beta0(J))*((0.6-0.89)/(maxBeta-minBeta)),4)
+!       print*,i,layershadecolor(J)
+       end do
       end if
       READ(7,*)
       READ(7,*)DFREC,NFREC,NPTSTIME,nK,Qq,TW,maxtime
@@ -1408,7 +1397,6 @@
        Po(i)%sinT = sin(PW_theta*pi/180.0)
        Po(i)%gamma = PW_theta*pi/180.0
        Po(i)%length = l
-       Po(i)%region = regi
        if (tipoFuente .eq. 1) then ! onda plana
          Po(i)%center%z = Z(N+1)
          efsource = N+1
@@ -1416,6 +1404,11 @@
        else
          efsource = thelayeris(real(zfsource,8))
          intfsource = tellisoninterface(real(zfsource,8))
+       end if
+       Po(i)%region = regi
+       if (regi .eq. 2) then
+         efsource = N+2
+         intfsource = .false.
        end if
        Po(i)%layer = efsource
        Po(i)%isOnInterface = intfsource
@@ -1441,9 +1434,10 @@
       do i = 1,nFuentes
       write(Printnum,'(a)') &
        "---------------------------------------------------------------------------------"
-      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a,I0)') & 
+      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a,I0,a,I0)') & 
       "   Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
-      "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,"] r= ",Po(i)%region
+      "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,& 
+      "] r= ",Po(i)%region," e=",Po(i)%layer
       end do
       
       skipdir = .true.
@@ -1467,6 +1461,7 @@
       use waveNumVars, only : NPTSTIME
       implicit none
       integer :: iz,thelayeris
+      real :: firstZ
       logical :: tellisoninterface,lexist
       CALL chdir("ins")
       inquire(file="videoParameters.txt",exist=lexist)
@@ -1480,7 +1475,7 @@
       READ(7,*) !      Resolution (vertical, horizontal)
       READ(7,*) npixZ,npixX
       READ(7,*) !      Vertical (start,end)
-      READ(7,*) MeshMinZ,MeshMaxZ
+      READ(7,*) MeshMinZ,MeshMaxZ,firstZ
       READ(7,*) !      Horizontal (start,end)
       READ(7,*) MeshMinX,MeshMaxX
       close(7)
@@ -1501,10 +1496,10 @@
         moviePoints(:)%isOnInterface = .false.
         moviePoints(:)%guardarFK = .false.
         moviePoints(:)%guardarMovieSiblings = .true.
-         moviePoints(:)%region = 1!'estr'
+        moviePoints(:)%region = 1!'estr'
         do iz = 1, npixZ
           moviePoints(iz)%center%x = 0.0
-          moviePoints(iz)%center%z = MeshMinZ + (MeshMaxZ - MeshMinZ)/(npixZ-1) * (iz-1)
+          moviePoints(iz)%center%z = firstZ + (MeshMaxZ - firstZ)/(npixZ-1) * (iz-1)
           coords_Z(iz) = real(moviePoints(iz)%center%z,4)
           moviePoints(iz)%layer = thelayeris(real(moviePoints(iz)%center%z,8))
           moviePoints(iz)%isOnInterface = tellisoninterface(real(moviePoints(iz)%center%z,8))
@@ -1671,7 +1666,7 @@
       if (abs(minBeta - maxBeta) .lt. 0.01) then
       shadecolor_inc = 0.8_4
       else
-      shadecolor_inc = real(0.7 - (maxBeta-BETA0(N+2))*((0.7-0.85)/(maxBeta - minBeta)),4)
+      shadecolor_inc = real(0.6-(maxBeta-beta0(N+2))*((0.6-0.89)/(maxBeta-minBeta)),4)
       end if
       ! cortar en intersección con estratos y determinar estrato de cada segemento
       iXI = 1
@@ -4408,7 +4403,7 @@
       else !.eq. 2 ; print*,"fuente segmento (real o virtual para IBEM)"
         if (pXi%isBoundary) nGq = Gquad_n ! IBEM
         if (pXi%isSourceSegmentForce) nGq = Gquad_n ! fuente segmento
-!       if (nGq .ne. Gquad_n) stop "chin 6600"
+        if (nGq .ne. Gquad_n) stop "chin 6600"
       end if
       do iGq = 1,nGq
         if (nGq .gt. 1) then
@@ -5331,6 +5326,7 @@
       use peli, only : coords_Z,coords_X,fotogramas_Region
       use meshVars, only : npixX,npixZ
       use sourceVars, only : Po,nFuentes
+      use soilvars, only : N
       implicit none
       interface
       subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
@@ -5360,25 +5356,23 @@
       real*8 :: nf(3)
       ! ciclar en todos los puntos y averiguar se le corresponde
       do iP_x = 1, nIpts ! (todos los puntos receptores menos las fronteras)
-      p_X => allpoints(iP_x)
+        p_X => allpoints(iP_x)
         if (p_x%isboundary) stop "GreenReg_R: p_x is boundary "
         if (p_x%region .ne. 2) cycle !'incl'
         ! para todas las fuentes en la región R
       do iPXi = n_top_sub+1,nBpts
-      pXi => boupoints(iPXi)
-      
-      if (dir_j .eq. 2) then ! SH
-       call FFsh(-1,FF,p_X,pXi,cOME,1,3)
+        pXi => boupoints(iPXi)
+        if (dir_j .eq. 2) then ! SH
+         call FFsh(-1,FF,p_X,pXi,cOME,1,3)
           pXi%G(p_x%pointIndex,3,dir_j) = FF%V ! V
           pXi%G(p_x%pointIndex,6,dir_j) = FF%Ty ! Ty
-      else !PSV
-       call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5) 
-         pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W
-         pXi%G(p_X%pointIndex,2,dir_j) = FF%U !U
-         pXi%G(p_X%pointIndex,4,dir_j) = FF%Tz !Tz
-         pXi%G(p_X%pointIndex,5,dir_j) = FF%Tx !Tx
-      end if !dir_j
-      
+        else !PSV
+         call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5) 
+          pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W
+          pXi%G(p_X%pointIndex,2,dir_j) = FF%U !U
+          pXi%G(p_X%pointIndex,4,dir_j) = FF%Tz !Tz
+          pXi%G(p_X%pointIndex,5,dir_j) = FF%Tx !Tx
+        end if !dir_j
       end do !iPXi
       
       ! y la fuente real
@@ -5400,13 +5394,14 @@
          p_x%resp(Jfrec)%Tz = p_x%resp(Jfrec)%Tz + (FF%Tz) * nf(dir_j)
          p_x%resp(Jfrec)%Tx = p_x%resp(Jfrec)%Tx + (FF%Tx) * nf(dir_j)
       end if !dir_j
-      end if
-      end do
+      end if !Po 2
+      end do !iPo
       end do !iP_x
       
       if (makeVideo) then
       do i=1,npixZ
-        do j=1,npixX
+        p_X => allpoints(nIpts+i)
+        do j=1,npixX ! para cada hermanito
           if (fotogramas_Region(i,j) .eq. 2) then !'incl'
             p_xaux%center%x = coords_X(j)
             p_xaux%center%z = coords_Z(i)
@@ -5415,10 +5410,11 @@
             p_xaux%normal%x = 1.0_8 !
             p_xaux%normal%y = 1.0_8 !  no se usan 
             p_xaux%normal%z = 1.0_8 !
-            p_xaux%region = 2!'incl'
+            p_xaux%region = 2; p_xaux%layer = N+2 !'incl'
+            p_xaux%boundaryindex = -10000; p_xaux%isOD = .false.
             p_Xmov => p_xaux
                
-            ! para todas las fuentes en la región R
+            ! para todas las fuentes virtuales en la frontera de R
             do iPXi = n_top_sub +1,nBpts
               pXi => boupoints(iPXi)
               if (dir_j .eq. 2) then ! SH
@@ -5437,22 +5433,21 @@
             do iPo = 1,nfuentes
               if (Po(iPo)%region .eq. 2) then
                 pXi => Po(iPo)
+                
                 nf(1) = pXi%normal%x
                 nf(2) = pXi%normal%y
                 nf(3) = pXi%normal%z
                 if (abs(nf(dir_j)) .lt. 0.0001) cycle
-                
                 if (dir_j .eq. 2) then ! SH
-                  call FFsh(0,FF,p_X,pXi,cOME,1,1)
-         p_x%Wmov(Jfrec,3,i) = p_x%Wmov(Jfrec,3,i) + FF%V * nf(dir_j) !V
+                  call FFsh(0,FF,p_Xmov,pXi,cOME,1,1)
+         p_Xmov%Wmov(Jfrec,3,j) = p_Xmov%Wmov(Jfrec,3,j) + FF%V * nf(dir_j) !V
                 else !PSV
-                  call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5) 
-                  if (pXi%region .ne. p_x%region) cycle
-         p_x%Wmov(Jfrec,1,i) = p_x%Wmov(Jfrec,1,i) + FF%W * nf(dir_j) !W
-         p_x%Wmov(Jfrec,2,i) = p_x%Wmov(Jfrec,2,i) + FF%U * nf(dir_j) !U
+                  call FFpsv(0,FF,dir_j,p_Xmov,pXi,cOME,1,1) 
+         p_x%Wmov(Jfrec,1,j) = p_x%Wmov(Jfrec,1,j) + FF%W * nf(dir_j) !W
+         p_x%Wmov(Jfrec,2,j) = p_x%Wmov(Jfrec,2,j) + FF%U * nf(dir_j) !U
                 end if !dir_j
-              end if
-            end do
+              end if ! Po 2
+            end do ! iPo
           end if ! si 
         end do !j
       end do !i
@@ -6165,7 +6160,7 @@
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas
-      use meshVars, only : npixX,npixZ
+      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
       use waveVars, only : dt,maxtime
       use waveNumVars, only : NFREC, NPTSTIME
       use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
@@ -6220,10 +6215,10 @@
         end do
       end do
       
-      minx = minval(xpray)
-      maxx = maxval(xpray)
-      miny = minval(ypray)
-      maxy = maxval(ypray)
+      minx = MeshMinX
+      maxx = MeshMaxX
+      miny = MeshMinZ
+      maxy = MeshMaxZ
       xstep = real(abs(xpray(npixX)-xpray(1))/4.0,4)
       zstep = real(abs(ypray(npixZ)-ypray(1))/10.0,4)
       madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
@@ -6358,7 +6353,9 @@
       call system('rm video/video.mp4')
       
       if (encuadre - 0.5 .le. 0.1) then
-      call system('ffmpeg -i video.mp4 -filter:v ''''crop=1200:700:0:600'''' video_Crop.mp4')
+      write(titleN,'(a,I0,a,I0,a)') 'ffmpeg -i video.mp4 -filter:v ''''crop=1200:',&
+                            int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''''' video_Crop.mp4'
+      call system(trim(titleN))
       end if
       end subroutine Churubusco    
       
@@ -6844,8 +6841,13 @@
       end if                                                          !
                                                       !                                                                !
       ! dibujar topografia original                                   !
+      if (zoomGeom) then
+      call color ('RED')                                             !
+      call PENWID(real(1.0,4))                                        !
+      else
       call color ('FORE')                                             !
       call PENWID(real(0.5,4))                                        !
+      end if
       call marker(int(-1,4)) ! sin marcadores                         !
       do j=1,nXI                                                      !
       call rline(real(Xcoord_ER(j,1,1),4),real(Xcoord_ER(j,2,1),4), & !
@@ -6854,7 +6856,7 @@
       
       if (zoomGeom) then
       !normales -------------------------------------------------------------
-      call color('GREEN')                                                   !
+      call color('ORANGE')                                                  !
       CALL HSYMBL(int(25,4)) !size of symbols                               ! 
       do j=1,nXI                                                            !
       CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
@@ -6885,6 +6887,7 @@
       end if ! zoomGeom
       end if !workboundary 
       
+      if (.not. zoomGeom) then
       !fuente ------------------------------------------------------------
       call color('RED')                                                  !
       do ifuente = 1,Nfuentes                          
@@ -6935,6 +6938,7 @@
               real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.3,4), int(1101,4))!
       end if !tipoFuente
       end do
+      end if!
       if (plotReceptores) then
       !receptores ----------------------------------------------------------
       CALL HSYMBL(int(25,4)) !size of symbols                              !

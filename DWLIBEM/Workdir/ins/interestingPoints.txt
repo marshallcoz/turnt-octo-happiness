@@ -4,13 +4,13 @@ Points of interest
 ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y
- X        Z          nx       nz   guardarFK=1   ptColocSobreEst
--0.454       0.891       0.0      1.0      1       F   1
+ X        Z          nx       nz   guardarFK=2   ptColocSobreEst
+0       0.15       0.0      1.0        1            F   1
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
 npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
-101    -2.000001    0.04     0.0   0.0   F   F
+101    -1.200001    0.0238      0.0   0.0   F   F
 hacer zeros el rango en la sabana:
 0   62
 

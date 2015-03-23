@@ -5,9 +5,9 @@
 0
 -------------------------------------------------------------------------
 Num. de fuente(s) puntual(es) [int]:
-1                          normal               of segment/plane wave
- X        Z     |    nx      ny      nz    |  theta    l        region
-0.0       0.4        0.0     0.0     1.0       0.0     4.5        2
+1                          normal            of segment/p. wave
+ X        Z     |    nx      ny      nz    |  theta    l       region
+-1.3     0.0        0.0     0.0     1.0       0.0     4.5       2
 -------------------------------------------------------------------------
 1.0         Amplitude Scale [real]
 1           Amplitude Function: 0 dirac; 1 ricker; 2 gaussian [int]
