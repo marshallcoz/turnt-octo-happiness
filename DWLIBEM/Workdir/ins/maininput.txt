@@ -6,7 +6,7 @@ F		Plot FK de medio sin topografia [logical]
 T		Save the Green funcs. for later use with "-L" argument [logical]
 10		Segments per wavelength [int :: R]
 F	168	Keep the subdivision of at least the Jth frequency [logical] [integer]
-T    95  120	Overdeterminate system [logical] the following frequency range [int] [int]
+F    1  151	Overdeterminate system [logical] the following frequency range [int] [int]
 1.5		K integrand runs up to fmax / (R * beta) [real :: R]
 1		Periodic sources damping; omega = (omega , - r*PI/TW i) [float :: r] {1 or 2}
 F		Use Azimi's complex velocity to improve causality of the pulse [logical] 

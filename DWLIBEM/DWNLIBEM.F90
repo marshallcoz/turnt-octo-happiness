@@ -334,7 +334,12 @@
        if (.not. allocated(ibemMat))then
          i = 1
        else
-         if (size(ibemMat,1) .ne. ik * l) then 
+         if (overDeterminedSystem) then
+           m = ik * (l+n_OD)
+         else
+           m = ik * l
+         end if!
+         if (size(ibemMat,1) .ne. m) then 
          i = 1
          deallocate(ibemMat);deallocate(trac0vec)
          deallocate(IPIVbem);deallocate(auxGvector)
@@ -344,11 +349,12 @@
         if ((overDeterminedSystem) .and. & 
             (OD_Jini .le. J) .and. &
             (J .le. OD_Jend)) then
-         allocate(ibemMat(ik * (l+n_OD),ik * l));allocate(trac0vec(ik * (l+n_OD)))
+         allocate(ibemMat(ik * (l+n_OD),ik * l));allocate(trac0vec  (ik * (l+n_OD)))
+         allocate(IPIVbem(1));                   allocate(auxGvector(ik * (l+n_OD)))
         else
-         allocate(ibemMat(ik * l,ik * l));allocate(trac0vec(ik * l))
+         allocate(ibemMat(ik * l,ik * l));allocate(trac0vec  (ik * l))
+         allocate(IPIVbem(ik * l));       allocate(auxGvector(ik * l))
         end if
-        allocate(IPIVbem(ik * l));allocate(auxGvector(ik * l))
        end if
        ibemMat = z0 ; trac0vec = z0 ; auxGvector = z0
       end if!workbou
@@ -527,9 +533,9 @@
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! por fzas verticales:
             iPhi = iPhi + 2
           end do         
-          if(i .eq. 1) allpoints(iP_x)%resp(J)%W = sum(trac0vec * auxGvector) + &
+          if(i .eq. 1) allpoints(iP_x)%resp(J)%W = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J)%W
-          if(i .eq. 2) allpoints(iP_x)%resp(J)%U = sum(trac0vec * auxGvector) + &
+          if(i .eq. 2) allpoints(iP_x)%resp(J)%U = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J)%U
           
           l = i + 3 !componente de la tracción {Tz,Tx}
@@ -540,9 +546,9 @@
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,l,3) ! por fzas verticales:
             iPhi = iPhi + 2 
           end do
-          if(l .eq. 4) allpoints(iP_x)%resp(J)%Tz = sum(trac0vec * auxGvector) + &
+          if(l .eq. 4) allpoints(iP_x)%resp(J)%Tz = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J)%Tz
-          if(l .eq. 5) allpoints(iP_x)%resp(J)%Tx = sum(trac0vec * auxGvector) + &
+          if(l .eq. 5) allpoints(iP_x)%resp(J)%Tx = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J)%Tx
       end do !i
       end do !iP_x
@@ -574,7 +580,7 @@
             auxGvector(iPhi+1) = boupoints(iPxi)%Gmov(iP_X-nIpts,i,3,m) ! por fzas verticales:
             iPhi = iPhi + 2
           end do 
-          fotogramas(iP_x-nIpts,m,J,i) = sum(trac0vec * auxGvector) + &
+          fotogramas(iP_x-nIpts,m,J,i) = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                                          allpoints(iP_x)%Wmov(J,i,m)
       end do !i
       end do !iP_x
@@ -2851,6 +2857,7 @@
        if (auxLogic .eqv. .false.) cycle
         ! (el primer receptor de la tabla --------| a esa profundidad) 
             call asociar(p_X, i_Fuente, itabla_z, 3)
+            if (p_X%layer .eq. N+2) cycle
             dj = dir_j; if(dj .eq. 3) dj = 2 
         ! ¿calcular sólo G, sólo T o ambos?
             if (dir_j .eq. 2) then; mecS = 1; mecE = 3 !V,s32,s12
@@ -6819,15 +6826,16 @@
       maxY = MeshMaxZ
       minY = MeshMinZ
       
+      
       xstep = real(((maxX-minX) / 5.0 ))
-      zstep = real(((maxY-minY) / 6. ))
+      zstep = real(((maxY-minY) / 10. ))
       encuadre = (maxY-minY)/(maxX-minX)
 
       if (zoomGeom) then
-      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(1:nXI,1,1:2),4)))
-      minX = min(MeshMinX,minval(real(Xcoord_ER(1:nXI,1,1:2),4)))
-      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(1:nXI,2,1:2),4)))
-      minY = min(MeshMinZ,minval(real(Xcoord_ER(1:nXI,2,1:2),4)))
+      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
+      minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
+      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
+      minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
       end if
       
       ! Dislin plotting routines 
