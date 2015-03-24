@@ -1,7 +1,7 @@
       Resolution (vertical, horizontal)
-8    40
-      Vertical (start,end)
--0.1   0.5   0.0
+40    40
+      Vertical (start,end,firstZ)
+-1.0   7.0    0.0
       Horizontal (start,end)
--1.5   1.5
+-4.   4.
 KEEP CALM AND THE FILE FORMAT

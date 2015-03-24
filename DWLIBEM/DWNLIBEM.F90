@@ -73,13 +73,15 @@
         print*,"     -g        : Solo imprimir geometría."
         print*,"     -a        : Solo Imprimir funcion de amplitud."
         print*,"     -f [frec] : Solo Ejecutar la frecuencia [frec]."
+        print*,"     -L        : Cargar fotogramas de video/G.bin"
         print*,""
         stop 
       else
         if (trim(arg) .eq. '-r' .or. &
             trim(arg) .eq. '-g' .or. &
             trim(arg) .eq. '-a' .or. &
-            trim(arg) .eq. '-f') then 
+            trim(arg) .eq. '-f' .or. &
+            trim(arg) .eq. '-L') then 
            print*,"Correr programa"
         else
            print*,"unknown input argument"
@@ -110,11 +112,9 @@
       end if !#>
       call checarWisdom(2*nfrec,2*nmax,NPTSTIME) ! FFTw
         nIpts=0; nMpts=0; nBpts = 0; iPtfin = 0; mPtfin = 0
-        
       call getsource(skipdir,PSV,SH)
       if (PSV) write(PrintNum,*) "  this a P-SV case"
       if (SH)  write(PrintNum,*) "  this a SH case"
-      
       if (workBoundary .eqv. .true.) call getTopography
       call getInquirePoints
       if(.not. onlythisJ) call sourceAmplitudeFunction
@@ -124,10 +124,9 @@
         write(PrintNum,'(a,I0)') '   Number of fixed receptors: ',Npts
         allocate (allpoints(Npts))
         allpoints(iPtini:iPtfin)= inqPoints(iPtini:iPtfin); deallocate(inqPoints)
-     
+      
       call setInqPointsRegions
       call setVideoPointsRegions
-!     print*,"hh"
  !#< blue
       call chdir(trim(adjustl(rutaOut)))
          write(titleN,'(a)') '0___OriginalGeometry.pdf'
@@ -214,7 +213,7 @@
         allpoints(i)%pointIndex = i
       end do ! i
       !#< b
-      if (verbose .ge. 2) then;    print*,"inquire points"
+      if (verbose .ge. 2) then;    print*,"inquire points, center,region,layer,movie"
         do iP=1,nPts
           print*,iP,allpoints(iP)%center,allpoints(ip)%region,& 
           allpoints(ip)%layer,allpoints(ip)%guardarMovieSiblings
@@ -325,7 +324,7 @@
 !        write(6,'(A,EN10.2,2x)', ADVANCE = "NO") & 
 !        "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
       if (workBoundary) then ! Subsegment the topography if neccesssary
-         call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+1),nbpts,BouPoints)
+         call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+2),nbpts,BouPoints)
           write(6,'(A,I5)', ADVANCE = "NO") "nbp= ", nbpts
          call preparePointerTable(pota,.false.,smallestWL) !(solo DWNs)
     
@@ -342,7 +341,9 @@
          end if
        end if!
        if (i .eq. 1) then
-        if (overDeterminedSystem) then
+        if ((overDeterminedSystem) .and. & 
+            (OD_Jini .le. J) .and. &
+            (J .le. OD_Jend)) then
          allocate(ibemMat(ik * (l+n_OD),ik * l));allocate(trac0vec(ik * (l+n_OD)))
         else
          allocate(ibemMat(ik * l,ik * l));allocate(trac0vec(ik * l))
@@ -453,7 +454,9 @@
       if (PSV) then 
       ik = 2
       l = n_top_sub + 2* n_con_sub + n_val_sub  
-      if (overDeterminedSystem) then !#< r -.-.-.-.-.-.-.-.-.-.-.-.- !#>
+      if ((overDeterminedSystem) .and. & 
+          (OD_Jini .le. J) .and. &
+          (J .le. OD_Jend)) then !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       Mi = ik*(l + n_OD)
       Ni = ik*l
       call overDetermineSystem(J,ik*l+1,PSV)
@@ -466,7 +469,7 @@
        
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
-!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) 
+!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) ;stop
 !      call chdir(trim(adjustl(rutaOut))) 
 !      open(421,FILE= "outA.m",action="write",status="replace")
 !      write(arg,'(a)') "Bf"
@@ -484,7 +487,7 @@
       end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       !#< b
 !     call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
-      if (verbose .ge. 1) then
+      if (verbose .ge. 2) then
          call chdir(trim(adjustl(rutaOut)))
          CALL chdir("phi")
          write(titleN,'(a,I0,a)')'h_phi_',J,'_E.pdf'
@@ -764,18 +767,21 @@
          end do
            CALL chdir("..")
       end if
-      
-      if (onlythisJ) then ! sabana en frecuencia eta
-        call chdir(trim(adjustl(rutaOut))) 
-        write(tt,'(a)') "W__eta.pdf"
+      ! sabana en frecuencia eta
+      if (verbose .eq. 2) then 
+        call chdir(trim(adjustl(rutaOut)))
+        CALL chdir("phi")
+        write(tt,'(a,I0,a)') "W__eta",J,".pdf"
         call plot_at_eta(frecIni,tt)
-        write(tt,'(a)') "U__eta.pdf"
+        write(tt,'(a,I0,a)') "U__eta",J,".pdf"
         call plot_at_eta(frecIni,tt)
-        CALL chdir("..")
-        print*,""
-        print*,"at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
-        Stop "-f argum finish"
-      end if!
+        CALL chdir("..");CALL chdir("..")
+        if ( onlythisJ )then 
+          print*,""
+          print*,"at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
+          Stop "-f argum finish"
+        end if
+      end if
       
       ! mostrar sismogramas en los puntos de interés
            call chdir(trim(adjustl(rutaOut)))
@@ -940,7 +946,7 @@
       use glovars
       use GeometryVars , only : staywiththefinersubdivision,finersubdivisionJ,&
        longitudcaracteristica_a, fraccionDeSmallestWL_segm_de_esquina
-      use resultvars, only : overDeterminedSystem
+      use resultvars, only : overDeterminedSystem,OD_Jini,OD_Jend
       implicit none
       logical :: lexist
       CALL chdir("ins")
@@ -959,7 +965,7 @@
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
       READ(35,*) multSubdiv!; print*,"division multiple = ", multSubdiv
       READ(35,*) staywiththefinersubdivision, finersubdivisionJ
-      READ(35,*) overDeterminedSystem
+      READ(35,*) overDeterminedSystem,OD_Jini,OD_Jend
       READ(35,*) cKbeta!; print*,"multBminIntegrando = ", cKbeta
       read(35,*) periodicdamper!; print*,"Periodic sources damping factor = ", periodicdamper
       READ(35,*) useAzimi
@@ -1272,8 +1278,8 @@
            inqPoints(i)%isOnInterface = & 
                          tellisoninterface(real(inqPoints(i)%center%z,8))                         
       end do
-      if (.not. overDeterminedSystem) n_OD = 0
-      if (n_OD .eq. 0) overDeterminedSystem = .false.
+      if (.not. overDeterminedSystem) n_OD = 0        ! en caso de que no hay puntos
+      if (n_OD .eq. 0) overDeterminedSystem = .false. ! de coloc. adicionales  
       iIndex = nIpts
       if (nSabanapts .gt. 0) then
       allocate(Sabana(nSabanapts, NPTSTIME))
@@ -1528,14 +1534,16 @@
       integer :: iXI,e
       real*8 :: nuevoPx, escalax,escalay,offsetx,offsety,escala_n,minBeta,maxBeta
       
-      real     :: errT = 0.000001
+      real     :: errT = 0.0001
       logical, dimension(:), allocatable  :: isOnIF
       real, dimension(:), allocatable :: auxA,auxB 
       CHARACTER(len=32) :: arg
       real*8, allocatable, save :: lengthXI(:),layerXI(:),cost(:),sint(:)
       logical, dimension(:), allocatable :: es_de_esquina
+      integer :: nXIoriginal
       huboCambios = .false.
       allocate(auxA(1)); allocate(auxB(1))
+      
       CALL chdir("ins")
       !Read Surface topography
       inquire(file="boundaries.txt",exist=lexist)
@@ -1553,9 +1561,9 @@
       READ(77,*) n_vall
       nXI = n_topo + n_cont + n_vall !numero total de segmentos originales
       if (allocated(Xcoord_ER)) deallocate(Xcoord_ER)
-      ALLOCATE (Xcoord_ER(nXI,2,2))
-      allocate (es_de_esquina(nXI*2))
-      allocate(auxVector(nXI+1,2,2))
+      ALLOCATE (Xcoord_ER(nXI+300,2,2))
+      allocate (es_de_esquina(nXI*2+300))
+      allocate(auxVector(nXI+1+300,2,2))
       READ(77,*)
       READ(77,*) escalax,escalay
       READ(77,*) offsetx,offsety
@@ -1615,7 +1623,10 @@
       allocate (Xcoord_Incluonly(n_cont + n_vall,2,2))
       do iXI = 1,n_cont + n_vall
           Xcoord_Incluonly(iXI,:,:) = Xcoord_ER(n_topo+iXI,:,:)
+          if (abs(Xcoord_Incluonly(iXI,2,1)) .le. 0.06) Xcoord_Incluonly(iXI,2,1) = 0
+          if (abs(Xcoord_Incluonly(iXI,2,2)) .le. 0.06) Xcoord_Incluonly(iXI,2,2) = 0
       end do
+      
       ! bounding box
       boxIncl_maxX = maxval(Xcoord_Incluonly(:,1,:))
       boxIncl_maxY = maxval(Xcoord_Incluonly(:,2,:))
@@ -1640,7 +1651,7 @@
       boxVoid_minX = minval(Xcoord_Voidonly(:,1,:))
       boxVoid_minY = minval(Xcoord_Voidonly(:,2,:))
       end if 
-!     print*,flip12
+      !
       if (flip12) then
       READ(77,*) ! Borde de región E cuando flip12 .true.
       READ(77,*) e 
@@ -1654,7 +1665,6 @@
                     Xcoord_flip_out(iXI,1,2),Xcoord_flip_out(iXI,2,2)
          Xcoord_flip_out(iXI,1,1:2) = Xcoord_flip_out(iXI,1,1:2) * escalax + offsetx
          Xcoord_flip_out(iXI,2,1:2) = Xcoord_flip_out(iXI,2,1:2) * escalay + offsety
-!        print*,ixi,Xcoord_flip_out(iXI,1,1:2),Xcoord_flip_out(iXI,2,1:2)
       end do
       end if
       end if
@@ -1668,15 +1678,23 @@
       else
       shadecolor_inc = real(0.6-(maxBeta-beta0(N+2))*((0.6-0.89)/(maxBeta-minBeta)),4)
       end if
+      
+!     go to 384
+      nXIoriginal = nXI
       ! cortar en intersección con estratos y determinar estrato de cada segemento
+      if (verbose >= 4) write(PrintNum,*)"begin slice with layers"
       iXI = 1
-      DO WHILE (iXI <= nXI) !para cada segmento
+      DO !para cada segmento
       ! we check if there is a change of medium along segment iXI
-      DO e = 2,size(Z) !en cada interfaz (excepto la superficie)
-        if ((abs(anint(Xcoord_ER(iXI,2,1) * 1000) - anint(Z(e) * 1000)) < errT) .or. & 
-            (abs(anint(Xcoord_ER(iXI,2,2) * 1000) - anint(Z(e) * 1000)) < errT)) then
+      DO e = 2,N+1 !en cada interfaz (excepto la superficie)
+      if (verbose >= 4) write(PrintNum,*) "e= ",e
+        if ((abs(Xcoord_ER(iXI,2,1) - Z(e)) < errT) .or. & 
+            (abs(Xcoord_ER(iXI,2,2) - Z(e)) < errT)) then
+!       if ((abs(anint(Xcoord_ER(iXI,2,1) * 1000) - anint(Z(e) * 1000)) < errT) .or. & 
+!           (abs(anint(Xcoord_ER(iXI,2,2) * 1000) - anint(Z(e) * 1000)) < errT)) then
             if (verbose >= 4) write(PrintNum,*)"already sliced here"
-        else ! no already
+        else ! not already
+          if (verbose >= 4) write(PrintNum,*) "divi"
             ! si es un segmento que se forma recorriendo los puntos hacia Z+
             if (Xcoord_ER(iXI,2,1) < Z(e)  .AND. Xcoord_ER(iXI,2,2) > Z(e)) then
                if (verbose >= 4) write(PrintNum,*)"hay un cambio de estrato hacia z+"
@@ -1691,16 +1709,18 @@
                end if !
                if ((sqrt((Xcoord_ER(iXI,1,1)-nuevoPx)**2 + (Xcoord_ER(iXI,2,1) - Z(e))**2) .lt. 0.001) .or. &
                    (sqrt((Xcoord_ER(iXI,1,2)-nuevoPx)**2 + (Xcoord_ER(iXI,2,2) - Z(e))**2) .lt. 0.001)) then
+                   if (verbose >= 4) write(PrintNum,*) "muy corto"
                    cycle ! si es muy corto no lo queremos
-               end if
+               end if!
              if (verbose >= 4) then
               write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
               "(dn)Segment (x,z):[",Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1)," to" &
               ,Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),"] crosses interface at (x,z)=(",nuevoPx,",",Z(e),")"
              end if
+               
                ! insertamos el nuevo punto en el vector de puntos
-               deallocate(auxVector)
-               allocate(auxVector(nXI+1,2,2)) ! un segmento más
+!              if (allocated(auxVector)) deallocate(auxVector)
+!              allocate(auxVector(nXI+1,2,2)) ! una arista nueva
                auxVector(1:iXI,1:2,1:2) = Xcoord_ER(1:iXI,1:2,1:2)
                auxVector(iXI,1,2) = nuevoPx
                auxVector(iXI,2,2) = Z(e)
@@ -1712,14 +1732,20 @@
 !              es_de_esquina(1:iXI) !se queda igual
                es_de_esquina(iXI+2:nXI+1) = es_de_esquina(iXI+1:nXI) !recorre
                es_de_esquina(iXI+1) = es_de_esquina(iXI) ! se duplica
-               deallocate(Xcoord_ER)
-               nXI = nXI + 1
-               allocate(Xcoord_ER(nXI,2,2))
-               Xcoord_ER = auxVector
                
+               nXI = nXI + 1
+               Xcoord_ER(1:nXI,1:2,1:2) = auxVector(1:nXI,1:2,1:2)
+               
+!              if (allocated(Xcoord_ER))  deallocate(Xcoord_ER)
+!              nXI = nXI + 1
+!              allocate(Xcoord_ER(nXI,2,2))
+!              Xcoord_ER(1:nXI,1:2,1:2) = auxVector(1:nXI,1:2,1:2)
+
                if(n_topo+n_cont+1 .le. iXI) n_vall = n_vall + 1
                if(n_topo+1 .le. iXI .and. iXI .le. n_cont+n_topo) n_cont = n_cont + 1
                if(iXI .le. n_topo) n_topo = n_topo + 1
+               if (verbose >= 4) write(PrintNum,*) "fin hacia z+"
+               cycle !estrato
             end if !(Xcoord_ER(iXI,2,1) < Z(e)  .AND. Xcoord_ER(iXI,2,2) > Z(e))
       ! si es un segmento que se forma recorriendo los puntos hacia Z-
             if (Xcoord_ER(iXI,2,1) > Z(e)  .AND. Xcoord_ER(iXI,2,2) < Z(e)) then
@@ -1734,16 +1760,18 @@
                end if!
                if ((sqrt((Xcoord_ER(iXI,1,1)-nuevoPx)**2 + (Xcoord_ER(iXI,2,1) - Z(e))**2) .lt. 0.001) .or. &
                    (sqrt((Xcoord_ER(iXI,1,2)-nuevoPx)**2 + (Xcoord_ER(iXI,2,2) - Z(e))**2) .lt. 0.001)) then
+                   if (verbose >= 4) write(PrintNum,*) "muy corto"
                    cycle ! si es muy corto no lo queremos
-               end if
+               end if!
              if (verbose >= 4) then
                write(Printnum,'(a,F10.4,F10.4,a,F10.4,F10.4,a,F10.4,a,F10.4,a)') & 
               "(dn)Segment (x,z):[",Xcoord_ER(iXI,1,1),Xcoord_ER(iXI,2,1)," to" &
               ,Xcoord_ER(iXI,1,2),Xcoord_ER(iXI,2,2),"] crosses interface at (x,z)=(",nuevoPx,",",Z(e),")"
              end if
+             
                ! insertamos el nuevo punto en el vector de puntos
-               deallocate(auxVector)
-               allocate(auxVector(nXI+1,2,2)) ! un segmento más
+!              if (allocated(auxVector)) deallocate(auxVector)
+!              allocate(auxVector(nXI+1,2,2)) ! un segmento más
                auxVector(1:iXI,1:2,1:2) = Xcoord_ER(1:iXI,1:2,1:2)
                auxVector(iXI,1,2) = nuevoPx
                auxVector(iXI,2,2) = Z(e)
@@ -1755,18 +1783,33 @@
 !              es_de_esquina(1:iXI) !se queda igual
                es_de_esquina(iXI+2:nXI+1) = es_de_esquina(iXI+1:nXI) ! se recorre
                es_de_esquina(iXI+1) = es_de_esquina(iXI) ! se duplica
-               deallocate(Xcoord_ER)
+               
                nXI = nXI + 1
-               allocate(Xcoord_ER(nXI,2,2))
-               Xcoord_ER = auxVector
+               Xcoord_ER(1:nXI,1:2,1:2) = auxVector(1:nXI,1:2,1:2)
+               
+               
+!              if (allocated(Xcoord_ER)) deallocate(Xcoord_ER)
+!              nXI = nXI + 1
+!              allocate(Xcoord_ER(nXI,2,2))
+!              Xcoord_ER(1:nXI,1:2,1:2) = auxVector(1:nXI,1:2,1:2)
+                
                if(n_topo+n_cont+1 .le. iXI) n_vall = n_vall + 1
                if(n_topo+1 .le. iXI .and. iXI .le. n_cont+n_topo) n_cont = n_cont + 1
                if(iXI .le. n_topo) n_topo = n_topo + 1
+               if (verbose >= 4) write(PrintNum,*) "fin hacia z-"
+               cycle !estrato
             end if !(Xcoord_ER(iXI,2,1) > Z(e)  .AND. Xcoord_ER(iXI,2,2) < Z(e))
         end if ! already
+        if (verbose >= 4) write(PrintNum,*) "fin e=",e
       end do ! e
+      
+      if (iXI .eq. nXI) exit ! salidr de Do de iXI
       ixI = iXI+1
       end do !iXI
+      
+      deallocate(auxVector)
+      if (verbose >= 4) write(PrintNum,*)"out of slice"
+      if (nXI .le. 0) stop "errror nXI <= 0"
       
       ! Right hand normals
       ALLOCATE (normXI(nXI,2))
@@ -1789,8 +1832,8 @@
         lengthXI(ixi) = sqrt((Xcoord_ER(iXI,1,2)-Xcoord_ER(iXI,1,1))**2.0 & 
                              +(Xcoord_ER(iXI,2,2)-Xcoord_ER(iXI,2,1))**2.0)
       end do
-      cost = (Xcoord_ER(:,1,2)- midPoint(:,1))/(lengthXI(:)/2.)
-      sint = (Xcoord_ER(:,2,2)- midPoint(:,2))/(lengthXI(:)/2.)
+      cost = (Xcoord_ER(1:nXi,1,2)- midPoint(1:nXi,1))/(lengthXI(1:nXi)/2.)
+      sint = (Xcoord_ER(1:nXi,2,2)- midPoint(1:nXi,2))/(lengthXI(1:nXi)/2.)
       
       ! estrato
       allocate (layerXI(nXI))
@@ -1800,7 +1843,7 @@
           (z(e) < midpoint(ixi,2) .and. midpoint(ixi,2) <= z(e+1))) & 
           layerxi(ixi) = e
       end do
-        
+      
       allocate (isOnIF(nXI)) ; isOnIF = .false.
       do e=1,N+1
         forall(ixi=1:nxi, &
@@ -1812,27 +1855,27 @@
       ! save original Geometry for the posterity
       allocate(origGeom(nXI))
       ! central point
-      origGeom(:)%center%x = midPoint(:,1)
-      origGeom(:)%center%z = midPoint(:,2)
+      origGeom(1:nXi)%center%x = midPoint(1:nXi,1)
+      origGeom(1:nXi)%center%z = midPoint(1:nXi,2)
       !borders of segment
-      origGeom(:)%bord_A%x = Xcoord_ER(:,1,1)
-      origGeom(:)%bord_A%z = Xcoord_ER(:,2,1)
-      origGeom(:)%bord_B%x = Xcoord_ER(:,1,2)
-      origGeom(:)%bord_B%z = Xcoord_ER(:,2,2)
+      origGeom(1:nXi)%bord_A%x = Xcoord_ER(1:nXi,1,1)
+      origGeom(1:nXi)%bord_A%z = Xcoord_ER(1:nXi,2,1)
+      origGeom(1:nXi)%bord_B%x = Xcoord_ER(1:nXi,1,2)
+      origGeom(1:nXi)%bord_B%z = Xcoord_ER(1:nXi,2,2)
       !add normal
-      origGeom(:)%normal%x = normXI(:,1)
-      origGeom(:)%normal%z = normXI(:,2)
+      origGeom(1:nXi)%normal%x = normXI(1:nXi,1)
+      origGeom(1:nXi)%normal%z = normXI(1:nXi,2)
       !add length
-      origGeom(:)%length = lengthXI
-      origGeom(:)%segmentoDeEsquina = es_de_esquina(1:nXI)
-      origGeom(:)%cosT = cost
-      origGeom(:)%sinT = sint
+      origGeom(1:nXi)%length = lengthXI(1:nXi)
+      origGeom(1:nXi)%segmentoDeEsquina = es_de_esquina(1:nXI)
+      origGeom(1:nXi)%cosT = cost(1:nXi)
+      origGeom(1:nXi)%sinT = sint(1:nXi)
       !add layer
-      origGeom(:)%layer = int(layerXI)
-      origGeom(:)%isBoundary = .true.
-      origGeom(:)%isOnInterface = isOnIF
-      origGeom(:)%guardarFK = .false.
-      origGeom(:)%guardarMovieSiblings = .false.
+      origGeom(1:nXi)%layer = int(layerXI(1:nXi))
+      origGeom(1:nXi)%isBoundary = .true.
+      origGeom(1:nXi)%isOnInterface = isOnIF(1:nXi)
+      origGeom(1:nXi)%guardarFK = .false.
+      origGeom(1:nXi)%guardarMovieSiblings = .false.
       
       !tipo de frontera
       !  TE^0 + TE^d = 0
@@ -1843,16 +1886,17 @@
       origGeom(n_cont+n_topo+1:nXI)%tipoFrontera = 2
       
         if (verbose .ge. 3) then
-        DO iXI = 1,nXI
+         DO iXI = 1,nXI
         write(Printnum,'(I0,a,F5.2,a,F5.2,a,F5.2,a,F5.2,a,F5.2)', ADVANCE = "NO") iXI,& 
          " c[",origGeom(iXI)%center%x,",",origGeom(iXI)%center%z,"] n[",&
          origGeom(iXI)%normal%x,",",origGeom(iXI)%normal%z,"] l:",origGeom(iXI)%length
         write(Printnum,'(a,F5.2,a,F5.2,a,i0,a,i0)') & 
         "  co",origGeom(iXI)%cosT," si",origGeom(iXI)%sinT," e",origGeom(iXI)%layer, &
         " t",origGeom(iXI)%tipoFrontera
-        end do
+         end do
         end if
-      
+      deallocate(auxA);deallocate(auxB);deallocate(es_de_esquina);deallocate(isonif)
+      deallocate(lengthXI);deallocate(layerXI);deallocate(cost);deallocate(sint)
       end subroutine getTopography
       
       subroutine setVideoPointsRegions
@@ -1893,7 +1937,7 @@
       
       subroutine setInqPointsRegions
       use resultVars, only : allpoints,nIpts,nPts
-!     use soilVars, only : Z
+      use soilVars, only : N
       use glovars, only : verbose, Printnum, flip12
       implicit none
       integer :: i
@@ -1905,6 +1949,8 @@
         reg(0) = 0; reg(1)= 2; reg(2) = 1
       end if
       allpoints(1:nPts)%region = reg(1)!'estr'
+      if (verbose .ge. 2) &
+        write(PrintNum,*) "center,region,layer"
       do i = 1, nIpts
         cn = adentroOafuera(real(allpoints(i)%center%x,4), & 
                             real(allpoints(i)%center%z,4),'void')
@@ -1923,9 +1969,10 @@
 !           allpoints(i)%region = reg(0)!'void'
 !         end if
 !       end if!
+        if (allpoints(i)%region .eq. 2) allpoints(i)%layer = N+2
         if (verbose .ge. 2) then
         write(PrintNum,*)i,"[",allpoints(i)%center%x, & 
-        ",",allpoints(i)%center%z,"] is ",allpoints(i)%region
+        ",",allpoints(i)%center%z,"] is ",allpoints(i)%region,allpoints(i)%layer
         end if
       end do!;stop "setInqPointsRegions"
       end subroutine setInqPointsRegions
@@ -2237,7 +2284,7 @@
       real*8 :: sixthofWL,f_frec,resi,deltax,deltaz
       character(LEN=100) :: txt
       character(LEN=3) :: extension
-      real*8     :: errT = 0.000001_8
+!     real*8     :: errT = 0.01_8
       type (segemntedcoords), dimension(:), allocatable :: subdiv
       
       f_frec = frec
@@ -2348,21 +2395,21 @@
         else ! es más grande de 2.*sixthofWL
           if(V .ge. 4) print*,"     odd number of segments"
           ! odd number
-          if (resi .gt. errT) then
-           nsubdivs = 2*ndivsiguales + 1 + 1
-           allocate(subdiv(ixi)%x(nsubdivs));allocate(subdiv(ixi)%z(nsubdivs))
-           subdiv(ixi)%x(ndivsiguales+1) = origGeom(iXI)%bord_A%x + deltaX*ndivsiguales
-           subdiv(ixi)%z(ndivsiguales+1) = origGeom(iXI)%bord_A%z + deltaZ*ndivsiguales
-           subdiv(ixi)%x(ndivsiguales+2) = origGeom(iXI)%bord_B%x - deltaX*ndivsiguales
-           subdiv(ixi)%z(ndivsiguales+2) = origGeom(iXI)%bord_B%z - deltaZ*ndivsiguales 
-          else !por fin si solo por la mitad
+!         if (resi .gt. errT) then
+!          nsubdivs = 2*ndivsiguales + 1 + 1
+!          allocate(subdiv(ixi)%x(nsubdivs));allocate(subdiv(ixi)%z(nsubdivs))
+!          subdiv(ixi)%x(ndivsiguales+1) = origGeom(iXI)%bord_A%x + deltaX*ndivsiguales
+!          subdiv(ixi)%z(ndivsiguales+1) = origGeom(iXI)%bord_A%z + deltaZ*ndivsiguales
+!          subdiv(ixi)%x(ndivsiguales+2) = origGeom(iXI)%bord_B%x - deltaX*ndivsiguales
+!          subdiv(ixi)%z(ndivsiguales+2) = origGeom(iXI)%bord_B%z - deltaZ*ndivsiguales 
+!         else !por fin si solo por la mitad
            nsubdivs = 2*ndivsiguales + 1
            allocate(subdiv(ixi)%x(nsubdivs));allocate(subdiv(ixi)%z(nsubdivs))
            subdiv(ixi)%x(ndivsiguales+1) = (origGeom(iXI)%bord_A%x + deltaX*ndivsiguales + & 
                                             origGeom(iXI)%bord_B%x - deltaX*ndivsiguales)/2.
            subdiv(ixi)%z(ndivsiguales+1) = (origGeom(iXI)%bord_A%z + deltaZ*ndivsiguales + &
                                             origGeom(iXI)%bord_B%z - deltaZ*ndivsiguales)/2.
-          end if
+!         end if
         end if ! resi .le. sixthofWL
         nSegmeTotal = nSegmeTotal + nsubdivs -1
         if(V .ge. 4) print*,"     los que son iguales a cada lado"
@@ -2774,8 +2821,9 @@
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !i
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !l
          end do                                                                  !i
-        else                                                                     !n        
+        else!  .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .     !n        
          tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
+         if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) return         
          do ik = 1,po                                                            !r
          call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))        !i
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
@@ -4309,46 +4357,85 @@
       real*8,dimension(2) :: theta
       integer :: el_tipo_de_fuente
       integer, target :: estrato
-      logical :: estratosIguales,XinoEstaEnInterfaz,usarGreenex
+      logical :: shouldI,XinoEstaEnInterfaz,usarGreenex!,estratosIguales
       
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0
-      estratosIguales = .false.
+!     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
-      if (p_x%layer .eq. pXi%layer) estratosIguales = .true.
-      if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+      shouldI = .false.
       j = dir_j ! ***********  dir_j = 3  (vertical)
       if(j .eq. 3) j = 2 ! para coincidir con los indicies
+      nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
+      xf => one; zf => one
       
-      el_tipo_de_fuente = 2 !(fuente segmento)
-      if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente !(puntual:0 u onda plana:1) 
-      if (i_zF .eq. -1) then !(campo refractado en inclusion)
-        estratosIguales = .true.
+      if (i_zF .eq. 0) then ! es la fuente real
+       el_tipo_de_fuente = tipofuente !(puntual:0 u onda plana:1)
+!      if (p_X%region .eq. pXI%region) then 
+         shouldI = .true.
+         if (pXi%region .eq. 2) then
+          XinoEstaEnInterfaz = .true.
+          estrato = N+2
+          e => estrato
+         else 
+          if (p_x%layer .eq. pXi%layer) shouldI = .true.
+          if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+          estrato = p_x%layer
+          e => p_x%layer
+         end if
+!      end if
+      else ! una fuente virtual
+        el_tipo_de_fuente = 2 !(fuente segmento)
         XinoEstaEnInterfaz = .true.
-      end if!  
-      
-      if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) then
-        if (p_X%region .eq. pXI%region) estratosIguales = .true.
-        XinoEstaEnInterfaz = .true.
-        estrato = N+2
-        e => estrato
-        nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
+        if (i_zF .eq. -1) then !(campo refractado en inclusion)
+          shouldI = .true.
+          estrato = N+2
+          e => estrato
+        else !(campo refractado en medio estratificado)
+          if (p_x%layer .eq. pXi%layer) then 
+            shouldI = .true.
+            estrato = p_x%layer
+            e => p_x%layer
+          end if
+        end if
       end if
+      !
+      if (shouldI) then
       
-      if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then 
-        if (p_x%layer   .eq. pXi%layer) estratosIguales = .true.
-      end if!
-      
-      if (estratosIguales .eqv. .true.) then !should I
-      estrato = p_x%layer
-      e => p_x%layer
-      nx(1) = p_X%normal%x; nx(2) = p_X%normal%z 
-      xf => one; zf => one !para que no chiste el compilador
-      if (i_zF .eq. -1) then !(en la inclusión)
-        estrato = N+2
-        e => estrato
-        nx(1) = p_X%normal%x; nx(2) = p_X%normal%z !las normales sin voltear
-      end if!
+!     if (p_x%layer .eq. pXi%layer) estratosIguales = .true.
+!     if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+!     j = dir_j ! ***********  dir_j = 3  (vertical)
+!     if(j .eq. 3) j = 2 ! para coincidir con los indicies
+!     
+!     el_tipo_de_fuente = 2 !(fuente segmento)
+!     if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente !(puntual:0 u onda plana:1) 
+!     if (i_zF .eq. -1) then !(campo refractado en inclusion)
+!       estratosIguales = .true.
+!       XinoEstaEnInterfaz = .true.
+!     end if!  
+!     
+!     if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) then
+!       if (p_X%region .eq. pXI%region) estratosIguales = .true.
+!       XinoEstaEnInterfaz = .true.
+!       estrato = N+2
+!       e => estrato
+!       nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
+!     end if
+!     
+!     if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then 
+!       if (p_x%layer   .eq. pXi%layer) estratosIguales = .true.
+!     end if!
+!     
+!     if (estratosIguales .eqv. .true.) then !should I
+!     estrato = p_x%layer
+!     e => p_x%layer
+!     nx(1) = p_X%normal%x; nx(2) = p_X%normal%z 
+!     xf => one; zf => one !para que no chiste el compilador
+!     if (i_zF .eq. -1) then !(en la inclusión)
+!       estrato = N+2
+!       e => estrato
+!       nx(1) = p_X%normal%x; nx(2) = p_X%normal%z !las normales sin voltear
+!     end if!
         
       if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
@@ -4387,7 +4474,6 @@
         ! para funciones de Greeen en frontera con cont. de desplazamiento
         if ((pXi%isboundary .eqv. .true.) .and. & 
             (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
-!       if (p_x%boundaryIndex .eq. pXi%boundaryIndex) usarGreenex = .true.
 
         ! para campo cercano por fuente virtual
         if ((pXi%isboundary .eqv. .true.) .and. & 
@@ -5388,7 +5474,7 @@
           p_x%resp(Jfrec)%Ty = p_x%resp(Jfrec)%Ty + (FF%Ty) * nf(dir_j)
       else !PSV
        call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5) 
-         if (pXi%region .ne. p_x%region) cycle
+!        if (pXi%region .ne. p_x%region) cycle
          p_x%resp(Jfrec)%W = p_x%resp(Jfrec)%W + (FF%W) * nf(dir_j) !W
          p_x%resp(Jfrec)%U = p_x%resp(Jfrec)%U + (FF%U) * nf(dir_j) !U
          p_x%resp(Jfrec)%Tz = p_x%resp(Jfrec)%Tz + (FF%Tz) * nf(dir_j)
@@ -6155,8 +6241,9 @@
       CALL chdir("..")
       end subroutine loadG_fotogramas
       
+
       subroutine Churubusco
-      use glovars, only : verbose, workBoundary
+      use glovars, only : verbose, workBoundary,flip12
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas
@@ -6165,7 +6252,7 @@
       use waveNumVars, only : NFREC, NPTSTIME
       use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
       use geometryvars, only : nXI,Xcoord_ER, & 
-                               n_cont, Xcoord_Voidonly, Xcoord_Incluonly
+                               n_cont, Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out
       use resultvars, only : Punto,BouPoints,nbpts
       use ploteo10pesos
       implicit none
@@ -6219,11 +6306,14 @@
       maxx = MeshMaxX
       miny = MeshMinZ
       maxy = MeshMaxZ
-      xstep = real(abs(xpray(npixX)-xpray(1))/4.0,4)
-      zstep = real(abs(ypray(npixZ)-ypray(1))/10.0,4)
+      xstep = real(((maxX-minX) / 5.0 ))
+      zstep = real(((maxY-minY) / 6. ))
+      encuadre = (maxY-minY)/(maxX-minX)
+!     xstep = real(abs(xpray(npixX)-xpray(1))/4.0,4)
+!     zstep = real(abs(ypray(npixZ)-ypray(1))/10.0,4)
       madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-      escalaFlechas = real((xstep * 1.0) / madmax)
-      encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
+      escalaFlechas = real((xstep * 0.6) / madmax)
+!     encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
       print*,"encuadre=",encuadre
       CALL METAFL('PNG')
       call filmod('DELETE') ! para sobreescribir el archivo
@@ -6278,6 +6368,31 @@
       end if!
       if (workboundary) then !
       ! dibujar inclusión
+      if (flip12) then ! Xcoord_flip_out
+      if (allocated(Xcoord_flip_out)) then
+      if (size(Xcoord_flip_out(:,1,1)) .gt. 1) then
+!     do j = 1,8
+!        print*,j,Xcoord_flip_out(j,1,1:2),Xcoord_flip_out(j,2,1:2)
+!     end do
+      allocate(rec(2* (size(Xcoord_flip_out(:,1,1))),2))              !
+      ii=1                                                             !
+      do j=1,size(Xcoord_flip_out (:,1,1))!n_topo+1,n_topo+n_cont    !
+      rec(ii,1) = Xcoord_flip_out(j,1,1)                              !
+      rec(ii,2) = Xcoord_flip_out(j,2,1)                              !
+      rec(ii+1,1) = Xcoord_flip_out(j,1,2)                            !
+      rec(ii+1,2) = Xcoord_flip_out(j,2,2)                            !
+!     print*,j,rec(i,1),rec(i,2),rec(i+1,1),rec(i+1,2)
+      ii=ii+2                                       !
+      end do
+      call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
+      CALL RLAREA(real(rec(:,1),4), & 
+                  real(rec(:,2),4), & 
+                  int(2*size(Xcoord_flip_out(:,1,1)),4))  !
+      deallocate(rec) 
+      end if
+      end if
+      else ! --------
+      if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
       if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
       allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))              !
       ii=1                                                             !
@@ -6310,6 +6425,8 @@
                   int(2*size(Xcoord_Voidonly(:,1,1)),4))              !
       deallocate(rec) 
       end if                                                !         !
+      end if
+      end if
       ! dibujar contorno de topografia original                       !
       call color ('FORE')                                             !
       call PENWID(real(0.5,4))                                        !
@@ -6702,16 +6819,15 @@
       maxY = MeshMaxZ
       minY = MeshMinZ
       
-      
       xstep = real(((maxX-minX) / 5.0 ))
-      zstep = real(((maxY-minY) / 10. ))
+      zstep = real(((maxY-minY) / 6. ))
       encuadre = (maxY-minY)/(maxX-minX)
 
       if (zoomGeom) then
-      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
-      minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
-      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
-      minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
+      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(1:nXI,1,1:2),4)))
+      minX = min(MeshMinX,minval(real(Xcoord_ER(1:nXI,1,1:2),4)))
+      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(1:nXI,2,1:2),4)))
+      minY = min(MeshMinZ,minval(real(Xcoord_ER(1:nXI,2,1:2),4)))
       end if
       
       ! Dislin plotting routines 

@@ -5,12 +5,12 @@ ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst
-0       0.15       0.0      1.0        1            F   1
+0.1046719125  2.0027409305       0.0    -1.0     1      T   2
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
 npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
-101    -1.200001    0.0238      0.0   0.0   F   F
+101    -5.00    0.1      0.0   0.0   F   F
 hacer zeros el rango en la sabana:
 0   62
 

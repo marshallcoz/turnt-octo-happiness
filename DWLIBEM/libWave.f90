@@ -158,6 +158,7 @@
       type (Punto), dimension(:), allocatable, save, target :: BouPoints !xi
       
         logical :: overDeterminedSystem
+        integer :: OD_Jini,OD_Jend
         logical :: SabanaPlotIndividual,sabanaBajarAFrontera
         integer, save :: nIpts, nSabanapts, nMpts, nBpts, nPts,&
                        iPtini,iPtfin,mPtini,mPtfin, & 
