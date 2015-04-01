@@ -7,13 +7,13 @@
 Num. de fuente(s) puntual(es) [int]:
 1                          normal            of segment/p. wave
  X        Z     |    nx      ny      nz    |  theta    l       region
--7.0     0.0        0.0     0.0    -1.0       0.0     4.5       1
+-1.1     0.2        0.0     0.0    -1.0       0.0     4.5       2
 -------------------------------------------------------------------------
 1.0         Amplitude Scale [real]
 1           Amplitude Function: 0 dirac; 1 ricker; 2 gaussian [int]
-0.          t0
-0.10        Ricker Ts [real] (center in seconds)
-0.09        Ricker Tp [real] (Span in seconds)
+-0.15          t0
+0.15        Ricker Ts [real] (center in seconds)
+0.06        Ricker Tp [real] (Span in seconds)
 8.0        Gaussian sigma as % of Fmax [real]
 2           Plane wave polarization: 1 SV; 2 P; 3 SH
 

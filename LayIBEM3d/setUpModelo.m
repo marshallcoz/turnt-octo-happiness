@@ -13,15 +13,18 @@ f.Dk_R = 2.5;
 % Medios E estratificado
 ops.N = 2; % Num de estratos
 clear m
+m(1).z = 0; 
 m(1).beta0 = 0.5; % [m/s]
 m(1).alfa0 = 1; % [m/s]
 m(1).rho = 1.0; % [T/m3]
 
+m(2).z = 2;
 m(2).beta0 = 0.5; % [m/s]
 m(2).alfa0 = 1; % [m/s]
 m(2).rho = 1.0; % [T/m3]
 
 % semiespacio
+m(ops.N+1).z = 3;
 m(ops.N+1).beta0 = 0.5; % [m/s]
 m(ops.N+1).alfa0 = 1; % [m/s]
 m(ops.N+1).rho = 1.0; % [T/m3]

@@ -170,6 +170,7 @@
           integer :: sabZeroini,sabZerofin
         integer, allocatable, dimension(:,:), save :: fixedPoTa,pota
         integer :: nZs ! depths at pota
+        complex*16, allocatable, dimension(:,:,:) :: XF
       end module resultVars
       
 
@@ -191,8 +192,8 @@
       
 
       module meshVars
-        integer, save :: npixX,npixZ
-        real, save :: MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
+        integer, save :: npixX,npixZ,nmarkZ,nmarkX
+        real, save :: MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,MeshVecLen
       end module meshVars
                    
 
@@ -426,44 +427,44 @@
       FFTW = FFTW * escala
       end function FFTW
       
-!     SUBROUTINE FORK(LX,CX,SIGNI,verbose,outpf)
-!     implicit none
-!     integer, intent(in) :: outpf
-!     integer, intent(in) :: LX,SIGNI,verbose
-!     COMPLEX*16 :: CARG,CW,CTEMP 
-!     complex*16,intent(inout) :: CX(LX)
-!     real*8, parameter :: pi = 4.*ATAN(1.)
-!     real*8 :: SC
-!     integer :: i,j,m,istep,l
-!     if (verbose >= 4) then
-!       write(outpf,'(a,I4,a)')'FFT on ',LX,' length vector'
-!     end if
-!     J=1
-!     SC=DSQRT(real(1.0,8)/real(LX,8))
-!     DO 30 I=1,LX
-!     IF(I > J)GO TO 10
-!     CTEMP=CX(J)*cmplx(SC,0.0,8)
-!     CX(J)=CX(I)*cmplx(SC,0.0,8)
-!     CX(I)=CTEMP
-!  10 M=LX/2
-!  20 IF(J <= M)GO TO 30
-!     J=J-M
-!     M=M/2
-!     IF(M >= 1)GO TO 20
-!  30 J=J+M
-!     L=1
-!  40 ISTEP=2*L
-!     DO 50 M=1,L
-!     CARG=cmplx(0.0,(pi*real(SIGNI*(M-1)))/real(L),8)  
-!     CW=EXP(CARG)
-!     DO 50 I=M,LX,ISTEP
-!     CTEMP=CW*CX(I+L)
-!     CX(I+L)=CX(I)-CTEMP
-!  50 CX(I)=CX(I)+CTEMP
-!     L=ISTEP
-!     IF(L < LX)GO TO 40
-!     RETURN
-!     END subroutine fork
+      SUBROUTINE FORK(LX,CX,SIGNI,verbose,outpf)
+      implicit none
+      integer, intent(in) :: outpf
+      integer, intent(in) :: LX,SIGNI,verbose
+      COMPLEX*16 :: CARG,CW,CTEMP 
+      complex*16,intent(inout) :: CX(LX)
+      real*8, parameter :: pi = 4.*ATAN(1.)
+      real*8 :: SC
+      integer :: i,j,m,istep,l
+      if (verbose >= 4) then
+        write(outpf,'(a,I4,a)')'FFT on ',LX,' length vector'
+      end if
+      J=1
+      SC=DSQRT(real(1.0,8)/real(LX,8))
+      DO 30 I=1,LX
+      IF(I > J)GO TO 10
+      CTEMP=CX(J)*cmplx(SC,0.0,8)
+      CX(J)=CX(I)*cmplx(SC,0.0,8)
+      CX(I)=CTEMP
+   10 M=LX/2
+   20 IF(J <= M)GO TO 30
+      J=J-M
+      M=M/2
+      IF(M >= 1)GO TO 20
+   30 J=J+M
+      L=1
+   40 ISTEP=2*L
+      DO 50 M=1,L
+      CARG=cmplx(0.0,(pi*real(SIGNI*(M-1)))/real(L),8)  
+      CW=EXP(CARG)
+      DO 50 I=M,LX,ISTEP
+      CTEMP=CW*CX(I+L)
+      CX(I+L)=CX(I)-CTEMP
+   50 CX(I)=CX(I)+CTEMP
+      L=ISTEP
+      IF(L < LX)GO TO 40
+      RETURN
+      END subroutine fork
       end module
       !
 
@@ -2667,7 +2668,7 @@
       use resultVars, only : BP => BouPoints,nbpts, trac0vec ,n_top_sub,n_con_sub, n_val_sub
       use geometryvars, only : nXI,Xcoord_ER,normXI, midPoint
       use waveNumVars, only : smallestWL
-      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
+      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkZ,nmarkX, MeshVecLen
       implicit none
       character(LEN=100) :: titleN
       integer :: comp
@@ -2699,14 +2700,14 @@
       maxY = MeshMaxZ
       minY = MeshMinZ
       
-      xstep = real(((maxX-minX) / 5.0 ))
-      zstep = real(((maxY-minY) / 10. ))
+      xstep = real(((maxX-minX) / nmarkX ))
+      zstep = real(((maxY-minY) / nmarkZ ))
       encuadre = (maxY-minY)/(maxX-minX)
 
-      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
-      minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
-      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
-      minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
+!     maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
+!     minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
+!     maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
+!     minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
       
       
       maxphi = 1.0_8
@@ -2774,11 +2775,11 @@
       rec(1,1) = real(BP(j)%bord_A%x ,4)
       rec(1,2) = real(BP(j)%bord_A%z ,4)
       
-      rec(2,1) = real(BP(j)%bord_A%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(2,2) = real(BP(j)%bord_A%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
+      rec(2,1) = real(BP(j)%bord_A%x + (phi(i))*BP(j)%normal%x * MeshVecLen ,4)
+      rec(2,2) = real(BP(j)%bord_A%z + (phi(i))*BP(j)%normal%z * MeshVecLen ,4)
       
-      rec(3,1) = real(BP(j)%bord_B%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(3,2) = real(BP(j)%bord_B%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
+      rec(3,1) = real(BP(j)%bord_B%x + (phi(i))*BP(j)%normal%x * MeshVecLen ,4)
+      rec(3,2) = real(BP(j)%bord_B%z + (phi(i))*BP(j)%normal%z * MeshVecLen ,4)
       
       rec(4,1) = real(BP(j)%bord_B%x ,4)
       rec(4,2) = real(BP(j)%bord_B%z ,4)
@@ -2808,11 +2809,11 @@
       rec(1,1) = real(BP(j)%bord_A%x ,4)
       rec(1,2) = real(BP(j)%bord_A%z ,4)
       
-      rec(2,1) = real(BP(j)%bord_A%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(2,2) = real(BP(j)%bord_A%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
+      rec(2,1) = real(BP(j)%bord_A%x + (phi(i))*BP(j)%normal%x * MeshVecLen ,4)
+      rec(2,2) = real(BP(j)%bord_A%z + (phi(i))*BP(j)%normal%z * MeshVecLen ,4)
       
-      rec(3,1) = real(BP(j)%bord_B%x + (phi(i))*BP(j)%normal%x * xstep*0.5 ,4)
-      rec(3,2) = real(BP(j)%bord_B%z + (phi(i))*BP(j)%normal%z * xstep*0.5 ,4)
+      rec(3,1) = real(BP(j)%bord_B%x + (phi(i))*BP(j)%normal%x * MeshVecLen ,4)
+      rec(3,2) = real(BP(j)%bord_B%z + (phi(i))*BP(j)%normal%z * MeshVecLen ,4)
       
       rec(4,1) = real(BP(j)%bord_B%x ,4)
       rec(4,2) = real(BP(j)%bord_B%z ,4)
@@ -2834,8 +2835,8 @@
       CALL HSYMBL(int(7,4)) !size of symbols                                ! 
       do j=1,nXI                                                            !
       CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
-              real(midPoint(j,1)+normXI(j,1)*xstep*0.2,4), &                !
-              real(midPoint(j,2)+normXI(j,2)*xstep*0.2,4), int(1001,4))     !
+              real(midPoint(j,1)+normXI(j,1)* MeshVecLen*0.5,4), &                !
+              real(midPoint(j,2)+normXI(j,2)* MeshVecLen*0.5,4), int(1001,4))     !
       end do                                                                !
       
       ! puntos centrales y gaussianos ------------------------------------
@@ -2846,17 +2847,17 @@
 !     !             cuadritos rellenos                                   !
 !     CALL RLSYMB (16, real(BP(j)%bord_A%x,4), real(BP(j)%bord_A%z,4))   !
 !     end do                                                             !
-      CALL HSYMBL(int(0,4)) !size of symbols                             !
-      do j=1,nBpts                                                       !
-      call color('FORE')                                                 !
+!     CALL HSYMBL(int(0,4)) !size of symbols                             !
+!     do j=1,nBpts                                                       !
+!     call color('FORE')                                                 !
       !             circulitos negros                                    !
-      CALL RLSYMB (17, real(BP(j)%center%x,4), real(BP(j)%center%z,4))   !
+!     CALL RLSYMB (17, real(BP(j)%center%x,4), real(BP(j)%center%z,4))   !
 !     call color('ORANGE')                                               !
 !     call marker(int(4,4)) !tachecitos                                  !
 !     call curve(real(BP(j)%Gq_xXx_coords(:,1),4), &                     !
 !                real(BP(j)%Gq_xXx_coords(:,2),4), &                     !
 !                int(size(BP(J)%Gq_xXx_coords(:,1)),4))                  !
-      end do !j 
+!     end do !j 
       
       ! longitud de onda
       call color ('FORE') 
@@ -2866,10 +2867,10 @@
                   real((maxX+minX)/2+ smallestWL/2,4), &     !
           real(maxY-(maxY-minY)*0.03,4), int(1122,4)) 
      
-      write(CTIT,'(a)') '$\lambda_{min}$'
-      lentitle = NLMESS(CTIT)
-      CALL HEIGHT (int(16*sc,4))
-      CALL MESSAG(CTIT,int((615*sc),4),int(900*sc,4))
+!     write(CTIT,'(a)') '$\lambda_{min}$'
+!     lentitle = NLMESS(CTIT)
+!     CALL HEIGHT (int(16*sc,4))
+!     CALL MESSAG(CTIT,int((615*sc),4),int(900*sc,4))
       
       write(CTIT,'(a,a)') 'maxReal = ', trim(mr)
       lentitle = NLMESS(CTIT)
@@ -2882,4 +2883,5 @@
       call disfin()
       end subroutine drawPHI
       end module ploteo10pesos
+
 

@@ -63,6 +63,7 @@
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
       integer :: Mi,Ni
+      
       !#< blue
       call system('clear')
       CALL get_command_argument(1, arg)
@@ -117,6 +118,7 @@
       if (SH)  write(PrintNum,*) "  this a SH case"
       if (workBoundary .eqv. .true.) call getTopography
       call getInquirePoints
+      allocate(XF(nSabanapts,Nfrec+1,2))
       if(.not. onlythisJ) call sourceAmplitudeFunction
       call getVideoPoints
       
@@ -155,25 +157,6 @@
 ! predimensionamientos
       write(PrintNum,'(a)') &
        "---------------------------------------------------------------------------------"
-      CALL get_command_argument(1, arg)
-      IF (LEN_TRIM(arg) .ne. 0) then 
-        if (trim(arg) .eq. '-L') then
-        ! cargar G para misma fuente,geometria,receptores
-        ! Cuando cambiamos la función de amplitud
-          print*,""
-          print*,"********************"
-          print*,"*** loading data ***"
-          print*,"********************"
-          print*,""
-          write(PrintNum,'(a)') "*** loading data ***"
-         !#< r  TODO: recalcular campo incidente !#>
-          call loadG_fotogramas
-          if (PSV) call Churubusco
-          if (SH) call Hollywood(3)
-          stop "done"
-        end if ! load 
-      end if! argument
-      
       if (SH) then 
         i = 2*N+1
         if (Z(0) .lt. 0.0) i = i + 1 !HS arriba
@@ -201,6 +184,7 @@
          allpoints(iP)%FK = Z0
         end if;end if
       end do
+      
        if (makeVideo) then
          allpoints(mPtini:mPtfin) = moviePoints; deallocate(moviePoints)
         do iP=mPtini,mPtfin
@@ -238,6 +222,35 @@
       do i = NPTSTIME-NFREC+2,NPTSTIME
         t_vec(i) = exp(cmplx(0.0,-(i-NPTSTIME-1)* dfrec * t0*(2*pi),8))
       end do
+      
+      CALL get_command_argument(1, arg)
+      IF (LEN_TRIM(arg) .ne. 0) then 
+        if (trim(arg) .eq. '-L') then
+        ! cargar G para misma fuente,geometria,receptores
+        ! Cuando cambiamos la función de amplitud
+          print*,""
+          print*,"********************"
+          print*,"*** loading data ***"
+          print*,"********************"
+          print*,""
+          write(PrintNum,'(a)') "*** loading data ***"
+         !#< r  TODO: recalcular campo incidente !#>
+         call loadW(PSV,SH)
+         call plotSisGram(PSV,SH,.false.) 
+         
+         
+         call F_K_exp(1,XF)
+         call F_K_exp(2,XF)
+         
+         if (makeVideo) then 
+          call loadG_fotogramas
+          if (PSV) call Churubusco
+          if (SH) call Hollywood(3)
+         end if
+         stop "done"
+        end if ! load 
+      end if! argument
+      
       !#< g
       if (developerfeature .ne. 0) then
       allocate(developerAUXvec(NFREC,2))
@@ -284,25 +297,25 @@
            Lambda(l) = RHO(l)*alfa(l)**2. - real(2.)*aMU(l)
           end do 
         end if
-      !#< g
-      if (developerfeature .ne. 0) then 
-      developerAUXvec(J,1) = amu(N+1) * (come/beta(N+1))**2. 
+!     !#< g
+!     if (developerfeature .ne. 0) then 
+!     developerAUXvec(J,1) = amu(N+1) * (come/beta(N+1))**2. 
 !     if (J .lt. 5) developerAUXvec(J,1) = developerAUXvec(J,1) + 2*UI*OMEI 
-      !<- trampita para que no sea un numero muy chico
-      developerAUXvec(J,2) = longitudcaracteristica_a * come / alfa(N+1) !ok
+!     !<- trampita para que no sea un numero muy chico
+!     developerAUXvec(J,2) = longitudcaracteristica_a * come / alfa(N+1) !ok
 !     print*,J,come,developerAUXvec(J,1)
 !    cycle
-      print*,"J=",J
-      print*,"   lamb_alf_0=",alfa(0)/frec
-      print*,"   lamb_bet_0=",beta(0)/frec
-      print*,"   lamb_alf_1=",alfa(1)/frec
-      print*,"   lamb_bet_1=",beta(1)/frec
-      print*,"   lamb_alf_2=",alfa(2)/frec
-      print*,"   lamb_bet_2=",beta(2)/frec
-      print*,"   lamb_alf_3=",alfa(3)/frec
-      print*,"   lamb_bet_3=",beta(3)/frec
-      print*,"-------------------------"
-      end if!#> !developerfeature .ne. 0
+!     print*,"J=",J
+!     print*,"   lamb_alf_0=",alfa(0)/frec
+!     print*,"   lamb_bet_0=",beta(0)/frec
+!     print*,"   lamb_alf_1=",alfa(1)/frec
+!     print*,"   lamb_bet_1=",beta(1)/frec
+!     print*,"   lamb_alf_2=",alfa(2)/frec
+!     print*,"   lamb_bet_2=",beta(2)/frec
+!     print*,"   lamb_alf_3=",alfa(3)/frec
+!     print*,"   lamb_bet_3=",beta(3)/frec
+!     print*,"-------------------------"
+!     end if!#> !developerfeature .ne. 0
       !#< b
       if(verbose .le. 1)then
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
@@ -358,49 +371,35 @@
        end if
        ibemMat = z0 ; trac0vec = z0 ; auxGvector = z0
       end if!workbou
-     
-!     call ETIME(tarray, result)
-!     write(6,'(a,f10.3,a)') "Start= ",result,"seconds" 
-!     lastresult = result
-!     print*,"antes de hacer e invertir matriz A (todas k)"!,result
+      
          pt_ipivA => ipivA
          pt_workA => workA
       if (PSV) then
          tam = size(Ak,1)
+       
+!      if (developerfeature .eq. 3) then
+!        do ik = 1,vecNK(J),3 ! k positivo (Aorig -> nmax+1)
+!        pointAp => Ak(1:tam,1:tam,ik)
+!        pt_k => k_vec(ik)
+!        call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+!        call inverseA(pointAp,pt_ipivA,pt_workA,tam)
+!        
+!        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)
+!        end do ! ik
+!      go to 12
+!      end if
+       
        do ik = 1,vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)
          call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
        end do ! ik
-      
-!      call parImpar_gloMat
-!      open(421,FILE= "outA.m",action="write",status="replace")
-!      do ik=1,2*NMAX
-!      write(arg,'(a,I0,a)') "Aorig{",ik,"}"
-!      call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),arg,421)
-!      end do
-!      close(421)
-!      stop     
        
        k0 = vecNK(J)
        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
        call parImpar_gloMat ! k negativo
        
-!     call ETIME(tarray, result)
-!     write(6,'(a,f10.3,a)') "Elapsed ",result,"seconds"       
-!     write(6,'(a,f10.3,a)') "Delta time =",result-lastresult,"seconds"
-      
-      
-!      open(421,FILE= "outA.m",action="write",status="replace")
-!      do ik=1,2*NMAX
-!      write(arg,'(a,I0,a)') "A{",ik,"}"
-!      call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),arg,421)
-!      end do
-!      close(421)
-!      print*,"printed outA.m"
-!      stop
-
       end if!psv
       if (SH) then
          Ak = Z0
@@ -813,64 +812,13 @@
                     allpoints(iP)%center%z)
         end do
         end if !#>
-        
-                !w
-        do iP = iPtini,iPtfin
-          write(yAx,'(a)') '$u_3$ [m]'
-          call W_to_t(allpoints(iP)%resp(:)%W,'w--',yax,iP,& 
-                    allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z)
-          call chdir("..")       
-          call makeSabana('1_S-w__.pdf',.false.)
-          call makeSabana('1_S-w_f.pdf',.true.) ! filled traces
-          call chdir("traces")
-        end do 
-        !u
-        do iP = iPtini,iPtfin
-          write(yAx,'(a)') '$u_1$ [m]'
-          call W_to_t(allpoints(iP)%resp(:)%U,'u--',yax,iP,& 
-                    allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z)
-          call chdir("..")         
-          call makeSabana('1_S-u__.pdf',.false.)
-          call makeSabana('1_S-u_f.pdf',.true.) ! filled traces
-          call chdir("traces")
-        end do 
-        !Tractions
-!       do iP = iPtini,iPtfin
-!         write(yAx,'(a)') '$Tz_$ [m]'
-!         call W_to_t(allpoints(iP)%resp(:)%Tz,'Tz-',yax,iP,& 
-!                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,PrintNum)
-!         write(yAx,'(a)') '$Tx_$ [m]'
-!         call W_to_t(allpoints(iP)%resp(:)%Tx,'Tx-',yax,iP,& 
-!                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,PrintNum)
-!       end do
-       call chdir("..") 
        end if !psv
-        
-       if (SH) then
-          do iP = iPtini,iPtfin
-          write(yAx,'(a)') '$u_2$ [m]'
-          call W_to_t(allpoints(iP)%resp(:)%V,'v--',yax,iP,& 
-                    allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z)    
-          end do 
-          call chdir("..") 
-          call makeSabana('1_S-v__.pdf',.false.) 
-          call makeSabana('1_S-v_f.pdf',.true.)
-          
-          call chdir("traces")
-          do iP = iPtini,iPtfin
-          write(yAx,'(a)') '$Ty_$ [m]'
-          call W_to_t(allpoints(iP)%resp(:)%Ty,'Ty-',yax,iP,& 
-                    allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z)     
-          end do
-          call chdir("..")
-       end if !sh         
-            
+       
+      call plotSisGram(PSV,SH,.true.)    
+      
+      call F_K_exp(1,XF)
+      call F_K_exp(2,XF)
+         
       if (makeVideo) then 
         call crepa_four_fotogramas
         if (PSV) call Churubusco
@@ -909,10 +857,10 @@
       if ((trim(arg) .ne. '-r') .and. (trim(arg) .ne. '-f')) borrarDirectorio = .true.
       if (borrarDirectorio .eqv. .false.) then
       call date_and_time(TIME=time); write(PrintNum,'(a,a)') "hhmmss.sss = ",time
-      write(path,'(a,a)') "mkdir outs_",time
-      call system(trim(adjustl(path)))
+      write(rutaOut,'(a,a)') "mkdir outs_",time
+      call system(trim(adjustl(rutaOut)))
+      call chdir(trim(adjustl(rutaOut)),status)
       write(rutaOut,'(a,a)') "outs_",time
-      call chdir(trim(adjustl(rutaOut)))
       else
       call system('mkdir outs')
       CALL chdir("outs",status)
@@ -1485,11 +1433,12 @@
       end if
       
       READ(7,*) !      Resolution (vertical, horizontal)
-      READ(7,*) npixZ,npixX
+      READ(7,*) npixZ,npixX,nmarkZ,nmarkX
       READ(7,*) !      Vertical (start,end)
       READ(7,*) MeshMinZ,MeshMaxZ,firstZ
       READ(7,*) !      Horizontal (start,end)
       READ(7,*) MeshMinX,MeshMaxX
+      READ(7,*) MeshVecLen
       close(7)
       CALL chdir("..")
       if (makeVideo .eqv. .false.) return 
@@ -1530,7 +1479,7 @@
       boxVoid_minY, midPoint,normXI, origGeom, surf_poly
       use gloVars
       use fitting
-      use soilVars, only : Z,N,RHO,BETA0,ALFA0,shadecolor_inc,LAMBDA0,ANU,AMU0
+      use soilVars, only : Z,N,RHO,BETA0,ALFA0,shadecolor_inc,LAMBDA0,ANU,AMU0, layershadecolor
       use ploteo10pesos
       
       implicit none 
@@ -1679,11 +1628,17 @@
       
       minBeta = minval(BETA0(1:N+2))
       maxBeta = maxval(BETA0(1:N+2))
-      if (abs(minBeta - maxBeta) .lt. 0.01) then
-      shadecolor_inc = 0.8_4
-      else
-      shadecolor_inc = real(0.6-(maxBeta-beta0(N+2))*((0.6-0.89)/(maxBeta-minBeta)),4)
-      end if
+!     if (abs(minBeta - maxBeta) .lt. 0.01) then
+!     shadecolor_inc = 0.8_4
+!     else
+!     shadecolor_inc = real(0.6-(maxBeta-beta0(N+2))*((0.6-0.89)/(maxBeta-minBeta)),4)
+!     end if
+      do e=1,N+2
+      layershadecolor(e)= real(0.4-(maxBeta-beta0(e))*((0.4-0.79)/(maxBeta-minBeta)),4)
+!       print*,i,layershadecolor(J)
+      end do
+      shadecolor_inc = layershadecolor(N+2)
+      
       
 !     go to 384
       nXIoriginal = nXI
@@ -2771,7 +2726,7 @@
       if (i_zF .eq. 0) then
          itabla_x = 3 ! En la tabla (pota) de índices: la fuente real -> (0,3)
          i_FuenteFinal = nFuentes ! Cantidad de fuentes reales
-         if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente ······················p
+         if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente·p
             ! con incidencia de onda plana no usamos atenuación                  ·l
             cOME = real(cOME_in) * UR!                                           ·a
          end if! ·································································n
@@ -6130,6 +6085,7 @@
       if(associated(S)) nullify(S)
       end subroutine makeSabana
       
+
       subroutine crepa_four_fotogramas
       use glovars, only : saveG,verbose
       use peli, only : fotogramas 
@@ -6249,12 +6205,194 @@
       end subroutine loadG_fotogramas
       
 
+      subroutine plotSisGram(PSV,SH,guardarW)
+      use resultVars , only : iPtini,iPtfin,allpoints
+      use waveNumVars, only : NFREC
+      integer :: iP,i
+      character(LEN=100) :: yax
+      logical, intent(in) :: PSV,SH, guardarW
+      if (guardarW) then
+       ! in traces directory
+       OPEN(6373,FILE="W.bin",STATUS='UNKNOWN', ACCESS='STREAM',ACTION='WRITE')
+      end if !
+      if (PSV) then
+        do iP = iPtini,iPtfin
+          write(yAx,'(a)') '$u_3$ [m]'
+          
+          if (guardarW) then ; do i = 1, NFREC+1
+          write(6373) allpoints(iP)%resp(i)%W
+          end do; end if
+          call W_to_t(allpoints(iP)%resp(:)%W,'w--',yax,iP,& 
+                    allpoints(iP)%center%x,& 
+                    allpoints(iP)%center%z)
+          call chdir("..")       
+          call makeSabana('1_S-w__.pdf',.false.)
+          call makeSabana('1_S-w_f.pdf',.true.) ! filled traces
+          call chdir("traces")
+        end do 
+        !u
+        do iP = iPtini,iPtfin
+          write(yAx,'(a)') '$u_1$ [m]'
+          if (guardarW) then ; do i = 1, NFREC+1
+          write(6373) allpoints(iP)%resp(i)%U
+          end do; end if
+          call W_to_t(allpoints(iP)%resp(:)%U,'u--',yax,iP,& 
+                    allpoints(iP)%center%x,& 
+                    allpoints(iP)%center%z)
+          call chdir("..")         
+          call makeSabana('1_S-u__.pdf',.false.)
+          call makeSabana('1_S-u_f.pdf',.true.) ! filled traces
+          call chdir("traces")
+        end do 
+        !Tractions
+! !      do iP = iPtini,iPtfin
+! !        write(yAx,'(a)') '$Tz_$ [m]'
+! !        call W_to_t(allpoints(iP)%resp(:)%Tz,'Tz-',yax,iP,& 
+! !                  allpoints(iP)%center%x,& 
+! !                  allpoints(iP)%center%z,PrintNum)
+! !        write(yAx,'(a)') '$Tx_$ [m]'
+! !        call W_to_t(allpoints(iP)%resp(:)%Tx,'Tx-',yax,iP,& 
+! !                  allpoints(iP)%center%x,& 
+! !                  allpoints(iP)%center%z,PrintNum)
+! !      end do
+       call chdir("..") 
+       end if !psv
+        
+       if (SH) then
+          do iP = iPtini,iPtfin
+          write(yAx,'(a)') '$u_2$ [m]'
+          if (guardarW) then ; do i = 1, NFREC+1
+          write(6373) allpoints(iP)%resp(i)%V
+          end do; end if
+          call W_to_t(allpoints(iP)%resp(:)%V,'v--',yax,iP,& 
+                    allpoints(iP)%center%x,& 
+                    allpoints(iP)%center%z)    
+          end do 
+          call chdir("..") 
+          call makeSabana('1_S-v__.pdf',.false.) 
+          call makeSabana('1_S-v_f.pdf',.true.)
+          call chdir("traces")
+          do iP = iPtini,iPtfin
+          write(yAx,'(a)') '$Ty_$ [m]'
+          call W_to_t(allpoints(iP)%resp(:)%Ty,'Ty-',yax,iP,& 
+                    allpoints(iP)%center%x,& 
+                    allpoints(iP)%center%z)     
+          end do
+          call chdir("..")
+       end if !sh  
+       if (guardarW) close (6373)
+      end subroutine plotSisGram
+      
+      subroutine loadW(PSV,SH)
+      use resultVars , only : iPtini,iPtfin,allpoints
+      use waveNumVars, only : NFREC
+      use glovars, only : rutaOut
+      integer :: iP,i
+      logical, intent(in) :: PSV,SH
+      call chdir(trim(adjustl(rutaOut)))
+      CALL chdir("traces")
+      OPEN(6372,FILE="W.bin",STATUS='UNKNOWN', ACCESS='STREAM',ACTION='READ')
+      if (PSV) then
+        do iP = iPtini,iPtfin
+           do i = 1, NFREC+1
+             read(6372) allpoints(iP)%resp(i)%W
+           end do!
+        end do!
+        do iP = iPtini,iPtfin
+           do i = 1, NFREC+1
+             read(6372) allpoints(iP)%resp(i)%U
+           end do! 
+        end do
+      end if!
+      if (SH) then
+          do iP = iPtini,iPtfin
+          do i = 1, NFREC+1
+             read(6372) allpoints(iP)%resp(i)%V
+           end do!
+          end do
+      end if
+      close (6372)
+      !CALL chdir("..")
+      end subroutine loadW
+      
+
+      subroutine F_K_exp(tier,XF)
+      use waveNumVars, only : NFREC,dfrec,omei
+      use soilvars, only : Qq
+      use glovars
+      use wavelets
+      use resultvars, only : allpoints,nSabanapts,nIpts
+      use dislin
+      use debugStuff
+      implicit none
+      complex*16, dimension(nSabanapts,Nfrec+1,2) :: XF
+      integer :: ij,tier, iP
+      complex*16 :: come
+      real*8 :: ome,dx
+      CHARACTER(len=32) :: arg
+      dx = (allpoints(nSabanapts)%center%x - allpoints(nIpts-nSabanapts+1)%center%x)
+      dx = dx / (nSabanapts+1)
+      
+      if (tier .eq. 1) then ! guardar XF
+!     print*, nIpts, nSabanapts
+      do iP = 1,nIpts
+       if (allpoints(iP)%isSabana) then
+        XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,1) = allpoints(ip)%resp(1:NFREC+1)%W
+        XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,2) = allpoints(ip)%resp(1:NFREC+1)%U
+!       print*,allpoints(ip)%center%x,"  ",(iP-(nIpts-nSabanapts))
+       end if
+      end do
+      
+      else ! XF -> KF -------------------------------
+      do ij = 1,NFREC+1
+      XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
+      XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
+      !escala
+      XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * (sqrt(1.0*nSabanapts) * dx)
+      XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * (sqrt(1.0*nSabanapts) * dx)
+      call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1,0,6) 
+      call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1,0,6) 
+      XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
+      XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
+      end do
+      
+       open(427,FILE= "outKF.m",action="write",status="replace")
+       write(arg,'(a)') "w_KF"
+       call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,1),arg,427)
+       write(arg,'(a)') "u_KF"
+       call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,2),arg,427)
+       close(427)
+      
+      CALL SETFIL("2_w_KF.pdf")
+      CALL QPLCLR(real(abs(XF(:,:,1)),4), nSabanapts,NFREC+1) 
+      CALL SETFIL("2_u_KF.pdf")
+      CALL QPLCLR(real(abs(XF(:,:,2)),4), nSabanapts,NFREC+1) 
+      
+      ! velocidad
+      do ij = 1,NFREC+1
+      ome = (ij*dfrec)*2*pi
+      COME = CMPLX(OME, OMEI,8)!periodic sources damping
+      COME = COME * cmplx(1.0, -1.0/2.0/Qq,8)
+      XF(1:nSabanapts,ij,1) = come/XF(1:nSabanapts,ij,1)
+      XF(1:nSabanapts,ij,2) = come/XF(1:nSabanapts,ij,2)
+      end do
+      
+      CALL SETFIL("3_w_CF.pdf")
+      CALL QPLCLR(real(abs(XF(:,:,1)),4), nSabanapts,NFREC+1) 
+      CALL SETFIL("3_u_CF.pdf")
+      CALL QPLCLR(real(abs(XF(:,:,2)),4), nSabanapts,NFREC+1) 
+      
+      end if
+                 
+      end subroutine F_K_exp
+      
+     
       subroutine Churubusco
       use glovars, only : verbose, workBoundary,flip12
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas
-      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
+      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkZ,nmarkX, MeshVecLen
       use waveVars, only : dt,maxtime
       use waveNumVars, only : NFREC, NPTSTIME
       use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
@@ -6313,13 +6451,11 @@
       maxx = MeshMaxX
       miny = MeshMinZ
       maxy = MeshMaxZ
-      xstep = real(((maxX-minX) / 5.0 ))
-      zstep = real(((maxY-minY) / 6. ))
+      xstep = real(((maxX-minX) / nmarkX ))
+      zstep = real(((maxY-minY) / nmarkZ ))
       encuadre = (maxY-minY)/(maxX-minX)
-!     xstep = real(abs(xpray(npixX)-xpray(1))/4.0,4)
-!     zstep = real(abs(ypray(npixZ)-ypray(1))/10.0,4)
       madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-      escalaFlechas = real((xstep * 0.6) / madmax)
+      escalaFlechas = real((MeshVecLen * 3.0) / madmax)
 !     encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
       print*,"encuadre=",encuadre
       CALL METAFL('PNG')
@@ -6488,7 +6624,7 @@
       use glovars, only : workboundary,verbose
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas
-      use meshVars, only : npixX,npixZ
+      use meshVars, only : npixX,npixZ,nmarkZ,nmarkX
       use waveNumVars, only : NFREC, NPTSTIME
       use soilVars, only : Z,N, shadecolor_inc
       use geometryvars, only : nXI,Xcoord_ER, Xcoord_Voidonly, Xcoord_Incluonly
@@ -6574,8 +6710,8 @@
       maxx = maxval(xpray)
       miny = minval(ypray)
       maxy = maxval(ypray)
-      xstep = real(abs(xpray(npixX)-xpray(1))/3.0,4)
-      zstep = real(abs(ypray(npixZ)-ypray(1))/10.0,4)
+      xstep = real(abs(xpray(npixX)-xpray(1))/ nmarkX,4)
+      zstep = real(abs(ypray(npixZ)-ypray(1))/ nmarkZ,4)
       encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
       print*,"encuadre=",encuadre      
         
@@ -6806,7 +6942,7 @@
       use geometryvars, only : nXI,Xcoord_ER,normXI, & 
                                midPoint, Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out
       use glovars, only : verbose, workBoundary,flip12
-      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
+      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkZ,nmarkX, MeshVecLen
       
       implicit none
       type (Punto), dimension(:), pointer :: BP
@@ -6827,16 +6963,16 @@
       minY = MeshMinZ
       
       
-      xstep = real(((maxX-minX) / 5.0 ))
-      zstep = real(((maxY-minY) / 10. ))
+      xstep = real(((maxX-minX) / nmarkX ))
+      zstep = real(((maxY-minY) / nmarkZ ))
       encuadre = (maxY-minY)/(maxX-minX)
 
-      if (zoomGeom) then
-      maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
-      minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
-      maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
-      minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
-      end if
+!     if (zoomGeom) then
+!     maxX = max(MeshMaxX,maxval(real(Xcoord_ER(:,1,:),4)))
+!     minX = min(MeshMinX,minval(real(Xcoord_ER(:,1,:),4)))
+!     maxY = max(MeshMaxZ,maxval(real(Xcoord_ER(:,2,:),4)))
+!     minY = min(MeshMinZ,minval(real(Xcoord_ER(:,2,:),4)))
+!     end if
       
       ! Dislin plotting routines 
       CALL METAFL(extension) ! define intended display  XWIN,PS,EPS,PDF
@@ -6845,7 +6981,7 @@
       CALL SCRMOD('REVERS') !fondo blanco
       
       CALL SETFIL(trim(titleN))
-      call filmod('DELETE') ! para sobreescribir el archivo
+      call filmod('DELETE') ! para sobre escribir el archivo
       CALL SETPAG('DA4P')
       CALL PAGE(int(3000,4),int(3000,4))
       CALL PAGMOD('NONE')
@@ -6860,7 +6996,7 @@
       call axslen (int(2600,4) ,int(2600*encuadre,4)) !size of the axis system. 
       call labdig(int(1,4),'X') !number of decimal places for labels
       call labdig(int(1,4),'Y')
-      call ticks (int(10,4) ,'XY') 
+      call ticks (int(1,4) ,'XY') 
       !            low X   left Y   upp X   right Y
       call setgrf("NAME", "NAME", "NONE", "LINE")
       CALL SETVLT ('SPEC')
@@ -6967,7 +7103,7 @@
       ! dibujar topografia original                                   !
       if (zoomGeom) then
       call color ('RED')                                             !
-      call PENWID(real(1.0,4))                                        !
+      call PENWID(real(3.0,4))                                        !
       else
       call color ('FORE')                                             !
       call PENWID(real(0.5,4))                                        !
@@ -6984,8 +7120,8 @@
       CALL HSYMBL(int(25,4)) !size of symbols                               ! 
       do j=1,nXI                                                            !
       CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
-              real(midPoint(j,1)+normXI(j,1)*xstep*0.1,4), &                !
-              real(midPoint(j,2)+normXI(j,2)*xstep*0.1,4), int(1001,4))     !
+              real(midPoint(j,1)+normXI(j,1)* MeshVecLen,4), &                !
+              real(midPoint(j,2)+normXI(j,2)* MeshVecLen,4), int(1001,4))     !
       end do                                                                !
       
       ! puntos centrales y gaussianos ------------------------------------
@@ -7019,8 +7155,8 @@
       CALL HSYMBL(int(40,4)) !size of symbols                            !
       CALL RLSYMB (8, real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4))!star     !
       CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
-              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * xstep*0.3,4), &           !
-              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.3,4), int(1101,4))!
+              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * MeshVecLen*2.0,4), &           !
+              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * MeshVecLen*2.0,4), int(1101,4))!
       elseif (tipoFuente .eq. 1) then !onda plana
       ! polarización
       if (PW_pol .eq. 1) then !SV
@@ -7072,8 +7208,8 @@
           if (overDeterminedSystem) then                                   !
             CALL RLSYMB (0, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
             CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
-              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.1,4), &       !
-              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.1,4), &       !
+              real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.5,4), &       !
+              real(IP(j)%center%z + IP(j)%normal%z * MeshVecLen*0.5,4), &       !
               int(1001,4))                                                 !
           end if                                                           !
         else                                                               !
@@ -7147,3 +7283,4 @@
         
       
       end subroutine plot_at_eta
+

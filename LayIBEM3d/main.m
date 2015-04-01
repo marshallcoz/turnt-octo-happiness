@@ -1,23 +1,23 @@
 %% DWN+IBEM 3d region E: estratificado, R: homogeneo
 clear;clc;close('all','hidden')
-cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/LayIBEM3d'
+%cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/LayIBEM3d'
 % del medio y la frecuencia
 [m_vars,f_vars,ops,res] = setUpModelo;
 
-%fuente
+% fuente
 pXi.center(1:3) =[0 0 0];
 [Uo] = ricker(f_vars,ops.ts,ops.tp);
 %[Uo] = gaussiana(f_vars,ops.sigma);
 dirFza = 1; pXi.normal(1:3) = [0 0 0];
 pXi.normal(dirFza) = 1; 
 
-%receptores
+% receptores
 [res] = initreceptores(res);
-
+% 
 res.fotogramas = zeros(3,f_vars.ntiempo,res.nx,res.ny,res.nz);
 mx =0;
 FK = zeros(f_vars.nmax,f_vars.NFREC+1);
-
+%%
 Gij = @GijTij_HSestr_dwn;
 for iPx = 1:res.nrecep
     [p_x] = pick_receptor(iPx,res,f_vars);
