@@ -1,3 +1,57 @@
+Superficie (x,y)ini - (x,y)fin en metros VALLE PP testPocos puntos
+0		N_topo segmentos :: T^0 + T^d = 0
+4 		N_cont segmentos :: T^d = T^0; u^d = u^0
+2		N_vall segmentos :: T^d = 0
+***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+1.0    <- [negativo invierte normal]
+***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+-1.0    <- [negativo invierte normal]
+  1.0000    0.0100    0.9500    0.0900 F
+  0.9500    0.1000    1.2500    0.1000 F
+ -0.9500    0.0900   -1.0000    0.0100 F
+ -1.2500    0.1000   -0.9500    0.1000 F
+***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+-1.0    <- [negativo invierte normal]
+ -1.0000    0.0000   -1.25000    0.0000 F
+  1.2500    0.0000    1.0000    0.0000 F
+Inclusion properties
+Alfa(m/s) Beta(m/s) Dens(T/m3) 
+15.0   7.5   1.0
+Cualquier receptor dentro de esta superficie está en el aire
+0    N segmentos 
+1 1  <- escala:x escala:y
+0 0  <- offset:x offset:y
+Cualquier receptor dentro de estas superficies está en la region homogenea
+2  N de regiones
+8  Total de segmentos
+4    N segmentos 
+1 1  <- escala:x escala:y
+0 0  <- offset:x offset:y
+ 1.2500    0.0000    1.0000    0.0000
+ 1.0000    0.0000    0.9500    0.1000 
+ 0.9500    0.1000    1.2500    0.1000
+ 1.2500    0.1000    1.2500    0.0000
+4    N segmentos 
+1 1  <- escala:x escala:y
+0 0  <- offset:x offset:y
+-1.2500    0.0000   -1.2500    0.1000
+-1.2500    0.1000   -0.9500    0.1000
+-0.9500    0.1000   -1.0000    0.0000 
+-1.0000    0.0000   -1.2500    0.0000
+Borde de región homogenea cuando flip12 .true.
+0    N segmentos 
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+
+
+
+
 Superficie (x,y)ini - (x,y)fin en metros VALLE PB
 2		N_topo segmentos :: T^0 + T^d = 0
 7 		N_cont segmentos :: T^d = T^0; u^d = u^0

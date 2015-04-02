@@ -126,7 +126,9 @@
         write(PrintNum,'(a,I0)') '   Number of fixed receptors: ',Npts
         allocate (allpoints(Npts))
         allpoints(iPtini:iPtfin)= inqPoints(iPtini:iPtfin); deallocate(inqPoints)
-      
+      if (makeVideo) then
+        allpoints(mPtini:mPtfin) = moviePoints; deallocate(moviePoints); end if
+        
       call setInqPointsRegions
       call setVideoPointsRegions
  !#< blue
@@ -186,7 +188,6 @@
       end do
       
        if (makeVideo) then
-         allpoints(mPtini:mPtfin) = moviePoints; deallocate(moviePoints)
         do iP=mPtini,mPtfin
          allocate(allpoints(iP)%Wmov(NFREC+1,3,npixX)) !W,U,V
          allpoints(iP)%Wmov = z0
@@ -239,8 +240,7 @@
          call plotSisGram(PSV,SH,.false.) 
          
          
-         call F_K_exp(1,XF)
-         call F_K_exp(2,XF)
+         call F_K_exp(XF)
          
          if (makeVideo) then 
           call loadG_fotogramas
@@ -718,14 +718,19 @@
       end if !workboundary
       if (onlythisJ) then
           print*,"";print*,"Rultados en puntos receptores: ------"
-          do iP_x = 1,nIpts
+          do iP_x = 1,nPts
            if (.not. allpoints(iP_x)%isSabana) then
             print*,"ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"]", &
             "n = [",allpoints(iP_x)%normal%x,",",allpoints(iP_x)%normal%z,"]"
+            if (allpoints(iP_x)% guardarMovieSiblings) then
+            print*,"   W=",allpoints(iP_x)%Wmov(J,1,1:npixX)
+            print*,"   U=",allpoints(iP_x)%Wmov(J,2,1:npixX)
+            else
             print*,"   W=",allpoints(iP_x)%resp(J)%W
             print*,"   U=",allpoints(iP_x)%resp(J)%U
             print*,"   Tz=",allpoints(iP_x)%resp(J)%Tz
             print*,"   Tx=",allpoints(iP_x)%resp(J)%Tx 
+            end if
            end if
           end do !iP_x
         end if!
@@ -747,7 +752,6 @@
       write(6,'(a,f10.3,a)') "Elapsed ",result,"seconds"
       end if
       
-      write(6,'(a)')"Printing seismograms, etc..."
       if (plotFKS .and. (tipoFuente .ne. 1)) then  
            write(xAx,'(a)')"frec [Hz]"
            write(yAx,'(a)')" K [1/m] "
@@ -772,6 +776,7 @@
          end do
            CALL chdir("..")
       end if
+      
       ! sabana en frecuencia eta
       if (verbose .eq. 2) then 
         call chdir(trim(adjustl(rutaOut)))
@@ -787,6 +792,7 @@
           Stop "-f argum finish"
         end if
       end if
+      write(6,'(a)')"Printing seismograms, etc..."
       
       ! mostrar sismogramas en los puntos de interés
            call chdir(trim(adjustl(rutaOut)))
@@ -815,9 +821,8 @@
        end if !psv
        
       call plotSisGram(PSV,SH,.true.)    
+      call F_K_exp(XF)
       
-      call F_K_exp(1,XF)
-      call F_K_exp(2,XF)
          
       if (makeVideo) then 
         call crepa_four_fotogramas
@@ -890,7 +895,11 @@
       call chdir("video",status)
       if (status .eq. 0) call system("rm *.png")
       if (status .eq. 0) call system("rm *.txt")
-      if (status .eq. 0) call chdir("..")
+      call system('mkdir perPixelTraces')
+      call chdir("perPixelTraces",status)
+      if (status .eq. 0) call system("rm *.png")
+      if (status .eq. 0) call system("rm *.txt")
+      if (status .eq. 0) call chdir(".."); call chdir("..")
       call system('cp ../../DWNLIBEM.f90 DWNLIBEM.f90')
       call chdir("..") 
       write(PrintNum,'(///)') 
@@ -1476,7 +1485,8 @@
       use GeometryVars, only: n_topo,n_cont,n_vall,nXI, Xcoord_ER, &
       Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out,boxIncl_maxX,boxIncl_maxY, & 
       boxIncl_minX,boxIncl_minY,boxVoid_maxX,boxVoid_maxY,boxVoid_minX,& 
-      boxVoid_minY, midPoint,normXI, origGeom, surf_poly
+      boxVoid_minY, midPoint,normXI, origGeom, surf_poly,& 
+      N_de_regdionesR, N_de_segmentosR,Xcoord_Incluonly_e
       use gloVars
       use fitting
       use soilVars, only : Z,N,RHO,BETA0,ALFA0,shadecolor_inc,LAMBDA0,ANU,AMU0, layershadecolor
@@ -1496,6 +1506,7 @@
       real*8, allocatable, save :: lengthXI(:),layerXI(:),cost(:),sint(:)
       logical, dimension(:), allocatable :: es_de_esquina
       integer :: nXIoriginal
+      integer :: iR
       huboCambios = .false.
       allocate(auxA(1)); allocate(auxB(1))
       
@@ -1606,6 +1617,44 @@
       boxVoid_minX = minval(Xcoord_Voidonly(:,1,:))
       boxVoid_minY = minval(Xcoord_Voidonly(:,2,:))
       end if 
+      
+      READ(77,*) !Cualquier receptor dentro de estas superficies está en la region homogenea
+      READ(77,*) N_de_regdionesR !N de regiones
+      READ(77,*) N_de_segmentosR !Total de segmentos
+      if (N_de_regdionesR .ne. 0) then
+      if (allocated(Xcoord_Incluonly)) deallocate(Xcoord_Incluonly)
+      allocate (Xcoord_Incluonly(N_de_segmentosR,2,2))
+      if (allocated(Xcoord_Incluonly_e)) deallocate(Xcoord_Incluonly_e)
+      allocate (Xcoord_Incluonly_e(N_de_regdionesR+1))
+      Xcoord_Incluonly_e(1) = 1
+      do iR = 1,N_de_regdionesR
+      READ(77,*) Xcoord_Incluonly_e(iR+1)
+      READ(77,*) escalax,escalay
+      READ(77,*) offsetx,offsety
+!     print*,"from ",sum(Xcoord_Incluonly_e(1:iR))," to ",sum(Xcoord_Incluonly_e(2:iR+1))
+      do iXI = sum(Xcoord_Incluonly_e(1:iR)),sum(Xcoord_Incluonly_e(2:iR+1))
+         READ(77,*) Xcoord_Incluonly(iXI,1,1), Xcoord_Incluonly(iXI,2,1),& 
+                    Xcoord_Incluonly(iXI,1,2), Xcoord_Incluonly(iXI,2,2)
+         
+         Xcoord_Incluonly(iXI,1,1:2) = Xcoord_Incluonly(iXI,1,1:2) * escalax + offsetx
+         Xcoord_Incluonly(iXI,2,1:2) = Xcoord_Incluonly(iXI,2,1:2) * escalay + offsety
+      end do
+      end do
+!     do ixi = 1, N_de_segmentosR; print*,ixi,Xcoord_Incluonly(iXI,1,1), Xcoord_Incluonly(iXI,2,1),& 
+!        Xcoord_Incluonly(iXI,1,2), Xcoord_Incluonly(iXI,2,2); end do
+!     do ixi = 1, N_de_regdionesR+1; print*,ixi,Xcoord_Incluonly_e(ixi)
+!     end do
+!     stop
+      ! bounding box
+      boxIncl_maxX = maxval(Xcoord_Incluonly(:,1,:))
+      boxIncl_maxY = maxval(Xcoord_Incluonly(:,2,:))
+      boxIncl_minX = minval(Xcoord_Incluonly(:,1,:))
+      boxIncl_minY = minval(Xcoord_Incluonly(:,2,:))
+      else
+       READ(77,*)
+       READ(77,*)
+       READ(77,*)
+      end if
       !
       if (flip12) then
       READ(77,*) ! Borde de región E cuando flip12 .true.
@@ -1864,7 +1913,7 @@
       use peli, only : coords_Z,coords_X,fotogramas_Region
       use meshVars, only : npixX,npixZ
       use glovars, only : makeVideo, flip12
-      use soilVars, only : Z
+      use debugstuff
       implicit none
       integer :: i,j
       integer, dimension(0:2) :: reg
@@ -1879,25 +1928,22 @@
        do i=1,npixZ
         do j=1,npixX
           fotogramas_Region(i,j) = reg(1)!'estr'
+          cn = adentroOafuera(coords_X(j), coords_Z(i),'void')
+          if (cn .eqv. .true.) then
+            fotogramas_Region(i,j) = reg(0)!'void' 
+            cycle
+          end if
           cn = adentroOafuera(coords_X(j), coords_Z(i),'incl')
           if (cn .eqv. .true.) then
             fotogramas_Region(i,j) = reg(2)!'incl' 
           end if
-          cn = adentroOafuera(coords_X(j), coords_Z(i),'void')
-          if (cn .eqv. .true.) then
-            fotogramas_Region(i,j) = reg(0)!'void' 
-          end if
-          if (abs(z(0)) .gt. 0.0001) then ! si no es cero
-            if (coords_Z(i) .lt. 0.0) then
-              fotogramas_Region(i,j) = reg(0)!'void'
-            end if
-          end if
         end do
        end do
+!      print*,"";call showMNmatrixI(npixZ,npixX,fotogramas_Region,"fotRe",PrintNum);stop
       end subroutine setVideoPointsRegions    
       
       subroutine setInqPointsRegions
-      use resultVars, only : allpoints,nIpts,nPts
+      use resultVars, only : allpoints,nPts!,nIpts
       use soilVars, only : N
       use glovars, only : verbose, Printnum, flip12
       implicit none
@@ -1910,9 +1956,8 @@
         reg(0) = 0; reg(1)= 2; reg(2) = 1
       end if
       allpoints(1:nPts)%region = reg(1)!'estr'
-      if (verbose .ge. 2) &
-        write(PrintNum,*) "center,region,layer"
-      do i = 1, nIpts
+      if (verbose .ge. 2) write(PrintNum,*) "center,region,layer"
+      do i = 1, nPts
         cn = adentroOafuera(real(allpoints(i)%center%x,4), & 
                             real(allpoints(i)%center%z,4),'void')
 !       print*,i,cn;cycle
@@ -1941,14 +1986,15 @@
       function adentroOafuera(x,y,region)
        use geometryvars, only : Xcoord_Voidonly,Xcoord_Incluonly, & 
             boxIncl_maxX,boxIncl_maxY,boxIncl_minX,boxIncl_minY, &
-            boxVoid_maxX,boxVoid_maxY,boxVoid_minX,boxVoid_minY
+            boxVoid_maxX,boxVoid_maxY,boxVoid_minX,boxVoid_minY, &
+            N_de_regdionesR,Xcoord_Incluonly_e
                          
        implicit none
-       logical :: adentroOafuera
+       logical :: adentroOafuera, crossingNumber
        character(LEN=4) :: region
        real*4,intent(in) :: x,y
-       real*16 :: vt
-       integer :: cn,k,nXI
+!      real*16 :: vt
+       integer :: nXI,iR!cn,k,
        real*8 :: XcooBox_maxX,XcooBox_minX,XcooBox_maxY,XcooBox_minY
        real*8, dimension(:,:,:), pointer :: Xcoord_ER
        nullify(Xcoord_ER)
@@ -1960,7 +2006,17 @@
        XcooBox_minX = boxVoid_minX
        XcooBox_minY = boxVoid_minY
        if (allocated( Xcoord_Voidonly)) then
-       Xcoord_ER => Xcoord_Voidonly
+          Xcoord_ER => Xcoord_Voidonly
+          nXI = size(Xcoord_ER(:,1,1))
+          if (XcooBox_minX .le. x) then
+          if (x .le. XcooBox_maxX) then
+          if (XcooBox_minY .le. y) then
+          if (y .le. XcooBox_maxY) then
+              adentroOafuera  = crossingNumber(x,y,nXI,Xcoord_ER)
+          end if
+          end if
+          end if
+          end if
        else
        return
        end if
@@ -1970,7 +2026,33 @@
        XcooBox_minX = boxIncl_minX
        XcooBox_minY = boxIncl_minY
        if (allocated( Xcoord_Incluonly)) then
-       Xcoord_ER => Xcoord_Incluonly
+       if (N_de_regdionesR .ne. 0) then 
+       do iR = 1, N_de_regdionesR
+          Xcoord_ER => & 
+          Xcoord_Incluonly(sum(Xcoord_Incluonly_e(1:iR)): sum(Xcoord_Incluonly_e(2:iR+1)),1:2,1:2)
+!         print*,sum(Xcoord_Incluonly_e(1:iR)),sum(Xcoord_Incluonly_e(2:iR+1)),x,y
+          XcooBox_maxX = maxval(Xcoord_ER(:,1,:))
+          XcooBox_maxY = maxval(Xcoord_ER(:,2,:))
+          XcooBox_minX = minval(Xcoord_ER(:,1,:))
+          XcooBox_minY = minval(Xcoord_ER(:,2,:))
+          nXI = size(Xcoord_ER(:,1,1))
+          
+          if (XcooBox_minX .le. x) then
+          if (x .le. XcooBox_maxX) then
+          if (XcooBox_minY .le. y) then
+          if (y .le. XcooBox_maxY) then
+              adentroOafuera  = crossingNumber(x,y,nXI,Xcoord_ER)
+              if (adentroOafuera) return
+          end if
+          end if
+          end if
+          end if
+         
+       end do
+       else
+       return
+!      Xcoord_ER => Xcoord_Incluonly
+       end if
        else
        return
        end if
@@ -1978,12 +2060,17 @@
        return
        end if
 !      print*,XcooBox_maxX,XcooBox_maxY,XcooBox_minX,XcooBox_minY
-       nXI = size(Xcoord_ER(:,1,1))
-          if (XcooBox_minX .le. x) then
-          if (x .le. XcooBox_maxX) then
-          if (XcooBox_minY .le. y) then
-          if (y .le. XcooBox_maxY) then
-          cn = 0
+      end function adentroOafuera
+      
+      function crossingNumber(x,y,nXI,Xcoord_ER)
+       implicit none
+       logical :: crossingNumber
+       real*4,intent(in) :: x,y
+       real*16 :: vt
+       integer :: cn,k,nXI
+       real*8, dimension(nXI,2,2) :: Xcoord_ER
+       
+         cn = 0
           do k=1,nXI
             if (Xcoord_ER(k,2,1) .le. y) then
             if (Xcoord_ER(k,2,2) .gt. y) then
@@ -2011,15 +2098,10 @@
             !  http://geomalgorithms.com/a03-_inclusion.html
           end do !k
           if (cn .eq. 1 .or. cn .eq. 3 .or. cn .eq. 5 .or. cn .eq. 7) then
-            adentroOafuera = .true. !el punto pertenece a la ragion de adentro
-          end if
-          
-          end if
-          end if
-          end if
+            crossingNumber = .true. !el punto pertenece a la ragion de adentro
           end if
        
-      end function adentroOafuera
+      end function crossingNumber
       
 ! pointer table 
       subroutine preparePointerTable(pota,firstTime,smallestWL)
@@ -2028,7 +2110,6 @@
       use debugstuff
       use Gquadrature, only : Gquad_n
       use glovars, only : verbose,workBoundary, rutaOut
-!     use interpolPlaneWavesOfStratification
       use waveNumVars, only : frec
       ! tabla con las coordenadas Z (sin repetir).
       implicit none
@@ -2138,7 +2219,7 @@
        allocate(PoTa(nZs,2+j))
        Pota = auxpota(1:nZs,1:2+j)
        deallocate(auxpota)
-       if(verbose .ge. 4) then
+       if(verbose .ge. 3) then
          call chdir(trim(adjustl(rutaOut)))
          CALL chdir("insbackup")
          call system("mkdir pota")
@@ -3740,20 +3821,16 @@
         ! caso (receptor abajo de la fuente) : interfaz de abajo (2)
         argum = gamma*A*seno + UR * (k*A*cose)
         sincGamma(2) = sincmod(argum,gamz(2))*(2*A)
-!       !sincGamma(2) = egamz(2)*(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
         argum = nu*A*seno + UR * (k*A*cose)
         sincNu(2) = sincmod(argum,nuz(2))*(2*A)
-!       !sincNu(2) = enuz(2) *(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
         ! caso (receptor arriba de la fuente) : interfaz de arriba (1)
         argum = -gamma*A*seno + UR * (k*A*cose)
         sincGamma(1) = sincmod(argum,gamz(1))*(2*A)
-!       !sincGamma(1) = egamz(1) *(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
         argum = -nu*A*seno + UR * (k*A*cose)
         sincNu(1) = sincmod(argum,nuz(1))*(2*A)
-!       !sincNu(1) = enuz(1) *(sin(k*A)/(k*A)*(2*A)) !no se inclina
         
       end if !fuente tipo 0 o 1
       
@@ -4333,13 +4410,13 @@
       
       if (i_zF .eq. 0) then ! es la fuente real
        el_tipo_de_fuente = tipofuente !(puntual:0 u onda plana:1)
-!      if (p_X%region .eq. pXI%region) then 
-         shouldI = .true.
+!      if (p_X%region .eq. pXI%region) then
          if (pXi%region .eq. 2) then
+          shouldI = .true.
           XinoEstaEnInterfaz = .true.
           estrato = N+2
           e => estrato
-         else 
+         else !pXi%region = 1
           if (p_x%layer .eq. pXi%layer) shouldI = .true.
           if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
           estrato = p_x%layer
@@ -6137,9 +6214,11 @@
           !p_fot = p_fot * & 
           !exp((1./2./Qq) * Dt*((/(i,i=0, nT-1)/))) 
           if (verbose .ge. 2) then
+            CALL chdir("perPixelTraces")
             write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
             CALL SETFIL(trim(titleN))
-            call qplot(real((/((i-1)*Dt,i=1,800)/),4),real(p_fot(1:800),4),800)         
+            call qplot(real((/((i-1)*Dt,i=1,800)/),4),real(p_fot(1:800),4),800)
+            CALL chdir("..")
           end if
         end do !ix
       end do !iz
@@ -6316,7 +6395,7 @@
       end subroutine loadW
       
 
-      subroutine F_K_exp(tier,XF)
+      subroutine F_K_exp(XF)
       use waveNumVars, only : NFREC,dfrec,omei
       use soilvars, only : Qq
       use glovars
@@ -6326,64 +6405,100 @@
       use debugStuff
       implicit none
       complex*16, dimension(nSabanapts,Nfrec+1,2) :: XF
-      integer :: ij,tier, iP
+      complex*16, dimension(nSabanapts,Nfrec+1,2) :: XFc
+      complex*16, dimension(nfrec+1, nSabanapts/2,2) :: FC
+      complex*16, dimension(nfrec+1, nSabanapts/2) :: uno
+      integer :: ij, iP
       complex*16 :: come
       real*8 :: ome,dx
-      CHARACTER(len=32) :: arg
-      dx = (allpoints(nSabanapts)%center%x - allpoints(nIpts-nSabanapts+1)%center%x)
-      dx = dx / (nSabanapts+1)
-      
-      if (tier .eq. 1) then ! guardar XF
+!     CHARACTER(len=32) :: arg
+      logical :: alguno
+      real, parameter :: p1 = 5. ! sharpness parameter
+      real, parameter :: p2 = 1. ! sharpness parameter
+      real, parameter :: p3 = 4 ! sharpness parameter
+      ! guardar XF
 !     print*, nIpts, nSabanapts
+!     call winsiz(int(1200,4),int(1200,4))
+      CALL SETPAG('DA4L')
+      alguno = .false.
       do iP = 1,nIpts
        if (allpoints(iP)%isSabana) then
+        alguno = .true.
         XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,1) = allpoints(ip)%resp(1:NFREC+1)%W
         XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,2) = allpoints(ip)%resp(1:NFREC+1)%U
 !       print*,allpoints(ip)%center%x,"  ",(iP-(nIpts-nSabanapts))
        end if
       end do
       
-      else ! XF -> KF -------------------------------
+      ! XF -> KF -------------------------------
+      if (.not. alguno) return
+      dx = (allpoints(nSabanapts)%center%x - allpoints(nIpts-nSabanapts+1)%center%x)
+      dx = dx / (nSabanapts+1)
       do ij = 1,NFREC+1
       XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
       XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
       !escala
       XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * (sqrt(1.0*nSabanapts) * dx)
       XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * (sqrt(1.0*nSabanapts) * dx)
+      
       call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1,0,6) 
       call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1,0,6) 
       XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
       XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
+      
       end do
       
-       open(427,FILE= "outKF.m",action="write",status="replace")
-       write(arg,'(a)') "w_KF"
-       call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,1),arg,427)
-       write(arg,'(a)') "u_KF"
-       call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,2),arg,427)
-       close(427)
+!      open(427,FILE= "outKF.m",action="write",status="replace")
+!      write(arg,'(a)') "w_KF"
+!      call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,1),arg,427)
+!      write(arg,'(a)') "u_KF"
+!      call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,2),arg,427)
+!      close(427)
       
+      ! comprimir
+      XFc(1:nSabanapts,1:Nfrec+1,1) = real(log(1. + exp(p1)*abs(XF(1:nSabanapts,1:Nfrec+1,1))) / & 
+           log(exp(p1)+1.),4)
+      XFc(1:nSabanapts,1:Nfrec+1,1) = XFc(1:nSabanapts,1:Nfrec+1,1) / maxval(abs(XFc(1:nSabanapts,1:Nfrec+1,1)))
       CALL SETFIL("2_w_KF.pdf")
-      CALL QPLCLR(real(abs(XF(:,:,1)),4), nSabanapts,NFREC+1) 
-      CALL SETFIL("2_u_KF.pdf")
-      CALL QPLCLR(real(abs(XF(:,:,2)),4), nSabanapts,NFREC+1) 
+      CALL QPLCLR(real(abs(XFc(1:nSabanapts,1:NFREC+1,1)),4), nSabanapts,NFREC+1) 
       
-      ! velocidad
+      XFc(1:nSabanapts,1:Nfrec+1,2) = real(log(1. + exp(p1)*abs(XF(1:nSabanapts,1:Nfrec+1,2))) / & 
+           log(exp(p1)+1.),4)
+      XFc(1:nSabanapts,1:Nfrec+1,2) = XFc(1:nSabanapts,1:Nfrec+1,2) / maxval(abs(XFc(1:nSabanapts,1:Nfrec+1,2)))
+      CALL SETFIL("2_u_KF.pdf")
+      CALL QPLCLR(real(abs(XFc(1:nSabanapts,1:NFREC+1,2)),4), nSabanapts,NFREC+1) 
+      
+      uno = 1;
+      
+      ! velocidad  k positivo
       do ij = 1,NFREC+1
       ome = (ij*dfrec)*2*pi
       COME = CMPLX(OME, OMEI,8)!periodic sources damping
       COME = COME * cmplx(1.0, -1.0/2.0/Qq,8)
-      XF(1:nSabanapts,ij,1) = come/XF(1:nSabanapts,ij,1)
-      XF(1:nSabanapts,ij,2) = come/XF(1:nSabanapts,ij,2)
+      FC(ij,nSabanapts/2:1:-1,1) = come/XF(nSabanapts/2+1:nSabanapts,ij,1)
+      FC(ij,nSabanapts/2:1:-1,2) = come/XF(nSabanapts/2+1:nSabanapts,ij,2)
       end do
       
-      CALL SETFIL("3_w_CF.pdf")
-      CALL QPLCLR(real(abs(XF(:,:,1)),4), nSabanapts,NFREC+1) 
-      CALL SETFIL("3_u_CF.pdf")
-      CALL QPLCLR(real(abs(XF(:,:,2)),4), nSabanapts,NFREC+1) 
+      ! comprimir
+      FC(:,:,1) = real(log(1. + exp(p2)*abs(FC(:,:,1))) / & 
+           log(exp(p2)+1.),4)
+      FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
+           log(exp(p2)+1.),4) 
       
-      end if
-                 
+      FC(:,:,1) = uno - FC(:,:,1)/maxval(abs(FC(:,:,1)))
+      FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))
+      
+      ! aumentar contraste un poquito
+      FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
+      FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
+      CALL SETFIL("3_w_CF.pdf")
+      CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2) 
+       
+      FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
+      FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
+      CALL SETFIL("3_u_CF.pdf")
+      CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
+           
       end subroutine F_K_exp
       
      
@@ -7232,14 +7347,15 @@
       real, dimension(nSabanapts) :: x
       complex*16, dimension(nSabanapts) :: y
       real*8 :: chNa
-      logical :: warning
-      warning = .false.
-      print*,"plot ", trim(tt)
+      logical :: warning,alguno
+      warning = .false.;alguno = .false.
+      
       CALL METAFL('PDF')
       call filmod('DELETE')
       CALL SETPAG('DA4L')
       CALL SETFIL(trim(tt))
         do iP = 1,nIpts; if (allpoints(iP)%isSabana) then
+           alguno = .true.
            if (tt(1:1) .eq. 'W') BP = allpoints(iP)%resp(J)%W
            if (tt(1:1) .eq. 'U') BP = allpoints(iP)%resp(J)%U
            chNa = abs(BP)
@@ -7253,10 +7369,11 @@
         call showMNmatrixZ(nSabanapts,1,y(1:nSabanapts),t2(1:5),739)
         close(739)
         
+        if (alguno) then
+        print*,"plot ", trim(t2)
         if (warning) then 
         print*,trim(tt), ": One or more values are either NaN or inf"
         else
-        
 !       call showMNmatrixZabs(nSabanapts,1, Sabana(1:nSabanapts,1),tt(1:5),6)
         write(t2,'(a,a)') "0__Abs_",trim(tt)
         CALL SETFIL(trim(t2))
@@ -7273,14 +7390,6 @@
         CALL color('BLUE')
         call qplot(x(1:nSabanapts),real(aimag(y(1:nSabanapts)),4), nSabanapts)
         end if
-                
-!       CALL color('BLACK')
-!       call qplcrv(x(1:nSabanapts),real(abs(Sabana(1:nSabanapts,1)),4), nSabanapts,'FIRST')
-!       call color('RED')
-!       call qplcrv(x(1:nSabanapts),real(real(Sabana(1:nSabanapts,1)),4), nSabanapts,'NEXT')
-!       call color('BLUE')
-!       call qplcrv(x(1:nSabanapts),real(aimag(Sabana(1:nSabanapts,1)),4), nSabanapts,'LAST')
-        
-      
+        end if        
       end subroutine plot_at_eta
 

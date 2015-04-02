@@ -8,8 +8,8 @@ clear;clc;close('all','hidden')
 pXi.center(1:3) =[0 0 0];
 [Uo] = ricker(f_vars,ops.ts,ops.tp);
 %[Uo] = gaussiana(f_vars,ops.sigma);
-dirFza = 1; pXi.normal(1:3) = [0 0 0];
-pXi.normal(dirFza) = 1; 
+dirFza = 3; pXi.normal(1:3) = [0 0 0];
+pXi.normal(dirFza) = 3; 
 
 % receptores
 [res] = initreceptores(res);

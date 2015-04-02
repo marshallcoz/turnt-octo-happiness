@@ -1,7 +1,7 @@
 2		verbose [int]
 T		make a video [logical]
 T		Solve IBEM boundary [logical]
-T		The inclusion is the layered media, the rest is homogeneous.
+F		The inclusion is the layered media, the rest is homogeneous.
 F		Plot FK de medio sin topografia [logical]
 T		Save the Green funcs. for later use with "-L" argument [logical]
 15		Segments per wavelength [int :: R]

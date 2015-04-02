@@ -346,6 +346,8 @@
       logical :: staywiththefinersubdivision
       integer :: finersubdivisionJ, fraccionDeSmallestWL_segm_de_esquina
       real :: longitudcaracteristica_a
+      integer :: N_de_regdionesR, N_de_segmentosR
+      integer,dimension(:),allocatable :: Xcoord_Incluonly_e
       end module GeometryVars
       module wavelets
       contains 

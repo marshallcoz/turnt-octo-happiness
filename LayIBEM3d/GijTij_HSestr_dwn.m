@@ -1,15 +1,11 @@
 %% funcion de Green 3D semiespacio estratificado
 function [G,T,FK] = GijTij_HSestr_dwn(m,f,ops,p_x,pXi)
-%% debug variables
-[p_x] = pick_receptor(1,res,f_vars);
-[m_vars,f_vars] = setupJ(j,m_vars,f_vars,ops); 
-m = m_vars;f=f_vars;
-
-%% se resuelve en cilíndricas y se transforma a cartesianas
-[r,th,thp,z] = cilindricas(p_x,pXi);
 FK = zeros(1,f.nmax);
 G = zeros(3);
 T = zeros(3);
+%% debug variables
+[m_vars,f_vars] = setupJ(j,m_vars,f_vars,ops); 
+m = m_vars;f=f_vars;
 
 %% Matriz global de continuidad de polarizaciones P-SV
 k = 0:f.dk:f.dk*f.nmax; k(1) = 0.01*f.dk;
@@ -152,11 +148,38 @@ for e = 1:ops.N+1
     ic= ic+2;
 end % e
 
-%% take the inverse of global matriz
+%% take the inverse of the global matrices
 for ik=1:f.nmax+1
     Mpsv(:,:,ik) = inv(Mpsv(:,:,ik));
     M_sh(:,:,ik) = inv(M_sh(:,:,ik));
 end
-%% 
+%% Punto receptor
+[p_x] = pick_receptor(1,res,f_vars);
+[r,th,thp,z] = cilindricas(p_x,pXi);
+
+%% vector de fuente puntual
+zXi = pXi.center(3);
+[eXi,atInterf] = el_estrato_es(m,ops.N,zXi);
+Bpsv = zeros(4*ops.N+2,1,f.nmax+1);
+B_sh = zeros(2*ops.N+1,1,f.nmax+1);
+if (atInterf) % si la fuente está en la interfaz (y estrato) eXi
+    % para fuerza vertical
+    if (pXi.normal(3) == 1)
+        Bpsv(4*(eXi-1)+1,:) = -1/(2*pi*m(eXi).amu) * k;
+    end
+    % para fuerza horizontal en x
+    if (pXi.normal(1) == 1)
+        Bpsv(4*(eXi-1)+2,:) =  1i/(2*pi*m(eXi).amu) * k;
+    end
+    % para fuerza horizontal en y
+    if (pXi.normal(2) == 1)
+        B_sh(2*eXi-1,:) = 1/(2*pi*m(eXi).amu);
+    end
+else % la fuente está dentro del estrato
+    % la fuente (en expansión en WN) se propaga a las interfaces adyacentes
+    
+end % atInterf
+
+
 
 
