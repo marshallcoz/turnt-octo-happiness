@@ -76,6 +76,8 @@
         complex*16, save, allocatable :: B(:,:)
         complex*16, dimension(:,:,:), allocatable,target :: Ak
         integer, dimension(:), allocatable :: IPIV
+        
+        complex*16, dimension(:,:,:), allocatable,target :: BparaGa,BparaNu
 !       integer :: info    
       end module refSolMatrixVars
             

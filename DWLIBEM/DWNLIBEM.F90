@@ -1,6 +1,6 @@
       PROGRAM DWNLIBEM 
       use gloVars
-      use refSolMatrixVars, only : ak,B
+      use refSolMatrixVars, only : Ak,B,BparaGa,BparaNu
       use waveNumVars
       use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq
       use debugStuff
@@ -62,7 +62,7 @@
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
-      integer :: Mi,Ni
+      integer :: Mi,Ni,po,ne
       
       !#< blue
       call system('clear')
@@ -400,6 +400,21 @@
        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
        call parImpar_gloMat ! k negativo
        
+       
+       ! ondas en cada estrato, sin fase vertical
+       allocate(BparaGa(tam,N+1,2*nmax))
+       allocate(BparaNu(tam,N+1,2*nmax))
+       !   dos vectores (B sin vertical) para cada estrato
+       !     el que va con sincgamma
+       po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)
+       do e=1,N+1
+       do ik = 1,po
+         
+       end do ! ik pos
+       do ik = ne,2*NMAX
+         
+       end do ! ik neg
+       end do ! e
       end if!psv
       if (SH) then
          Ak = Z0

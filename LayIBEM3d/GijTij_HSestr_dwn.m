@@ -165,15 +165,15 @@ B_sh = zeros(2*ops.N+1,1,f.nmax+1);
 if (atInterf) % si la fuente está en la interfaz (y estrato) eXi
     % para fuerza vertical
     if (pXi.normal(3) == 1)
-        Bpsv(4*(eXi-1)+1,:) = -1/(2*pi*m(eXi).amu) * k;
+        Bpsv(4*(eXi-1)+1,:) = -1/(2*pi)* k;
     end
     % para fuerza horizontal en x
     if (pXi.normal(1) == 1)
-        Bpsv(4*(eXi-1)+2,:) =  1i/(2*pi*m(eXi).amu) * k;
+        Bpsv(4*(eXi-1)+2,:) =  1i/(2*pi)* k;
     end
     % para fuerza horizontal en y
     if (pXi.normal(2) == 1)
-        B_sh(2*eXi-1,:) = 1/(2*pi*m(eXi).amu);
+        B_sh(2*eXi-1,:) = 1/(2*pi);
     end
 else % la fuente está dentro del estrato
     % la fuente (en expansión en WN) se propaga a las interfaces adyacentes
