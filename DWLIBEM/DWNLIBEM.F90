@@ -62,7 +62,7 @@
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
-      integer :: Mi,Ni,po,ne
+      integer :: Mi,Ni,pos,neg,e
       
       !#< blue
       call system('clear')
@@ -130,7 +130,13 @@
         allpoints(mPtini:mPtfin) = moviePoints; deallocate(moviePoints); end if
         
       call setInqPointsRegions
+      
+      if (makeVideo) then
       call setVideoPointsRegions
+      call chdir(trim(adjustl(rutaOut)))
+      if (PSV) call Churubusco(.true.)
+      call chdir("..")
+      end if
  !#< blue
       call chdir(trim(adjustl(rutaOut)))
          write(titleN,'(a)') '0___OriginalGeometry.pdf'
@@ -244,7 +250,7 @@
          
          if (makeVideo) then 
           call loadG_fotogramas
-          if (PSV) call Churubusco
+          if (PSV) call Churubusco(.false.)
           if (SH) call Hollywood(3)
          end if
          stop "done"
@@ -317,7 +323,7 @@
 !     print*,"-------------------------"
 !     end if!#> !developerfeature .ne. 0
       !#< b
-      if(verbose .le. 1)then
+      
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
         if (workBoundary) write(6,'(A)', ADVANCE = "NO") repeat(char(8),10) !nbp
@@ -326,7 +332,7 @@
         repeat("X",int((58.0/NFREC)*(NFREC+1-J))),&
         repeat("_",58-int((58.0/NFREC)*(NFREC+1-J)))
         write(6,'(A)', ADVANCE = "NO") "]" 
-      else
+      if(verbose .ge. 2)then
         call ETIME(tarray, result)
         write(PrintNum,'(A,I0,A,EN18.2,A,EN18.2,A)', ADVANCE = "YES") &
         'w(',J,') | ',FREC," | ",result,"sec"
@@ -402,16 +408,16 @@
        
        
        ! ondas en cada estrato, sin fase vertical
-       allocate(BparaGa(tam,N+1,2*nmax))
-       allocate(BparaNu(tam,N+1,2*nmax))
-       !   dos vectores (B sin vertical) para cada estrato
+       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax))
+       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax))
+       !#< r   dos vectores (B sin vertical) para cada estrato !#>
        !     el que va con sincgamma
-       po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)
+       pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
        do e=1,N+1
-       do ik = 1,po
+       do ik = 1,pos
          
        end do ! ik pos
-       do ik = ne,2*NMAX
+       do ik = neg,2*NMAX
          
        end do ! ik neg
        end do ! e
@@ -841,7 +847,7 @@
          
       if (makeVideo) then 
         call crepa_four_fotogramas
-        if (PSV) call Churubusco
+        if (PSV) call Churubusco(.false.)
         if (SH) call Hollywood(3)
       end if
       call vaciarWisdom
@@ -1927,7 +1933,7 @@
       subroutine setVideoPointsRegions
       use peli, only : coords_Z,coords_X,fotogramas_Region
       use meshVars, only : npixX,npixZ
-      use glovars, only : makeVideo, flip12
+      use glovars, only : flip12,PrintNum,verbose
       use debugstuff
       implicit none
       integer :: i,j
@@ -1939,7 +1945,6 @@
       reg(0) = 0; reg(1)= 2; reg(2) = 1
       end if
       ! asigmar la region a cada pixel de la pelicula
-      if (makeVideo .eqv. .false.) return
        do i=1,npixZ
         do j=1,npixX
           fotogramas_Region(i,j) = reg(1)!'estr'
@@ -1954,7 +1959,11 @@
           end if
         end do
        end do
-!      print*,"";call showMNmatrixI(npixZ,npixX,fotogramas_Region,"fotRe",PrintNum);stop
+      if (verbose .ge. 2) then
+      print*,""
+      call showMNmatrixI(npixZ,npixX,fotogramas_Region,"fotRe",PrintNum)
+      end if
+      
       end subroutine setVideoPointsRegions    
       
       subroutine setInqPointsRegions
@@ -6506,28 +6515,59 @@
       ! aumentar contraste un poquito
       FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
       FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
-      CALL SETFIL("3_w_CF.pdf")
+      CALL SETFIL("3_w_CFp.pdf")
       CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2) 
        
       FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
       FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
-      CALL SETFIL("3_u_CF.pdf")
+      CALL SETFIL("3_u_CFp.pdf")
+      CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
+      
+      ! velocidad  k negativo
+      do ij = 1,NFREC+1
+      ome = (ij*dfrec)*2*pi
+      COME = CMPLX(OME, OMEI,8)!periodic sources damping
+      COME = COME * cmplx(1.0, -1.0/2.0/Qq,8)
+!     FC(ij,nSabanapts/2:1:-1,1) = come/XF(1:nSabanapts/2,ij,1)
+!     FC(ij,nSabanapts/2:1:-1,2) = come/XF(1:nSabanapts/2,ij,2)
+      FC(ij,1:nSabanapts/2,1) = come/XF(1:nSabanapts/2,ij,1)
+      FC(ij,1:nSabanapts/2,2) = come/XF(1:nSabanapts/2,ij,2)
+      end do
+      
+      ! comprimir
+      FC(:,:,1) = real(log(1. + exp(p2)*abs(FC(:,:,1))) / & 
+           log(exp(p2)+1.),4)
+      FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
+           log(exp(p2)+1.),4) 
+      
+      FC(:,:,1) = uno - FC(:,:,1)/maxval(abs(FC(:,:,1)))
+      FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))
+      
+      ! aumentar contraste un poquito
+      FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
+      FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
+      CALL SETFIL("3_w_CFn.pdf")
+      CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2) 
+       
+      FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
+      FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
+      CALL SETFIL("3_u_CFn.pdf")
       CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
            
       end subroutine F_K_exp
       
      
-      subroutine Churubusco
+      subroutine Churubusco(testPoints)
       use glovars, only : verbose, workBoundary,flip12
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
-                     fotogramas
-      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkZ,nmarkX, MeshVecLen
+                     fotogramas,fotogramas_Region
+      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ, MeshVecLen!,nmarkZ,nmarkX
       use waveVars, only : dt,maxtime
       use waveNumVars, only : NFREC, NPTSTIME
       use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
       use geometryvars, only : nXI,Xcoord_ER, & 
-                               n_cont, Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out
+                               Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out
       use resultvars, only : Punto,BouPoints,nbpts
       use ploteo10pesos
       implicit none
@@ -6550,9 +6590,10 @@
       character(LEN=60) :: CTIT
       type (Punto), dimension(:), pointer :: BP
       real*8, dimension(:,:),allocatable :: rec
+      logical :: testPoints
+      integer :: nframes
       ! fotogramas tipo campo vectorial
       if (verbose >= 1) print*, "Will make a movie..."
-      CALL chdir("video")
       
       !tiempo maximo para graficar
        n_maxtime = int(maxtime/dt)
@@ -6563,6 +6604,11 @@
       allocate(xvmat(npixX,npixZ,n_maxtime))
       allocate(yvmat(npixX,npixZ,n_maxtime))
       
+      if (testPoints) then
+      nframes = 1
+      else
+      CALL chdir("video")
+      nframes = n_maxtime
       maV1 = maxVal(real(fotogramas(:,:,1:n_maxtime,1),4))
       maV2 = maxVal(real(fotogramas(:,:,1:n_maxtime,2),4))
       do i=1,npixZ
@@ -6570,22 +6616,24 @@
           xvmat(j,i,1:n_maxtime) = real(fotogramas(i,j,1:n_maxtime,2),4) !U
           yvmat(j,i,1:n_maxtime) = real(fotogramas(i,j,1:n_maxtime,1),4) !W
           
+          ! para no imprimir lo que se ve muy pequeñito
           do iT = 1,n_maxtime
             if (abs(yvmat(j,i,iT)) .le. mav1*0.0025) yvmat(j,i,iT) = 0.0
             if (abs(xvmat(j,i,iT)) .le. mav2*0.0025) xvmat(j,i,iT) = 0.0
           end do
         end do
       end do
+      madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
+      escalaFlechas = real((MeshVecLen * 3.0) / madmax)
+      end if
       
       minx = MeshMinX
       maxx = MeshMaxX
       miny = MeshMinZ
       maxy = MeshMaxZ
-      xstep = real(((maxX-minX) / nmarkX ))
-      zstep = real(((maxY-minY) / nmarkZ ))
+      xstep = real(((maxX-minX) / 0 ))
+      zstep = real(((maxY-minY) / 0 ))
       encuadre = (maxY-minY)/(maxX-minX)
-      madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-      escalaFlechas = real((MeshVecLen * 3.0) / madmax)
 !     encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
       print*,"encuadre=",encuadre
       CALL METAFL('PNG')
@@ -6595,18 +6643,25 @@
       call imgfmt('RGB')
       call winsiz(int(1200,4),int(1200,4)) !1200 ambos
       CALL SCRMOD('REVERS') !fondo blanco
-      do i=1,n_maxtime
+      do i=1,nframes
+       if (testPoints) then
+      write(titleN,'(a)') '0___Sensors_movie.png'
+       else
       write(titleN,'(a,I0,a)') 'foto_',i,'.png'
+       end if
       CALL SETFIL(trim(titleN))
       CALL DISINI()
       call errmod ("all", "off")
       call incmrk (int(1,4))
-      CALL DISALF() !default font
+      CALL TRIPLX()! CALL DISALF() !default font
            !the position of an axis system.
       CALL axspos (int(300,4) ,int(2700,4)) ! Lower left corner
       call axslen (int(2600,4), int(2600*encuadre,4)) !size of the axis system.
-      call name('X [m]','X')
-      call name('Z [m]','Y')
+!     call name('X [m]','X')
+!     call name('Z [m]','Y')
+      call labdig(int(1,4),'X') !number of decimal places for labels
+      call labdig(int(2,4),'Y')
+      call ticks (int(1,4) ,'XY')
       call setgrf("NAME", "NAME", "LINE", "LINE") 
       call height(40) ! de los caracteres
       call graf(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
@@ -6665,7 +6720,7 @@
       end if
       end if
       else ! --------
-      if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
+      if (allocated(Xcoord_Incluonly)) then
       if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
       allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))              !
       ii=1                                                             !
@@ -6678,11 +6733,12 @@
       end do
       
       call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
-      CALL RLAREA(real(rec(:,1),4),real(rec(:,2),4),int(2*n_cont,4))  !
+      CALL RLAREA(real(rec(:,1),4), & 
+                  real(rec(:,2),4), & 
+                  int(2*size(Xcoord_Incluonly(:,1,1)),4))
       deallocate(rec) 
       end if!
       if (size(Xcoord_Voidonly(:,1,1)) .gt. 1) then
-      ! Borrar lo que está en el aire !
       allocate(rec(2* (size(Xcoord_Voidonly(:,1,1))),2))              !
       ii = 1                                                          !
       do j=1,size(Xcoord_Voidonly(:,1,1))                             !
@@ -6694,7 +6750,8 @@
       end do                                                          !
       call color ('BACK')                                             !
       call shdpat(int(16,4))                                          !
-      CALL RLAREA(real(rec(:,1),4),real(rec(:,2),4), &                !
+      CALL RLAREA(real(rec(:,1),4), & 
+                  real(rec(:,2),4), &                !
                   int(2*size(Xcoord_Voidonly(:,1,1)),4))              !
       deallocate(rec) 
       end if                                                !         !
@@ -6708,8 +6765,20 @@
       call rline(real(Xcoord_ER(j,1,1),4),real(Xcoord_ER(j,2,1),4), & !
                  real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
       end do                                                          !
-      end if
+      end if!
+       if (testPoints) then
+       ! indicar asignacion de regiones
+      CALL HSYMBL(int(9,4)) !size of symbols                              !
+      do ii=1,npixZ
+        do j=1,npixX
+          if (fotogramas_Region(ii,j) .eq. 0) cycle
+          if (fotogramas_Region(ii,j) .eq. 1) call color('RED')
+          if (fotogramas_Region(ii,j) .eq. 2) call color('BLUE')
+          CALL RLSYMB (16, xpray(j), ypray(ii))
+        end do
+      end do
       
+       else
       !campo de desplazamientos ———————————————————-------------------
       call color ('FORE')                                            !
       call vecclr(-1) ! (-2):color de las puntas de flecha activado  !
@@ -6725,12 +6794,15 @@
       write(CTIT,'(a,F9.5,a)') 't=',tlabel,' seg'
       lentitle = NLMESS(CTIT)
       CALL MESSAG(CTIT,int(300,4),int(2850,4))
-      
+       end if
       call disfin
       
 !     stop "6708 killed video"
       
       end do ! i=1,n_maxtime
+      
+      if (testPoints) return
+      
       write(titleN,'(a)') 'foto_0.png'
       write(extension,'(a)') 'PNG'
       BP => BouPoints
@@ -7407,4 +7479,3 @@
         end if
         end if        
       end subroutine plot_at_eta
-

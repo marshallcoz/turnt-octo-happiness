@@ -7,7 +7,7 @@
 Num. de fuente(s) puntual(es) [int]:
 1                          normal            of segment/p. wave
  X        Z     |    nx      ny      nz    |  theta    l       region
--1.1     0.2        0.0     0.0    -1.0       0.0     4.5       1
+1.15     0.0        0.0     0.0     1.0       0.0     4.5       1
 -------------------------------------------------------------------------
 1.0         Amplitude Scale [real]
 1           Amplitude Function: 0 dirac; 1 ricker; 2 gaussian [int]

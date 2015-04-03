@@ -1,4 +1,4 @@
-2		verbose [int]
+1		verbose [int]
 T		make a video [logical]
 T		Solve IBEM boundary [logical]
 F		The inclusion is the layered media, the rest is homogeneous.
