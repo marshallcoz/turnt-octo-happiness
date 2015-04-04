@@ -408,14 +408,14 @@
        
        ! Funciones de Green para propagar a la frontera de cada estrato
        ! (sin fase vertical, la fase vertical se agrega para cada fuente)
-       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
-       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
-       call PSVpaGaNU(J)
+!      if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
+!      if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
+!      call PSVpaGaNU(J)
        
        ! Multiplicar partes de la m
-       if(.not. allocated(CoefparGa)) allocate(CoefparGa(tam,N+1,2*nmax,2,2))
-       if(.not. allocated(CoefparNu)) allocate(CoefparNu(tam,N+1,2*nmax,2,2))
-       call PSVMatAporGaNU(J)
+!      if(.not. allocated(CoefparGa)) allocate(CoefparGa(tam,N+1,2*nmax,2,2))
+!      if(.not. allocated(CoefparNu)) allocate(CoefparNu(tam,N+1,2*nmax,2,2))
+!      call PSVMatAporGaNU(J)
        
        
       end if!psv ............................................
@@ -4150,16 +4150,31 @@
            this_B=>BparaGa ;  this_coef=>CoefparGa ; end if!
          if (Ga_o_Nu .eq. 2) then 
            this_B=>BparaNu ;  this_coef=>CoefparNu ; end if
-         do e=1,N+1 ! estrato que contiene la fuerza
-           do dir = 1,2
+         do dir = 1,2
+           do e=1,N+1 ! estrato que contiene la fuerza
              do iIf = 1,2
+             if (e .ne. 1) then
+               ! w d
+               ! u d
+             end if ! e!= 1
+               ! sz d
+               ! sx d
+             if (e .ne. N+1) then
+               ! w u
+               ! u u
+               ! sz u
+               ! sx u
+             end if ! e!0 HS
+             
+
+
              coI = 1
              coF = 1
              this_coef(coI:coF,e,ik,dir,iIf) = matmul(Ak(1:tam,coI:coF,ik),&
                 this_B(coI:coF,e,ik,dir))
-             end do
-           end do !dir
-         end do ! e
+             end do !iIf
+           end do ! e
+         end do ! dir
        end do ! Ga_o_Nu
        end do ! ik
        end do ! ii
@@ -7063,7 +7078,7 @@
       write(extension,'(a)') 'PNG'
       BP => BouPoints
       call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.)
-      
+      !  -framerate #   antes de -i para hacerlo más lento. Donde # es menor a 25 (default)
       write(titleN,'(a)')'ffmpeg -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
       print*,trim(titleN)
       call system(trim(titleN))
@@ -7461,7 +7476,7 @@
       CALL axspos (int(300,4) ,int(2700,4)) !the position of an axis system. Lower left corner
       call axslen (int(2600,4) ,int(2600*encuadre,4)) !size of the axis system. 
       call labdig(int(1,4),'X') !number of decimal places for labels
-      call labdig(int(1,4),'Y')
+      call labdig(int(2,4),'Y')
       call ticks (int(1,4) ,'XY') 
       !            low X   left Y   upp X   right Y
       call setgrf("NAME", "NAME", "NONE", "LINE")
