@@ -7064,7 +7064,7 @@
       BP => BouPoints
       call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.)
       
-      write(titleN,'(a)')'ffmpeg -f 15 -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
+      write(titleN,'(a)')'ffmpeg -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
       print*,trim(titleN)
       call system(trim(titleN))
       call chdir("..")
