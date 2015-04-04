@@ -1,4 +1,4 @@
-Superficie (x,y)ini - (x,y)fin en metros CIUDAD
+Superficie (x,y)ini - (x,y)fin en metros ORILLA
 0		N_topo segmentos :: T^0 + T^d = 0
 1 		N_cont segmentos :: T^d = T^0; u^d = u^0
 2		N_vall segmentos :: T^d = 0

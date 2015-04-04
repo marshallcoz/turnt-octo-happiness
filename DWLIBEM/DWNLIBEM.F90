@@ -1,6 +1,6 @@
       PROGRAM DWNLIBEM 
       use gloVars
-      use refSolMatrixVars, only : Ak,B,BparaGa,BparaNu
+      use refSolMatrixVars, only : Ak,B,BparaGa,BparaNu,CoefparGa, CoefparNu
       use waveNumVars
       use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq
       use debugStuff
@@ -406,10 +406,17 @@
        call parImpar_gloMat ! k negativo
        
        
-       ! ondas en cada estrato, sin fase vertical
-       !if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
-       !if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
-       !call PSVpaGaNU(J)
+       ! Funciones de Green para propagar a la frontera de cada estrato
+       ! (sin fase vertical, la fase vertical se agrega para cada fuente)
+       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
+       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
+       call PSVpaGaNU(J)
+       
+       ! Multiplicar partes de la m
+       if(.not. allocated(CoefparGa)) allocate(CoefparGa(tam,N+1,2*nmax,2,2))
+       if(.not. allocated(CoefparNu)) allocate(CoefparNu(tam,N+1,2*nmax,2,2))
+       call PSVMatAporGaNU(J)
+       
        
       end if!psv ............................................
       if (SH) then
@@ -2774,7 +2781,7 @@
       ! por lo menos una fuente.
       use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
-      use refSolMatrixVars, only : B,Ak
+      use refSolMatrixVars, only : B,Ak,CoefparGa, CoefparNu
       use waveNumVars, only : NMAX,k_vec,dk,vecNK!,DFREC
       use wavelets !fork 
       use dislin
@@ -2792,6 +2799,13 @@
           integer, intent(in)          :: e
           complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
         end function PSVdiffByStrata
+        
+        subroutine  eGAeNU(i_zF,ik,pXI,eGA,eNU)
+        use resultVars, only : Punto
+          integer :: ik,i_zF
+          type(Punto), pointer :: pXi
+          complex*16, dimension(2) :: eGA,eNU
+        end subroutine  eGAeNU
       end interface
       integer, intent(in) :: i_zF,dir_j,J
       complex*16, intent(in),target  :: cOME_in
@@ -2812,12 +2826,14 @@
       integer :: ik,tam,itabla_z,itabla_x,iMec,mecS,mecE,&
                  nXis,n_Xs,iXi,dj,i_Fuente,i_FuenteFinal,po,ne
       type(MecaElem)  :: Meca_diff, SHdiffByStrata
+      complex*16, dimension(2) :: eGA,eNU
       allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
 #ifdef ver
       real :: result,lastresult
       real, dimension(2) :: tarray
 #endif
       cOME = cOME_in 
+      dj = dir_j; if(dj .eq. 3) dj = 2 
       if (i_zF .eq. 0) then
          itabla_x = 3 ! En la tabla (pota) de índices: la fuente real -> (0,3)
          i_FuenteFinal = nFuentes ! Cantidad de fuentes reales
@@ -2880,14 +2896,27 @@
         else!  .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .     !n        
          tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
          if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) return         
-         do ik = 1,po                                                            !r
-         call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))        !i
-           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
+         
+         ! si la fuente está sobre una interfaz ...
+         if (pXi%isOnInterface) then
+           do ik = 1,po                                                            !r
+             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))        !i
+             B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
+           end do                                                                  !a
+           do ik = ne,2*NMAX                                                       !
+             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !
+             B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
+           end do
+         else ! la fuente está entre interfaces
+         do ik = 1,po
+           call eGAeNU(i_zF,ik,pXI,eGA,eNU)
+!          B(1:tam,ik) = CoefparGa(:,pXi%layer,ik,dj)*eGA + CoefparNu(:,pXi%layer,ik,dj)*eNU
          end do                                                                  !a
-         do ik = ne,2*NMAX                                                       !
-           call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !
-           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
-         end do                                                                  !
+         do ik = ne,2*NMAX
+           call eGAeNU(i_zF,ik,pXI,eGA,eNU)
+!          B(1:tam,ik) = CoefparGa(:,pXi%layer,ik,dj)*eGA + CoefparNu(:,pXi%layer,ik,dj)*eNU
+         end do
+         end if
         end if                                                                   !
       end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
 #ifdef ver
@@ -2908,7 +2937,7 @@
         ! (el primer receptor de la tabla --------| a esa profundidad) 
             call asociar(p_X, i_Fuente, itabla_z, 3)
             if (p_X%layer .eq. N+2) cycle
-            dj = dir_j; if(dj .eq. 3) dj = 2 
+!           dj = dir_j; if(dj .eq. 3) dj = 2 
         ! ¿calcular sólo G, sólo T o ambos?
             if (dir_j .eq. 2) then; mecS = 1; mecE = 3 !V,s32,s12
             else;                   mecS = 1; mecE = 5 !W,U,s33,s31,s11
@@ -3785,6 +3814,7 @@
       nInterf = 2
       if (fisInterf) then
          nInterf = 1
+         go to 349
       end if   
       z_loc(1:2) = 0.0_8
       if (e_f .ne. 0) z_loc(1) = Z(e_f) - z_f !downward (-)
@@ -3891,7 +3921,7 @@
       end if
       end do !iIf interface
       
-      if (fisInterf) then
+ 349  if (fisInterf) then
       if(direction .eq. 1) then
         s331(1) = 0
         S131(1) = + cmplx(1.0 / (2.0 * PI ),0.0,8)
@@ -3989,6 +4019,7 @@
 !     print*,"e_f=",e_f
 !     print*,this_B
       end subroutine PSVvectorB_force
+      
       
       subroutine PSVpaGaNU(J) 
       use waveNumVars, only : cOME,vecNK,k_vec,nmax
@@ -4095,6 +4126,134 @@
        end do ! ik
        end do !ii
       end subroutine PSVpaGANU
+      
+      subroutine PSVMatAporGaNU(J)
+      use waveNumVars, only : vecNK, nmax
+      use soilVars, only:N
+      use refSolMatrixVars, only : BparaGa,BparaNu,CoefparGa,CoefparNu,Ak
+      implicit none
+      integer, intent(in) :: J
+      complex*16, dimension(:,:,:,:),pointer :: this_B
+      complex*16, dimension(:,:,:,:,:),pointer ::this_coef
+      integer :: ii,ik,e,Ga_o_Nu,dir,iIf,pos,neg,ikI(2),ikF(2),tam,coI,coF
+      
+       tam = 4*N+2
+       pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
+       ikI(1) = 1
+       ikF(1) = pos
+       ikI(2) = neg
+       ikF(2) = 2*nmax
+       do ii=1,2 ! los num de onda positivos, negativos
+       do ik = ikI(ii),ikF(ii) !  todos los num de onda
+       do Ga_o_Nu = 1,2
+         if (Ga_o_Nu .eq. 1) then 
+           this_B=>BparaGa ;  this_coef=>CoefparGa ; end if!
+         if (Ga_o_Nu .eq. 2) then 
+           this_B=>BparaNu ;  this_coef=>CoefparNu ; end if
+         do e=1,N+1 ! estrato que contiene la fuerza
+           do dir = 1,2
+             do iIf = 1,2
+             coI = 1
+             coF = 1
+             this_coef(coI:coF,e,ik,dir,iIf) = matmul(Ak(1:tam,coI:coF,ik),&
+                this_B(coI:coF,e,ik,dir))
+             end do
+           end do !dir
+         end do ! e
+       end do ! Ga_o_Nu
+       end do ! ik
+       end do ! ii
+      
+      end subroutine PSVMatAporGaNU
+      
+      subroutine  eGAeNU(i_zF,ik,pXI,sincGamma,sincNu)
+        use waveNumVars, only : cOME,k_vec
+        use resultVars, only : Punto
+        use soilVars
+        use sourceVars, only: tipofuente
+        use glovars, only : UR,UI
+        implicit none
+        integer :: ik,i_zF
+        type(Punto), pointer :: pXi
+        integer, pointer :: e_f
+        real*8, pointer :: z_f
+        logical, pointer :: fisInterf
+        integer :: iIf
+        complex*16 :: gamma,nu,argum,sincmod
+        complex*16 :: omeAlf,omeBet
+      ! una para cada interfaz (la de arriba [1] y la de abajo [2])
+        real*8,     dimension(2) :: z_loc
+        complex*16, dimension(2) :: egamz,enuz,gamz,nuz
+        complex*16, dimension(2) :: sincGamma, sincNu
+        real*8 :: a,k
+        real*8, pointer :: cose,seno
+        integer :: el_tipo_de_fuente
+      
+      k = k_vec(ik)
+      e_f => pXi%layer
+      z_f => pXi%center%z
+      fisInterf => pXi%isOnInterface
+      if (fisInterf) stop "eGAeNU: force on interface"
+      if (e_f .ne. 0) z_loc(1) = Z(e_f) - z_f !downward (-)    (interfaz de arriba)
+      if (e_f .ne. N+1)  z_loc(2) = Z(e_f+1) - z_f !upward (+) (interfaz de abajo )
+      
+      el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
+      if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente 
+      
+      omeAlf = cOME**2.0/ALFA(e_f)**2.0
+      omeBet = cOME**2.0/BETA(e_f)**2.0
+          ! algunas valores constantes para todo el estrato          
+          gamma = sqrt(omeAlf - k**2.0)
+          nu = sqrt(omeBet - k**2.0)
+          ! Se debe cumplir que la parte imaginaria del número de onda 
+          ! vertical debe ser menor que cero. La parte imaginaria contri-
+          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
+          ! nencial a medida que z crece.
+          if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
+          if(aimag(nu).gt.0.0_8)nu=conjg(nu)
+          
+      do iIf = 1,2
+          egamz(iIf) = exp(-UI*gamma*ABS(z_loc(iIf)))
+          enuz(iIf) = exp(-UI*nu*ABS(z_loc(iIf)))
+          
+          gamz(iIf) = gamma*ABS(z_loc(iIf))
+          nuz(iIf) = nu*ABS(z_loc(iIf))
+      end do 
+      if (el_tipo_de_fuente .le. 1) then ! fuente puntual 0 u onda plana 1
+        sincGamma(1) = UR * egamz(1)
+        sincGamma(2) = UR * egamz(2)
+        sincNu(1) = UR * enuz(1)
+        sincNu(2) = UR * enuz(2)
+      elseif (el_tipo_de_fuente .eq. 2) then ! la fuente es un segmento
+      ! ahora estamos involucrando información del receptor en el vector de fuente
+      ! en particular, si el receptor (la interfaz) está arriba o abajo de la fuente.
+        A = pxi%length * 0.5_8  ! 2a=lenght
+        cose => pxi%cosT
+        seno => pxi%sinT
+      
+      ! en cada interfaz 
+        ! caso (receptor abajo de la fuente) : interfaz de abajo (2)
+        argum = gamma*A*seno + UR * (k*A*cose)
+        sincGamma(2) = sincmod(argum,gamz(2))*(2*A)
+        
+        argum = nu*A*seno + UR * (k*A*cose)
+        sincNu(2) = sincmod(argum,nuz(2))*(2*A)
+        
+        ! caso (receptor arriba de la fuente) : interfaz de arriba (1)
+        argum = -gamma*A*seno + UR * (k*A*cose)
+        sincGamma(1) = sincmod(argum,gamz(1))*(2*A)
+        
+        argum = -nu*A*seno + UR * (k*A*cose)
+        sincNu(1) = sincmod(argum,nuz(1))*(2*A)
+        
+      end if !fuente tipo 0 o 1
+      
+      
+        
+        
+      end subroutine  eGAeNU
+      
+      
       
       
       subroutine PSVvectorB_ondaplana(this_B,come,gamma)
@@ -6694,15 +6853,15 @@
       if (testPoints) then
       nframes = 1
       else
-      allocate(xvmat(npixX,npixZ,n_maxtime))
-      allocate(yvmat(npixX,npixZ,n_maxtime))
       
       !tiempo maximo para graficar
        n_maxtime = int(maxtime/dt)
        if(maxtime .lt. dt) n_maxtime = 2*nfrec
        if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
        print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
-       
+       allocate(xvmat(npixX,npixZ,n_maxtime))
+       allocate(yvmat(npixX,npixZ,n_maxtime))
+      
       CALL chdir("video")
       nframes = n_maxtime
       maV1 = maxVal(real(fotogramas(:,:,1:n_maxtime,1),4))

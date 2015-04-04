@@ -78,7 +78,14 @@
         integer, dimension(:), allocatable :: IPIV
         
         complex*16, dimension(:,:,:,:), allocatable,target :: BparaGa,BparaNu
-!       integer :: info    
+        complex*16, dimension(:,:,:,:,:), allocatable,target :: CoefparGa, CoefparNu
+        !                     | | | | '-- interfaz de arriba o abajo [2]
+        !                     | | | '-- dirección de la fuerza [2]
+        !                     | | `-- k [2nmax]
+        !                     | '-- estrato [N+1]
+        !                     '-- onda desde la interfaz [4N+2]
+        
+        
       end module refSolMatrixVars
             
 
@@ -87,7 +94,6 @@
          complex*16 :: U,V,W,Tx,Ty,Tz!,s33,s31,s11!,s32,s12
        end type FFres
       
-!     use gloVars, only: dp
        type Punto2d
         real*8 :: x,z
        end type Punto2d
@@ -101,10 +107,6 @@
         complex*16, dimension(5) :: Rw !u1,u3,s33,s31,s11
         complex*16, dimension(3) :: Rw_SH !u2,s32,s12
        end type MecaElem
-       
-!      type tipo_qlmk
-!        logical :: shouldUseQuadrature
-!      end type tipo_qlmk
        
        type Punto              
         type(Punto2d) :: center
