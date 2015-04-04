@@ -8,6 +8,7 @@
       logical    :: makeVideo
       logical    :: workBoundary
       logical    :: flip12
+      logical    :: PrintEtas
       logical    :: plotFKS
       logical    :: saveG
       integer    :: multSubdiv ! De 6 en adelante 

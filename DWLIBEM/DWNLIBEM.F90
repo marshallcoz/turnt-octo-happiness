@@ -331,16 +331,14 @@
         repeat("X",int((58.0/NFREC)*(NFREC+1-J))),&
         repeat("_",58-int((58.0/NFREC)*(NFREC+1-J)))
         write(6,'(A)', ADVANCE = "NO") "]" 
-      if(verbose .ge. 2)then
+      if(PrintNum .ne. 6)then
         call ETIME(tarray, result)
         write(PrintNum,'(A,I0,A,EN18.2,A,EN18.2,A)', ADVANCE = "YES") &
         'w(',J,') | ',FREC," | ",result,"sec"
       end if
       if (onlythisJ) write(PrintNum,*) "Frec = ",COME, " eta = ",&
       (ome*longitudcaracteristica_a)/(pi*beta0(N+1))!#> 
-!        print*,"come=",come
-!        write(6,'(A,EN10.2,2x)', ADVANCE = "NO") & 
-!        "eta(ome)= ", (ome*longitudcaracteristica_a)/(pi*beta0(N+1))
+      
       if (workBoundary) then ! Subsegment the topography if neccesssary
          call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+2),nbpts,BouPoints)
           write(6,'(A,I5)', ADVANCE = "NO") "nbp= ", nbpts
@@ -405,18 +403,15 @@
        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
        call parImpar_gloMat ! k negativo
        
-       
        ! Funciones de Green para propagar a la frontera de cada estrato
        ! (sin fase vertical, la fase vertical se agrega para cada fuente)
-!      if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
-!      if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
-!      call PSVpaGaNU(J)
-       
+       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
+       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
+       call PSVpaGaNU(J)
        ! Multiplicar partes de la m
-!      if(.not. allocated(CoefparGa)) allocate(CoefparGa(tam,N+1,2*nmax,2,2))
-!      if(.not. allocated(CoefparNu)) allocate(CoefparNu(tam,N+1,2*nmax,2,2))
-!      call PSVMatAporGaNU(J)
-       
+       if(.not. allocated(CoefparGa)) allocate(CoefparGa(tam,N+1,2*nmax,2,2))
+       if(.not. allocated(CoefparNu)) allocate(CoefparNu(tam,N+1,2*nmax,2,2))
+       call PSVMatAporGaNU(J)
        
       end if!psv ............................................
       if (SH) then
@@ -752,10 +747,23 @@
            end if
           end do !iP_x
         end if!
-!     call ETIME(tarray, result)
-!     write(PrintNum,'(a,f10.3,a)') "Elapsed ",result,"seconds"
-!     print*,"deltaT=",result-lastresult
-!     stop 2218
+
+      ! sabana en frecuencia eta
+      if (PrintEtas .or. onlythisJ) then 
+        call chdir(trim(adjustl(rutaOut)))
+        CALL chdir("phi")
+        write(tt,'(a,I0,a)') "W__eta",J,".pdf"
+        call plot_at_eta(frecIni,tt)
+        write(tt,'(a,I0,a)') "U__eta",J,".pdf"
+        call plot_at_eta(frecIni,tt)
+        CALL chdir("..");CALL chdir("..")
+        if ( onlythisJ )then 
+          print*,""
+          print*,"at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
+          Stop "-f argum finish"
+        end if
+      end if
+      
       END DO ! J: frequency loop
       
 !     deallocate(B);deallocate(IPIV)
@@ -795,21 +803,7 @@
            CALL chdir("..")
       end if
       
-      ! sabana en frecuencia eta
-      if (verbose .eq. 2) then 
-        call chdir(trim(adjustl(rutaOut)))
-        CALL chdir("phi")
-        write(tt,'(a,I0,a)') "W__eta",J,".pdf"
-        call plot_at_eta(frecIni,tt)
-        write(tt,'(a,I0,a)') "U__eta",J,".pdf"
-        call plot_at_eta(frecIni,tt)
-        CALL chdir("..");CALL chdir("..")
-        if ( onlythisJ )then 
-          print*,""
-          print*,"at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
-          Stop "-f argum finish"
-        end if
-      end if
+      
       write(6,'(a)')"Printing seismograms, etc..."
       
       ! mostrar sismogramas en los puntos de interés
@@ -943,6 +937,7 @@
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
+      READ(35,'(L1)') PrintEtas
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
       READ(35,*) multSubdiv!; print*,"division multiple = ", multSubdiv
       READ(35,*) staywiththefinersubdivision, finersubdivisionJ
@@ -1003,7 +998,7 @@
           BEALF = beta0(0)/alfa0(0)
           anu(0) = (bealf**2 - 0.5)/(-1 + bealf**2)!#< b
          write(outpf,'(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-       ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU(0)),  RHO(0), real(LAMBDA(0)),real(anu(J))!#>
+       ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU0(0)),  RHO(0), real(LAMBDA0(0)),real(anu(J))!#>
           READ(7,*) H, ALF, BET, RO
         end if
          Z(J+1)=Z(J)+real(H)
@@ -1018,8 +1013,8 @@
 !        ALFA(J)=BET/BEALF !#< b
           write(outpf,&
           '(F7.1,A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-          Z(J),' - ',Z(J+1),ALFA0(J),BETA0(J),real(AMU(J)),& 
-          RHO(J), real(LAMBDA(J)),real(anu(J)) !#>
+          Z(J),' - ',Z(J+1),ALFA0(J),BETA0(J),real(AMU0(J)),& 
+          RHO(J), real(LAMBDA0(J)),real(anu(J)) !#>
       END DO
       
       READ(7,*) H, ALF, BET, RO 
@@ -1033,8 +1028,8 @@
          BEALF = beta0(0)/alfa0(0)
          anu(0) = (bealf**2 - 0.5)/(-1 + bealf**2)!#< b
          write(outpf,'(A,F7.1,2x, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-         ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU(0)),&
-         RHO(0), real(LAMBDA(0)),real(anu(0)) !#>
+         ' -inf.  - ',Z(1),ALFA0(0),BETA0(0),real(AMU0(0)),&
+         RHO(0), real(LAMBDA0(0)),real(anu(0)) !#>
          READ(7,*) H, ALF, BET, RO
       end if
       AMU0(N+1)=RO*BET**2
@@ -1045,8 +1040,8 @@
       BEALF = beta0(N+1)/alfa0(N+1)
       anu(N+1) = (bealf**2 - 0.5)/(-1 + bealf**2) !#< b
          write(outpf,'(F7.1,2x,A, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') & 
-         Z(1),' -  inf. ',ALFA0(N+1),BETA0(N+1),real(AMU(N+1)),&
-         RHO(N+1), real(LAMBDA(N+1)),real(anu(N+1)) !#>
+         Z(1),' -  inf. ',ALFA0(N+1),BETA0(N+1),real(AMU0(N+1)),&
+         RHO(N+1), real(LAMBDA0(N+1)),real(anu(N+1)) !#>
       i = 1;  if (Z(0) .lt. 0.0) i = 0
       minBeta = minval(beta0(i:N+1));  maxBeta = maxval(beta0(i:N+1))
       if (abs(minBeta - maxBeta) .lt. 0.01) then
@@ -2781,7 +2776,7 @@
       ! por lo menos una fuente.
       use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
-      use refSolMatrixVars, only : B,Ak,CoefparGa, CoefparNu
+      use refSolMatrixVars, only : B,Ak
       use waveNumVars, only : NMAX,k_vec,dk,vecNK!,DFREC
       use wavelets !fork 
       use dislin
@@ -2800,11 +2795,10 @@
           complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
         end function PSVdiffByStrata
         
-        subroutine  eGAeNU(i_zF,ik,pXI,eGA,eNU)
+        subroutine  eGAeNU(i_zF,ik,pXI,dj)
         use resultVars, only : Punto
-          integer :: ik,i_zF
+          integer :: ik,i_zF,dj
           type(Punto), pointer :: pXi
-          complex*16, dimension(2) :: eGA,eNU
         end subroutine  eGAeNU
       end interface
       integer, intent(in) :: i_zF,dir_j,J
@@ -2826,7 +2820,6 @@
       integer :: ik,tam,itabla_z,itabla_x,iMec,mecS,mecE,&
                  nXis,n_Xs,iXi,dj,i_Fuente,i_FuenteFinal,po,ne
       type(MecaElem)  :: Meca_diff, SHdiffByStrata
-      complex*16, dimension(2) :: eGA,eNU
       allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
 #ifdef ver
       real :: result,lastresult
@@ -2897,25 +2890,23 @@
          tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
          if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) return         
          
-         ! si la fuente está sobre una interfaz ...
+         ! si la fuente está sobre una interfaz ...............
          if (pXi%isOnInterface) then
            do ik = 1,po                                                            !r
-             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))        !i
+             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !i
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
            end do                                                                  !a
            do ik = ne,2*NMAX                                                       !
              call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
            end do
-         else ! la fuente está entre interfaces
-         do ik = 1,po
-           call eGAeNU(i_zF,ik,pXI,eGA,eNU)
-!          B(1:tam,ik) = CoefparGa(:,pXi%layer,ik,dj)*eGA + CoefparNu(:,pXi%layer,ik,dj)*eNU
-         end do                                                                  !a
-         do ik = ne,2*NMAX
-           call eGAeNU(i_zF,ik,pXI,eGA,eNU)
-!          B(1:tam,ik) = CoefparGa(:,pXi%layer,ik,dj)*eGA + CoefparNu(:,pXi%layer,ik,dj)*eNU
-         end do
+         else ! la fuente está entre interfaces ..............
+           do ik = 1,po
+             call eGAeNU(i_zF,ik,pXI,dj)
+           end do                                                                 
+           do ik = ne,2*NMAX
+             call eGAeNU(i_zF,ik,pXI,dj)
+           end do
          end if
         end if                                                                   !
       end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
@@ -4127,7 +4118,7 @@
        end do !ii
       end subroutine PSVpaGANU
       
-      subroutine PSVMatAporGaNU(J)
+      subroutine PSVMatAporGaNU(J) ! multiplicar marices A y (casi) B
       use waveNumVars, only : vecNK, nmax
       use soilVars, only:N
       use refSolMatrixVars, only : BparaGa,BparaNu,CoefparGa,CoefparNu,Ak
@@ -4135,8 +4126,8 @@
       integer, intent(in) :: J
       complex*16, dimension(:,:,:,:),pointer :: this_B
       complex*16, dimension(:,:,:,:,:),pointer ::this_coef
-      integer :: ii,ik,e,Ga_o_Nu,dir,iIf,pos,neg,ikI(2),ikF(2),tam,coI,coF
-      
+      integer :: ii,ik,e,Ga_o_Nu,dir,pos,neg,ikI(2),ikF(2),tam,& 
+                coIu,coFu,coId,coFd
        tam = 4*N+2
        pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
        ikI(1) = 1
@@ -4150,50 +4141,49 @@
            this_B=>BparaGa ;  this_coef=>CoefparGa ; end if!
          if (Ga_o_Nu .eq. 2) then 
            this_B=>BparaNu ;  this_coef=>CoefparNu ; end if
-         do dir = 1,2
+         do dir = 1,2 ! para cada dirección de la fuerza
            do e=1,N+1 ! estrato que contiene la fuerza
-             do iIf = 1,2
+               coIu = 1+4*(e-1)   ! sz
              if (e .ne. 1) then
-               ! w d
-               ! u d
+               coIu = 1+4*(e-1)-2 ! w
+               coFu = 1+4*(e-1)-1 ! u
              end if ! e!= 1
-               ! sz d
-               ! sx d
+               coFu = 1+4*(e-1)+1 ! sx
              if (e .ne. N+1) then
-               ! w u
-               ! u u
-               ! sz u
-               ! sx u
-             end if ! e!0 HS
-             
-
-
-             coI = 1
-             coF = 1
-             this_coef(coI:coF,e,ik,dir,iIf) = matmul(Ak(1:tam,coI:coF,ik),&
-                this_B(coI:coF,e,ik,dir))
-             end do !iIf
+               coId = 1+4*(e-1)+2 ! w
+!              1+4*(e-1)+3        ! u
+!              1+4*(e-1)+4        ! sz
+               coFd = 1+4*(e-1)+5 ! sx
+             end if ! e!= HS
+!            print*,ii,ik,Ga_o_nu,dir,e;print*,"   ",coIu,coFu,coId,coFd
+               this_coef(coIu:coFu,e,ik,dir,1) = matmul(Ak(1:tam,coIu:coFu,ik),&
+                  this_B(coIu:coFu,e,ik,dir))
+             if (e .ne. N+1) then
+               this_coef(coId:coFd,e,ik,dir,2) = matmul(Ak(1:tam,coId:coFd,ik),&
+                  this_B(coId:coFd,e,ik,dir))
+             end if
            end do ! e
          end do ! dir
        end do ! Ga_o_Nu
        end do ! ik
        end do ! ii
-      
       end subroutine PSVMatAporGaNU
       
-      subroutine  eGAeNU(i_zF,ik,pXI,sincGamma,sincNu)
+      subroutine  eGAeNU(i_zF,ik,pXI,dj) 
+      !hacer sincGamma y sincNu para cada interfaz y devolver B final
         use waveNumVars, only : cOME,k_vec
         use resultVars, only : Punto
         use soilVars
         use sourceVars, only: tipofuente
         use glovars, only : UR,UI
+        use refSolMatrixVars, only : B, CoefparGa, CoefparNu
         implicit none
-        integer :: ik,i_zF
+        integer :: ik,i_zF,dj
         type(Punto), pointer :: pXi
         integer, pointer :: e_f
         real*8, pointer :: z_f
         logical, pointer :: fisInterf
-        integer :: iIf
+        integer :: iIf,coIu,coFu,coId,coFd
         complex*16 :: gamma,nu,argum,sincmod
         complex*16 :: omeAlf,omeBet
       ! una para cada interfaz (la de arriba [1] y la de abajo [2])
@@ -4263,9 +4253,30 @@
         
       end if !fuente tipo 0 o 1
       
+      !#< r obtener vector de Coeficientes de ondas final !#>
+      ! multiplicar por los coeficientes de cada interfaz para Ga y Nu
+               coIu = 1+4*(e_f-1)   ! sz
+             if (e_f .ne. 1) then
+               coIu = 1+4*(e_f-1)-2 ! w
+               coFu = 1+4*(e_f-1)-1 ! u
+             end if ! e!= 1
+               coFu = 1+4*(e_f-1)+1 ! sx
+             if (e_f .ne. N+1) then
+               coId = 1+4*(e_f-1)+2 ! w
+!              1+4*(e-1)+3        ! u
+!              1+4*(e-1)+4        ! sz
+               coFd = 1+4*(e_f-1)+5 ! sx
+             end if ! e!= HS
+      if (coIu .ne. 1) B(1:coIu,ik) = 0
+             
+      B(coIu:coFu,ik) = CoefparGa(coIu:coFu,e_f,ik,dj,1)* sincGamma(1) + &
+                        CoefparNu(coIu:coFu,e_f,ik,dj,1)* sincNu(1) 
+      if (e_f .ne. N+1) then
+      B(coId:coFd,ik) = CoefparGa(coId:coFd,e_f,ik,dj,2)* sincGamma(2) + &
+                        CoefparNu(coId:coFd,e_f,ik,dj,2)* sincNu(2)
       
-        
-        
+      if (coFd .ne. N+1) B(coFd:N+1,ik) = 0 
+      end if           
       end subroutine  eGAeNU
       
       
@@ -4464,12 +4475,12 @@
       IF(ABS(ARG).LE.0.0001_8)RETURN
       SINCMOD=(EXP(UI*(ARG-ARGZ))-EXP(-UI*(ARG+ARGZ)) )/2.0_8/UI/ARG
       END function SINCMOD
-! G_stra - coefficients
+! G_stra - results 
       ! coeficientes de las ondas planas emitidias en cada interfaz 
       ! para representar el campo difractado por estratigrafía
       function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-      use gloVars, only : PrintNum,verbose,UI,UR,Z0
+      use gloVars, only : UI,UR,Z0!,PrintNum,verbose
       use resultVars, only : MecaElem
       implicit none
       
@@ -4488,13 +4499,12 @@
       complex*16, dimension(1:2) :: resD
       complex*16, dimension(1:3) :: resS
       integer :: i !#< b
-      if (verbose > 4) then
-       write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
-                    "PSVdiffByStrata at w:", & 
-                    real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
-      end if !#> 
-      PSVdiffByStrata = 0
-!     PSVdiffByStrata%Rw(1:5) = z0
+!     if (verbose > 4) then
+!      write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
+!                   "PSVdiffByStrata at w:", & 
+!                   real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
+!     end if !#> 
+!     PSVdiffByStrata = 0
       gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
       nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
       if(aimag(gamma).gt.0.0)gamma = conjg(gamma)

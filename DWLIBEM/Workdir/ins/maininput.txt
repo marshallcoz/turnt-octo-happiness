@@ -1,8 +1,9 @@
 1		verbose [int]
-T		make a video [logical]
+F		make a video [logical]
 T		Solve IBEM boundary [logical]
 F		The inclusion is the layered media, the rest is homogeneous.
 F		Plot FK de medio sin topografia [logical]
+F               Plot displacement at frecuency Eta.
 T		Save the Green funcs. for later use with "-L" argument [logical]
 15		Segments per wavelength [int :: R]
 F	168	Keep the subdivision of at least the Jth frequency [logical] [integer]
