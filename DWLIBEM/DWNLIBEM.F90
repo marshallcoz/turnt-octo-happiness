@@ -62,8 +62,7 @@
       complex*16, pointer :: pt_cOME_i
       integer :: frecIni, frecEnd,tam
       integer :: info,k0
-      integer :: Mi,Ni,pos,neg,e
-      
+      integer :: Mi,Ni
       !#< blue
       call system('clear')
       CALL get_command_argument(1, arg)
@@ -408,20 +407,11 @@
        
        
        ! ondas en cada estrato, sin fase vertical
-       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax))
-       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax))
-       !#< r   dos vectores (B sin vertical) para cada estrato !#>
-       !     el que va con sincgamma
-       pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
-       do e=1,N+1
-       do ik = 1,pos
-         
-       end do ! ik pos
-       do ik = neg,2*NMAX
-         
-       end do ! ik neg
-       end do ! e
-      end if!psv
+       !if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
+       !if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
+       !call PSVpaGaNU(J)
+       
+      end if!psv ............................................
       if (SH) then
          Ak = Z0
       Do ik=1,nmax+1
@@ -3780,7 +3770,7 @@
                                   !  1 para Greeni1 (horizontal),
                                   !  3 para Greeni3 (vertical)
       complex*16, dimension(2) :: G11,G31,G33
-      complex*16, dimension(2) :: s111,s331,s131,s113,s333,s313
+      complex*16, dimension(2) :: s331,s131,s333,s313
       
       real*8 :: a
       real*8, pointer :: cose,seno
@@ -3803,8 +3793,8 @@
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
       if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente 
       
-      G11=Z0;G31=Z0;G33=Z0
-      s111=Z0;s331=Z0;s131=Z0;s113=Z0;s333=Z0;s313=Z0
+!     G11=Z0;G31=Z0;G33=Z0
+!     s331=Z0;s131=Z0;s333=Z0;s313=Z0
       
       DEN = 4.0*PI*RHO(e_f)*cOME**2.0
       omeAlf = cOME**2.0/ALFA(e_f)**2.0
@@ -3866,7 +3856,7 @@
           end if
 
       G31(iIf) = -UI/DEN * SGNz*k*(sincGamma(iIf) & 
-                           -sincNu(iIf))
+                           - sincNu(iIf))
                            
       if (direction .eq. 1) then !  G31, G11, S331, S131
           
@@ -3999,6 +3989,113 @@
 !     print*,"e_f=",e_f
 !     print*,this_B
       end subroutine PSVvectorB_force
+      
+      subroutine PSVpaGaNU(J) 
+      use waveNumVars, only : cOME,vecNK,k_vec,nmax
+      use soilVars
+      use gloVars, only : UR,UI,PI
+      use refSolMatrixVars, only : BparaGa,BparaNu
+      implicit none
+      integer, intent(in) :: J
+      complex*16, dimension(:,:,:,:),pointer :: this_B
+      complex*16 :: gamma,nu,DEN,L2M,omeAlf,omeBet
+      integer :: ii,ik,e,Ga_o_Nu,dir,pos,neg,ikI(2),ikF(2)
+      complex*16, dimension(2) :: G11,G31,G33
+      complex*16, dimension(2) :: s331,s131,s333,s313
+      real*8 :: k
+      !#< r   dos vectores (B sin vertical) para cada estrato !#>
+       !     el que va con sincgamma
+       pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
+       ikI(1) = 1
+       ikF(1) = pos
+       ikI(2) = neg
+       ikF(2) = 2*nmax
+       do ii=1,2 ! los num de onda positivos, negativos
+       do ik = ikI(ii),ikF(ii) !  todos los num de onda
+       k = k_vec(ik)
+       do e=1,N+1 ! estrato que contiene la fuerza
+         
+         DEN = 4.0*PI*RHO(e)*cOME**2.0
+         omeAlf = cOME**2.0/ALFA(e)**2.0
+         omeBet = cOME**2.0/BETA(e)**2.0
+         L2M = LAMBDA(e) + 2.0*AMU(e)
+      
+          ! algunas valores constantes para todo el estrato          
+          gamma = sqrt(omeAlf - k**2.0)
+          nu = sqrt(omeBet - k**2.0)
+          ! Se debe cumplir que la parte imaginaria del número de onda 
+          ! vertical debe ser menor que cero. La parte imaginaria contri-
+          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
+          ! nencial a medida que z crece.
+          if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
+          if(aimag(nu).gt.0.0_8)nu=conjg(nu)
+          
+         
+         ! the green function indexes go for the part
+         ! that is multiplied by exp(gamma) : 1
+         ! and                by exp(nu) : 2
+         G31(1) = -UI/DEN * k 
+         G31(2) =  UI/DEN * k 
+         
+         G11(1) = -UI/DEN * k**2.0/gamma
+         G11(2) = -UI/DEN * nu
+         
+         S331(1) = -UR/DEN * (k*gamma*L2M + lambda(e)*k**3.0/gamma)
+         S331(2) = -UR/DEN * (-2.0*amu(e)*k*nu)
+         
+         S131(1) = -UR/DEN * amu(e)* (2.0*k**2.0)
+         S131(2) = -UR/DEN * amu(e)* (nu**2.0-k**2.0)
+         
+         G33(1) = -UI/DEN * gamma
+         G33(2) = -UI/DEN * (k**2.0/nu)
+         
+         s333(1) = -UR/DEN * (gamma**2.0*L2M + k**2.0*lambda(e))
+         s333(2) = -UR/DEN * (2.0*amu(e)*k**2.0)
+         
+         S313(1) = -UR/DEN * amu(e) * (2.0*k*gamma)
+         S313(2) =  UR/DEN * amu(e) * (k/nu*(nu**2.0-k**2.0))
+         
+       do Ga_o_Nu = 1,2
+         if (Ga_o_Nu .eq. 1) this_B=>BparaGa
+         if (Ga_o_Nu .eq. 2) this_B=>BparaNu
+         ! para dir 1
+         dir = 1
+       if (e .ne. 1) then
+        this_B(1+4*(e-1)-2,e,ik,dir) = G31(Ga_o_Nu) * (-1)!  w
+        this_B(1+4*(e-1)-1,e,ik,dir) = G11(Ga_o_Nu)!  u
+       end if 
+        this_B(1+4*(e-1)  ,e,ik,dir) = S331(Ga_o_Nu)! szz
+        this_B(1+4*(e-1)+1,e,ik,dir) = S131(Ga_o_Nu) * (-1)! szx   ! delta
+      !                     =      (2) interfaz de abajo
+       if (e .ne. N+1) then
+        this_B(1+4*(e-1)+2,e,ik,dir) = - G31(Ga_o_Nu)* (1)!  w
+        this_B(1+4*(e-1)+3,e,ik,dir) = - G11(Ga_o_Nu)!  u
+        this_B(1+4*(e-1)+4,e,ik,dir) = - S331(Ga_o_Nu)! szz
+        this_B(1+4*(e-1)+5,e,ik,dir) = - S131(Ga_o_Nu) * (1)! szx
+       end if
+         
+         ! para dir 3
+         dir = 2
+       if (e .ne. 1) then
+        this_B(1+4*(e-1)-2,e,ik,dir) = G33(Ga_o_Nu)!  w 
+        this_B(1+4*(e-1)-1,e,ik,dir) = G31(Ga_o_Nu)* (-1)!  u 
+       end if 
+        this_B(1+4*(e-1)  ,e,ik,dir) = S333(Ga_o_Nu)* (-1)! szz   ! delta
+        this_B(1+4*(e-1)+1,e,ik,dir) = S313(Ga_o_Nu)! szx 
+      !                     =    (2) interfaz de abajo 
+       if (e .ne. N+1) then
+        this_B(1+4*(e-1)+2,e,ik,dir) = - G33(Ga_o_Nu)!  w 
+        this_B(1+4*(e-1)+3,e,ik,dir) = - G31(Ga_o_Nu)* (1)!  u
+        this_B(1+4*(e-1)+4,e,ik,dir) = - S333(Ga_o_Nu)* (1)! szz 
+        this_B(1+4*(e-1)+5,e,ik,dir) = - S313(Ga_o_Nu)! szx 
+       end if
+       
+       end do !Ga_o_Nu
+       end do ! e
+       end do ! ik
+       end do !ii
+      end subroutine PSVpaGANU
+      
       
       subroutine PSVvectorB_ondaplana(this_B,come,gamma)
       use soilvars, only : n,lambda0,amu0,alfa0,beta0,Z!,beta,alfa
@@ -6292,7 +6389,7 @@
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
           exp(-OMEI * Dt*((/(i,i=0,nT-1)/)))
-        ! remover efecto de la velocidad imaginaria
+        ! remover efecto de la velocidad imaginaria ?
           !p_fot = p_fot * & 
           !exp((1./2./Qq) * Dt*((/(i,i=0, nT-1)/))) 
           if (verbose .ge. 2)then
@@ -6558,7 +6655,7 @@
       
      
       subroutine Churubusco(testPoints)
-      use glovars, only : verbose, workBoundary,flip12
+      use glovars, only : workBoundary,flip12
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas,fotogramas_Region
@@ -6593,7 +6690,12 @@
       logical :: testPoints
       integer :: nframes
       ! fotogramas tipo campo vectorial
-      if (verbose >= 1) print*, "Will make a movie..."
+      
+      if (testPoints) then
+      nframes = 1
+      else
+      allocate(xvmat(npixX,npixZ,n_maxtime))
+      allocate(yvmat(npixX,npixZ,n_maxtime))
       
       !tiempo maximo para graficar
        n_maxtime = int(maxtime/dt)
@@ -6601,12 +6703,6 @@
        if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
        print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
        
-      allocate(xvmat(npixX,npixZ,n_maxtime))
-      allocate(yvmat(npixX,npixZ,n_maxtime))
-      
-      if (testPoints) then
-      nframes = 1
-      else
       CALL chdir("video")
       nframes = n_maxtime
       maV1 = maxVal(real(fotogramas(:,:,1:n_maxtime,1),4))
@@ -6635,7 +6731,7 @@
       zstep = real(((maxY-minY) / 0 ))
       encuadre = (maxY-minY)/(maxX-minX)
 !     encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
-      print*,"encuadre=",encuadre
+      
       CALL METAFL('PNG')
       call filmod('DELETE') ! para sobreescribir el archivo
       CALL PAGE (int(3000,4),int(3000,4))
@@ -6647,6 +6743,7 @@
        if (testPoints) then
       write(titleN,'(a)') '0___Sensors_movie.png'
        else
+      print*,"encuadre=",encuadre
       write(titleN,'(a,I0,a)') 'foto_',i,'.png'
        end if
       CALL SETFIL(trim(titleN))
@@ -6808,7 +6905,8 @@
       BP => BouPoints
       call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.)
       
-      write(titleN,'(a)')'ffmpeg -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
+      write(titleN,'(a)')'ffmpeg -f 15 -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
+      print*,trim(titleN)
       call system(trim(titleN))
       call chdir("..")
       call system('cp video/video.mp4 video.mp4')
@@ -6816,7 +6914,8 @@
       
       if (encuadre - 0.5 .le. 0.1) then
       write(titleN,'(a,I0,a,I0,a)') 'ffmpeg -i video.mp4 -filter:v ''''crop=1200:',&
-                            int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''''' video_Crop.mp4'
+            int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''''' video_Crop.mp4'
+      print*,trim(titleN)
       call system(trim(titleN))
       end if
       end subroutine Churubusco    
@@ -7075,19 +7174,25 @@
       write(extension,'(a)') 'PNG'
       BP => BouPoints
       call drawBoundary(BP,nbpts, path, extension,.false.,.false.)
-      
+      !  ffmpeg -framerate 15 -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4
       write(path,'(a,a,a)')'ffmpeg -i ',nombre(iMec), & 
                   '%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
       call system(trim(path))
       call chdir("..")
       if (encuadre - 0.5 .le. 0.1) then
-      write(path,'(a,a,a)') & 
-      'ffmpeg -i video/video.mp4 -filter:v ''''crop=1200:700:0:600'''' ',& 
-      nombre(iMec),'.mp4'
+      ! ffmpeg -i video/video.mp4 -filter:v 'crop=1200:700:0:600' videoCr.mp4
+!     write(path,'(a,a,a)') & 
+!     'ffmpeg -i video/video.mp4 -filter:v ''''crop=1200:700:0:600'''' ',& 
+!     nombre(iMec),'.mp4'
+!     call system(trim(path))
+      
+      write(path,'(a,I0,a,I0,a,a,a)') 'ffmpeg -i video/video.mp4 -filter:v ''''crop=1200:',&
+            int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''' ',nombre(iMec),'.mp4'
+      print*,trim(path)
       call system(trim(path))
       else
       write(path,'(a,a,a)') 'cp video/video.mp4 ',nombre(iMec),'.mp4'
-      call system(trim(path))
+      call system(trim(path)) 
       end if
       call system('rm video/video.mp4')
       

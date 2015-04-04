@@ -77,7 +77,7 @@
         complex*16, dimension(:,:,:), allocatable,target :: Ak
         integer, dimension(:), allocatable :: IPIV
         
-        complex*16, dimension(:,:,:), allocatable,target :: BparaGa,BparaNu
+        complex*16, dimension(:,:,:,:), allocatable,target :: BparaGa,BparaNu
 !       integer :: info    
       end module refSolMatrixVars
             
@@ -2887,5 +2887,4 @@
       call disfin()
       end subroutine drawPHI
       end module ploteo10pesos
-
 
