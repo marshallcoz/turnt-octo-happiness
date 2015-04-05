@@ -5,7 +5,7 @@ ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst
-2.5976    -0.02300     0.0      1.0        1            F   1
+2.65    -0.02300     0.0      1.0        1            F   1
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)

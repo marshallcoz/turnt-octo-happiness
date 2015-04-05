@@ -9,6 +9,7 @@
       logical    :: workBoundary
       logical    :: flip12
       logical    :: PrintEtas
+      logical    :: PlotFilledSabanas
       logical    :: plotFKS
       logical    :: saveG
       integer    :: multSubdiv ! De 6 en adelante 

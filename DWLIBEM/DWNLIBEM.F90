@@ -405,8 +405,8 @@
        
        ! Funciones de Green para propagar a la frontera de cada estrato
        ! (sin fase vertical, la fase vertical se agrega para cada fuente)
-       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2))
-       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2))
+       if(.not. allocated(BparaGa)) allocate(BparaGa(tam,N+1,2*nmax,2));BparaGa=0
+       if(.not. allocated(BparaNu)) allocate(BparaNu(tam,N+1,2*nmax,2));BparaNu=0
        call PSVpaGaNU(J)
        ! Multiplicar partes de la m
        if(.not. allocated(CoefparGa)) allocate(CoefparGa(tam,N+1,2*nmax,2,2))
@@ -938,6 +938,7 @@
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
       READ(35,'(L1)') PrintEtas
+      READ(35,'(L1)') PlotFilledSabanas
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
       READ(35,*) multSubdiv!; print*,"division multiple = ", multSubdiv
       READ(35,*) staywiththefinersubdivision, finersubdivisionJ
@@ -4025,8 +4026,6 @@
       complex*16, dimension(2) :: G11,G31,G33
       complex*16, dimension(2) :: s331,s131,s333,s313
       real*8 :: k
-      !#< r   dos vectores (B sin vertical) para cada estrato !#>
-       !     el que va con sincgamma
        pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
        ikI(1) = 1
        ikF(1) = pos
@@ -4156,10 +4155,10 @@
                coFd = 1+4*(e-1)+5 ! sx
              end if ! e!= HS
 !            print*,ii,ik,Ga_o_nu,dir,e;print*,"   ",coIu,coFu,coId,coFd
-               this_coef(coIu:coFu,e,ik,dir,1) = matmul(Ak(1:tam,coIu:coFu,ik),&
+               this_coef(1:tam,e,ik,dir,1) = matmul(Ak(1:tam,coIu:coFu,ik),&
                   this_B(coIu:coFu,e,ik,dir))
              if (e .ne. N+1) then
-               this_coef(coId:coFd,e,ik,dir,2) = matmul(Ak(1:tam,coId:coFd,ik),&
+               this_coef(1:tam,e,ik,dir,2) = matmul(Ak(1:tam,coId:coFd,ik),&
                   this_B(coId:coFd,e,ik,dir))
              end if
            end do ! e
@@ -4167,6 +4166,7 @@
        end do ! Ga_o_Nu
        end do ! ik
        end do ! ii
+!      print*,CoefparGa(:,1,10,1,1);stop "PSVMatAporGaNU"
       end subroutine PSVMatAporGaNU
       
       subroutine  eGAeNU(i_zF,ik,pXI,dj) 
@@ -4192,8 +4192,9 @@
         complex*16, dimension(2) :: sincGamma, sincNu
         real*8 :: a,k
         real*8, pointer :: cose,seno
-        integer :: el_tipo_de_fuente
+        integer :: el_tipo_de_fuente,tam
       
+      tam = 4*N+2
       k = k_vec(ik)
       e_f => pXi%layer
       z_f => pXi%center%z
@@ -4267,16 +4268,22 @@
 !              1+4*(e-1)+4        ! sz
                coFd = 1+4*(e_f-1)+5 ! sx
              end if ! e!= HS
-      if (coIu .ne. 1) B(1:coIu,ik) = 0
+!     if (coIu .ne. 1) B(1:coIu-1,ik) = 0
              
-      B(coIu:coFu,ik) = CoefparGa(coIu:coFu,e_f,ik,dj,1)* sincGamma(1) + &
-                        CoefparNu(coIu:coFu,e_f,ik,dj,1)* sincNu(1) 
+      B(1:tam,ik) = CoefparGa(1:tam,e_f,ik,dj,1)* sincGamma(1) + &
+                    CoefparNu(1:tam,e_f,ik,dj,1)* sincNu(1) 
       if (e_f .ne. N+1) then
-      B(coId:coFd,ik) = CoefparGa(coId:coFd,e_f,ik,dj,2)* sincGamma(2) + &
-                        CoefparNu(coId:coFd,e_f,ik,dj,2)* sincNu(2)
+      B(1:tam,ik) = B(1:tam,ik) + & 
+                    CoefparGa(1:tam,e_f,ik,dj,2)* sincGamma(2) + &
+                    CoefparNu(1:tam,e_f,ik,dj,2)* sincNu(2)
       
-      if (coFd .ne. N+1) B(coFd:N+1,ik) = 0 
-      end if           
+!     if (coFd .ne. N+1) B(coFd+1:N+1,ik) = 0 
+      end if
+!     if (ik .eq. 10) then 
+!     print*,
+!     print*,B(:,ik)
+!     stop "eGAeNU"
+!     end if
       end subroutine  eGAeNU
       
       
@@ -6592,6 +6599,7 @@
       subroutine plotSisGram(PSV,SH,guardarW)
       use resultVars , only : iPtini,iPtfin,allpoints
       use waveNumVars, only : NFREC
+      use glovars, only : PlotFilledSabanas
       integer :: iP,i
       character(LEN=100) :: yax
       logical, intent(in) :: PSV,SH, guardarW
@@ -6609,11 +6617,11 @@
           call W_to_t(allpoints(iP)%resp(:)%W,'w--',yax,iP,& 
                     allpoints(iP)%center%x,& 
                     allpoints(iP)%center%z)
-          call chdir("..")       
+        end do   
+          call chdir("..")     
           call makeSabana('1_S-w__.pdf',.false.)
-          call makeSabana('1_S-w_f.pdf',.true.) ! filled traces
+          if(PlotFilledSabanas) call makeSabana('1_S-w_f.pdf',.true.) ! filled traces
           call chdir("traces")
-        end do 
         !u
         do iP = iPtini,iPtfin
           write(yAx,'(a)') '$u_1$ [m]'
@@ -6623,11 +6631,12 @@
           call W_to_t(allpoints(iP)%resp(:)%U,'u--',yax,iP,& 
                     allpoints(iP)%center%x,& 
                     allpoints(iP)%center%z)
-          call chdir("..")         
+        end do     
+          call chdir("..")     
           call makeSabana('1_S-u__.pdf',.false.)
-          call makeSabana('1_S-u_f.pdf',.true.) ! filled traces
+          if(PlotFilledSabanas) call makeSabana('1_S-u_f.pdf',.true.) ! filled traces
           call chdir("traces")
-        end do 
+         
         !Tractions
 ! !      do iP = iPtini,iPtfin
 ! !        write(yAx,'(a)') '$Tz_$ [m]'
@@ -6927,7 +6936,6 @@
        if (testPoints) then
       write(titleN,'(a)') '0___Sensors_movie.png'
        else
-      print*,"encuadre=",encuadre
       write(titleN,'(a,I0,a)') 'foto_',i,'.png'
        end if
       CALL SETFIL(trim(titleN))
