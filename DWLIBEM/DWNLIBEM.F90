@@ -1,6 +1,6 @@
       PROGRAM DWNLIBEM 
       use gloVars
-      use refSolMatrixVars, only : Ak,B,BparaGa,BparaNu,CoefparGa, CoefparNu
+      use refSolMatrixVars, only : Ak,B,BparaGa,BparaNu,CoefparGa, CoefparNu,subMatD0,subMatS0
       use waveNumVars
       use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq
       use debugStuff
@@ -218,7 +218,10 @@
       do ik = nmax+2,2*NMAX
         k_vec(ik) = (ik - 2*NMAX - 1) * dk
       end do
-      
+      allocate( gamma_E(0:2*nmax,N+1))
+      allocate( nu_E(0:2*nmax,N+1))
+      allocate( subMatD0(2,4,N+1,2*nmax))
+      allocate( subMatS0(3,4,N+1,2*nmax))
       allocate(t_vec(NPTSTIME))
       t_vec(1:NPTSTIME) = z0
       t_vec(1) = exp(cmplx(0.0,-0.01* dfrec * t0*(2*pi),8))
@@ -391,11 +394,12 @@
 !        end do ! ik
 !      go to 12
 !      end if
+       call makeGANU (J)
        
        do ik = 1,vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)
-         call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+         call gloMat_PSV(pointAp,pt_k,ik,pt_cOME_i)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
        end do ! ik
        
@@ -797,6 +801,13 @@
                          real(allpoints(iP)%center%x,4), & 
                          real(allpoints(iP)%center%z,4), & 
                          tt,xAx,yAx,PrintNum,1,2, onlythisJ, frecEnd)
+             
+             open(421,FILE= "outA_w.m",action="write",status="replace")
+             write(arg,'(a,I0,a)')"FK_",iP,"_w"
+             call scripToMatlabMNmatrixZ(NFREC+1,NMAX,& 
+                                         allpoints(iP)%FK(1:NFREC+1,1:NMAX,2),& 
+                                         arg,421)
+             close(421)
              end if
            end if
          end do
@@ -922,6 +933,7 @@
       use GeometryVars , only : staywiththefinersubdivision,finersubdivisionJ,&
        longitudcaracteristica_a, fraccionDeSmallestWL_segm_de_esquina
       use resultvars, only : overDeterminedSystem,OD_Jini,OD_Jend
+      use waveNumVars, only : SpliK
       implicit none
       logical :: lexist
       CALL chdir("ins")
@@ -944,6 +956,7 @@
       READ(35,*) staywiththefinersubdivision, finersubdivisionJ
       READ(35,*) overDeterminedSystem,OD_Jini,OD_Jend
       READ(35,*) cKbeta!; print*,"multBminIntegrando = ", cKbeta
+      READ(35,*) SpliK
       read(35,*) periodicdamper!; print*,"Periodic sources damping factor = ", periodicdamper
       READ(35,*) useAzimi
       read(35,*) developerfeature
@@ -1075,7 +1088,7 @@
       
       allocate(vecNk(NFREC+1))
       ! cantidad de numeros de onda {donde se invierte la matriz} en cada frecuencia
-      ! el resto hasta nmax+1 se interpola
+      ! el resto hasta nmax+1(o hasta SpliK) se interpola 
       vecNk = (/(i,i=1, NFREC+1)/)
       call splineIn(vecNk, & ! vector x [int]
                     vecNk, & ! vector interpolado [int]
@@ -2778,7 +2791,7 @@
       use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
-      use waveNumVars, only : NMAX,k_vec,dk,vecNK!,DFREC
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK!,DFREC
       use wavelets !fork 
       use dislin
       use sourceVars, only: tipofuente, nFuentes, PW_pol
@@ -2787,12 +2800,12 @@
       implicit none
       interface
         include 'interfaz.f'
-        function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k)
+        function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k,ik)
           use soilvars, only:N
           complex*16, dimension(1:5) :: PSVdiffByStrata
           real*8, intent(in)           :: z_i,k
           complex*16, intent(in)       :: cOME_i  
-          integer, intent(in)          :: e
+          integer, intent(in)          :: e,ik
           complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
         end function PSVdiffByStrata
         
@@ -2868,14 +2881,14 @@
             pt_k => k; pt_come_i => cOME!                                        ·
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
             pt_ipivA => ipivA; pt_workA => workA!                                ·
-            call gloMat_PSV(pointA,pt_k,pt_come_i)!                              ·
+            call gloMat_PSV(pointA,pt_k,0,pt_come_i)!                              ·
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
             call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
           end if!                                                                ·
       else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
       ! La fuente es cilíndrica, puede tratarse de la fuente real o una virtual ·· 
-        po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)                    !
+        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)                    !
         B(:,po:ne) = 0                                                           !
         if (dir_j .eq. 2) then                                                   !
          tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
@@ -2894,11 +2907,11 @@
          ! si la fuente está sobre una interfaz ...............
          if (pXi%isOnInterface) then
            do ik = 1,po                                                            !r
-             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !i
+             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)      !i
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
            end do                                                                  !a
            do ik = ne,2*NMAX                                                       !
-             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik))      !
+             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)      !
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
            end do
          else ! la fuente está entre interfaces ..............
@@ -2954,7 +2967,7 @@
             if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·p
             if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(pXi%gamma))!         ·l
                  savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
-                              p_X%center%z, p_X%layer,cOME,k)!                  ·a
+                              p_X%center%z, p_X%layer,cOME,k,0)!                  ·a
           end if!                                                               ·
       else ! onda plana incidente / onda cilíndrica circular ····················
         do ik = 1,po                                                            !
@@ -2965,7 +2978,7 @@
               savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)              !d
           else !PSV                                                             !a
               savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
-                              p_X%center%z, p_X%layer,cOME,k_vec(ik))           !i
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)           !i
           end if                                                                !l
         end do ! ik                                                             !i
         do ik = ne,2*Nmax                                                       !n
@@ -2976,7 +2989,7 @@
              savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)               !a
           else !PSV                                                             !
              savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
-                                 p_X%center%z, p_X%layer,cOME,k_vec(ik))        !
+                                 p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !
           end if                                                                !
         end do ! ik                                                             !
       end if! onda cilíndrica circular ··········································
@@ -3116,21 +3129,68 @@
       end subroutine diffField_at_iz
       
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
-      subroutine gloMat_PSV(this_A,k,cOME_i)
+
+      subroutine makeGANU (J)
+      use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, gamma=>gamma_E,nu=>nu_E
+      use soilVars, only : ALFA,BETA,N,alfa0,beta0
+      use sourceVars, only : FirstSource=>Po,PW_pol
+      implicit none
+      integer :: J,po,ne,e,ii,ik,ikI(2),ikF(2)
+      real*8  :: k
+      complex*16 :: omeAlf,omeBet
+      
+      ! gamma y nu en esta frecuencia
+       po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)
+       ikI(1) = 1 
+       ikF(1) = po
+       ikI(2) = ne
+       ikF(2) = 2*nmax
+       do e = 1,N+1
+          omeAlf = cOME**2.0/ALFA(e)**2.0
+          omeBet = cOME**2.0/BETA(e)**2.0
+       ! de la onda plana
+       ik = 0
+       if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(FirstSource(1)%gamma))
+       if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(FirstSource(1)%gamma))
+       gamma(ik,e) = sqrt(omeAlf - k**2.0)
+       nu(ik,e) = sqrt(omeBet - k**2.0)
+       if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
+       if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+       
+       ! de ondas cilíndricas
+       do ii=1,2 ! los num de onda positivos, negativos
+       do ik = ikI(ii),ikF(ii) !  todos los num de onda
+          k = k_vec(ik)
+          ! algunas valores constantes para todo el estrato          
+          gamma(ik,e) = sqrt(omeAlf - k**2.0)
+          nu(ik,e) = sqrt(omeBet - k**2.0)
+          ! Se debe cumplir que la parte imaginaria del número de onda 
+          ! vertical debe ser menor que cero. La parte imaginaria contri-
+          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
+          ! nencial a medida que z crece.
+          if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
+          if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+       end do ! ik
+       end do ! ii
+       end do ! e 
+      end subroutine makeGANU
+
+      subroutine gloMat_PSV(this_A,k,ik,cOME_i)
       ! Calcular para +k. Una vez invertida la matrix, hay paridades para -k.
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
       use debugStuff
+      use waveNumVars, only : gamma_E,nu_E
+      use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       complex*16,    intent(inout), dimension(:,:),pointer :: this_A
       real*8,     intent(in),pointer     :: k
       complex*16, intent(in),pointer     :: cOME_i 
-      
+      integer :: ik
       real*8     :: k2
-      complex*16, dimension(2,4) :: subMatD,subMatS, &
-                                   subMatD0,subMatS0
+      complex*16, dimension(2,4) :: subMatD,subMatS
       complex*16, dimension(4,4) :: diagMat
-      complex*16 :: gamma,nu,xi,ega,enu,ck
+      complex*16 :: gamma,nu,xi,eta,ega,enu,ck
       integer    :: i,iR,iC,e,bord
       this_A = 0 
       ck = -k*UR
@@ -3140,25 +3200,35 @@
       end if
       
       DO e = i,N+1
-          gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-          nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-          ! Se debe cumplir que la parte imaginaria del número de onda 
-          ! vertical debe ser menor que cero. La parte imaginaria contri-
-          ! buye ondas planas inhomogéneas con decaimiento expo-
-          ! nencial a medida que z crece.
-          if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-          if(aimag(nu).gt.0.0)nu= conjg(nu)
+!         if (ik .ne. 0) then
+          gamma = gamma_E(ik,e)
+          nu = nu_E(ik,e)
+!         else
+!         gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
+!         nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+!         if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+!         if(aimag(nu).gt.0.0)nu= conjg(nu)
+!         end if
+          !print*,e,ik,gamma,nu
           xi = k**2.0 - nu**2.0 
+          eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+      
           ! en fortran los elementos se indican por columnas:
-          subMatD0 = RESHAPE((/ -gamma, ck, ck,nu,& 
-                                 gamma, ck, ck,-nu /), &
+          subMatD0(1:2,1:4,e,ik) = RESHAPE((/ -gamma, ck, ck,nu,& 
+                                               gamma, ck, ck,-nu /), &
                            (/ 2,4 /))
-          subMatD0 = subMatD0 * UI
+          subMatD0(1:2,1:4,e,ik) = subMatD0(1:2,1:4,e,ik) * UI
           k2 = 2.0*k
-          subMatS0 = RESHAPE((/ xi,-k2*gamma,-k2*nu,-xi,& 
-                               xi,k2*gamma,k2*nu,-xi /),&
-                           (/2,4/)) 
-          subMatS0 = amu(e) * subMatS0 
+!         subMatS0 = RESHAPE((/ xi,-k2*gamma,-k2*nu,-xi,& 
+!                              xi,k2*gamma,k2*nu,-xi /),&
+!                          (/2,4/)) 
+          subMatS0(1:3,1:4,e,ik) = RESHAPE(& 
+                        (/ xi,      -k2*gamma,     eta,     &
+                          -k2*nu,     -xi,        k2*nu,   &
+                           xi,       k2*gamma,     eta,       &
+                           k2*nu,     -xi,       -k2*nu /),&
+                           (/3,4/)) 
+          subMatS0(1:3,1:4,e,ik) = amu(e) * subMatS0(1:3,1:4,e,ik)
           ! la profundidad z de la frontera superior del estrato
 !         z_i = Z(e)   ! e=1  ->  z = z0 = 0
 !         z_f = Z(e+1) ! e=1  ->  z = z1 
@@ -3194,9 +3264,9 @@
                            (/ 4,4 /))
         end if
           ! desplazamientos
-          subMatD = matmul(subMatD0,diagMat)
+          subMatD = matmul(subMatD0(1:2,1:4,e,ik),diagMat)
           ! esfuerzos
-          subMatS = matmul(subMatS0,diagMat)
+          subMatS = matmul(subMatS0(1:2,1:4,e,ik),diagMat)
         !ensamble de la macro columna i
           !evaluadas en el borde SUPERIOR del layer i
           if (bord == 0 .AND. e /= 0 ) then 
@@ -3586,11 +3656,13 @@
       use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
       use waveNumVars, only : k_vec, NMAX
       use fitting
+      use soilvars, only:alfa,beta,Nestr => N
+      use waveNumVars, only : gamma=>gamma_E,nu=>nu_E
       implicit none
       interface
       include 'interfaz.f'
       end interface
-      integer :: i,k0,k1,k2,n,tam,r,c,ik
+      integer :: i,k0,k1,k2,n,tam,r,c,ik,e
 !     integer :: d != 4
       real*8 :: ratio,step
       real*8, dimension(n)     :: xdat
@@ -3621,9 +3693,16 @@
       xdat(n) = k_vec(idat(n))
 !     do i=1,n;print*,i,idat(i);end do;stop
       do i=2,n
-         pointAp => Ak(1:tam,1:tam,idat(i))
-         pt_k => k_vec(idat(i))
-         call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+         ik = idat(i)
+         pointAp => Ak(1:tam,1:tam,ik)
+         pt_k => k_vec(ik)
+            do e=1,Nestr+1
+              gamma(ik,e) = sqrt(pt_cOME_i**2.0/ALFA(e)**2.0 - pt_k**2.0)
+              nu(ik,e) = sqrt(pt_cOME_i**2.0/BETA(e)**2.0 - pt_k**2.0)
+              if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
+              if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+            end do ! e
+         call gloMat_PSV(pointAp,pt_k,ik,pt_cOME_i)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do
       
@@ -3685,7 +3764,7 @@
          k1 = k0 + int((i-1)*step)
          pointAp => Ak(1:tam,1:tam,k1)
          pt_k => k_vec(k1)
-         call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
+         call gloMat_PSV(pointAp,pt_k,k1,pt_cOME_i)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do
       ! interpolar cada elemento
@@ -3758,15 +3837,16 @@
       end subroutine parImpar_gloMat
       
 ! G_stra - term indep
-      subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k)
+      subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k,ik)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
 !     use debugStuff
       use resultvars, only : Punto
       use sourceVars, only: tipofuente
+      use waveNumVars, only : gamma_E,nu_E
       implicit none
       
-      integer, intent(in) :: i_zF,tam
+      integer, intent(in) :: i_zF,tam,ik
       complex*16, intent(inout), dimension(tam) :: this_B
       integer,    intent(in)    :: direction
       real*8,     intent(in)    :: k
@@ -3781,7 +3861,7 @@
       real    :: SGNz
       complex*16 :: gamma,nu,DEN,L2M, argum,sincmod
       real*8     :: errT = 0.0001_8
-      complex*16 :: omeAlf,omeBet
+!     complex*16 :: omeAlf,omeBet
       
       ! una para cada interfaz (la de arriba [1] y la de abajo [2])
       real*8,     dimension(2) :: z_loc
@@ -3815,23 +3895,10 @@
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
       if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente 
       
-!     G11=Z0;G31=Z0;G33=Z0
-!     s331=Z0;s131=Z0;s333=Z0;s313=Z0
-      
       DEN = 4.0*PI*RHO(e_f)*cOME**2.0
-      omeAlf = cOME**2.0/ALFA(e_f)**2.0
-      omeBet = cOME**2.0/BETA(e_f)**2.0
       L2M = LAMBDA(e_f) + 2.0*AMU(e_f)
-      
-          ! algunas valores constantes para todo el estrato          
-          gamma = sqrt(omeAlf - k**2.0)
-          nu = sqrt(omeBet - k**2.0)
-          ! Se debe cumplir que la parte imaginaria del número de onda 
-          ! vertical debe ser menor que cero. La parte imaginaria contri-
-          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
-          ! nencial a medida que z crece.
-          if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
-          if(aimag(nu).gt.0.0_8)nu=conjg(nu)
+      gamma = gamma_E(ik,e_f)
+      nu = nu_E(ik,e_f)
           
       do iIf = 1,2
           egamz(iIf) = exp(-UI*gamma*ABS(z_loc(iIf)))
@@ -4014,19 +4081,19 @@
       
       
       subroutine PSVpaGaNU(J) 
-      use waveNumVars, only : cOME,vecNK,k_vec,nmax
+      use waveNumVars, only : cOME,vecNK,k_vec,nmax,SpliK,gamma_E,nu_E
       use soilVars
       use gloVars, only : UR,UI,PI
       use refSolMatrixVars, only : BparaGa,BparaNu
       implicit none
       integer, intent(in) :: J
       complex*16, dimension(:,:,:,:),pointer :: this_B
-      complex*16 :: gamma,nu,DEN,L2M,omeAlf,omeBet
+      complex*16 :: gamma,nu,DEN,L2M!,omeAlf,omeBet
       integer :: ii,ik,e,Ga_o_Nu,dir,pos,neg,ikI(2),ikF(2)
       complex*16, dimension(2) :: G11,G31,G33
       complex*16, dimension(2) :: s331,s131,s333,s313
       real*8 :: k
-       pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
+       pos = min(int(vecNK(J)*SpliK),nmax); neg = 2*nmax-(pos-2)
        ikI(1) = 1
        ikF(1) = pos
        ikI(2) = neg
@@ -4037,20 +4104,21 @@
        do e=1,N+1 ! estrato que contiene la fuerza
          
          DEN = 4.0*PI*RHO(e)*cOME**2.0
-         omeAlf = cOME**2.0/ALFA(e)**2.0
-         omeBet = cOME**2.0/BETA(e)**2.0
+!        omeAlf = cOME**2.0/ALFA(e)**2.0
+!        omeBet = cOME**2.0/BETA(e)**2.0
          L2M = LAMBDA(e) + 2.0*AMU(e)
       
-          ! algunas valores constantes para todo el estrato          
-          gamma = sqrt(omeAlf - k**2.0)
-          nu = sqrt(omeBet - k**2.0)
-          ! Se debe cumplir que la parte imaginaria del número de onda 
-          ! vertical debe ser menor que cero. La parte imaginaria contri-
-          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
-          ! nencial a medida que z crece.
-          if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
-          if(aimag(nu).gt.0.0_8)nu=conjg(nu)
-          
+!         ! algunas valores constantes para todo el estrato          
+!         gamma = sqrt(omeAlf - k**2.0)
+!         nu = sqrt(omeBet - k**2.0)
+!         ! Se debe cumplir que la parte imaginaria del número de onda 
+!         ! vertical debe ser menor que cero. La parte imaginaria contri-
+!         ! buye a tener ondas planas inhomogéneas con decaimiento expo-
+!         ! nencial a medida que z crece.
+!         if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
+!         if(aimag(nu).gt.0.0_8)nu=conjg(nu)
+          gamma = gamma_E(ik,e)
+          nu = nu_E(ik,e)
          
          ! the green function indexes go for the part
          ! that is multiplied by exp(gamma) : 1
@@ -4118,7 +4186,7 @@
       end subroutine PSVpaGANU
       
       subroutine PSVMatAporGaNU(J) ! multiplicar marices A y (casi) B
-      use waveNumVars, only : vecNK, nmax
+      use waveNumVars, only : vecNK, nmax,SpliK
       use soilVars, only:N
       use refSolMatrixVars, only : BparaGa,BparaNu,CoefparGa,CoefparNu,Ak
       implicit none
@@ -4128,7 +4196,7 @@
       integer :: ii,ik,e,Ga_o_Nu,dir,pos,neg,ikI(2),ikF(2),tam,& 
                 coIu,coFu,coId,coFd
        tam = 4*N+2
-       pos = min(int(vecNK(J)*1.25),nmax); neg = 2*nmax-(pos-2)
+       pos = min(int(vecNK(J)*SpliK),nmax); neg = 2*nmax-(pos-2)
        ikI(1) = 1
        ikF(1) = pos
        ikI(2) = neg
@@ -4171,7 +4239,7 @@
       
       subroutine  eGAeNU(i_zF,ik,pXI,dj) 
       !hacer sincGamma y sincNu para cada interfaz y devolver B final
-        use waveNumVars, only : cOME,k_vec
+        use waveNumVars, only : k_vec,gamma_E,nu_E!cOME,
         use resultVars, only : Punto
         use soilVars
         use sourceVars, only: tipofuente
@@ -4183,9 +4251,9 @@
         integer, pointer :: e_f
         real*8, pointer :: z_f
         logical, pointer :: fisInterf
-        integer :: iIf,coIu,coFu,coId,coFd
+        integer :: iIf
         complex*16 :: gamma,nu,argum,sincmod
-        complex*16 :: omeAlf,omeBet
+!       complex*16 :: omeAlf,omeBet
       ! una para cada interfaz (la de arriba [1] y la de abajo [2])
         real*8,     dimension(2) :: z_loc
         complex*16, dimension(2) :: egamz,enuz,gamz,nuz
@@ -4206,17 +4274,19 @@
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
       if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente 
       
-      omeAlf = cOME**2.0/ALFA(e_f)**2.0
-      omeBet = cOME**2.0/BETA(e_f)**2.0
-          ! algunas valores constantes para todo el estrato          
-          gamma = sqrt(omeAlf - k**2.0)
-          nu = sqrt(omeBet - k**2.0)
-          ! Se debe cumplir que la parte imaginaria del número de onda 
-          ! vertical debe ser menor que cero. La parte imaginaria contri-
-          ! buye a tener ondas planas inhomogéneas con decaimiento expo-
-          ! nencial a medida que z crece.
-          if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
-          if(aimag(nu).gt.0.0_8)nu=conjg(nu)
+!     omeAlf = cOME**2.0/ALFA(e_f)**2.0
+!     omeBet = cOME**2.0/BETA(e_f)**2.0
+!         ! algunas valores constantes para todo el estrato          
+!         gamma = sqrt(omeAlf - k**2.0)
+!         nu = sqrt(omeBet - k**2.0)
+!         ! Se debe cumplir que la parte imaginaria del número de onda 
+!         ! vertical debe ser menor que cero. La parte imaginaria contri-
+!         ! buye a tener ondas planas inhomogéneas con decaimiento expo-
+!         ! nencial a medida que z crece.
+!         if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
+!         if(aimag(nu).gt.0.0_8)nu=conjg(nu) 
+          gamma = gamma_E(ik,e_f)
+          nu = nu_E(ik,e_f)
           
       do iIf = 1,2
           egamz(iIf) = exp(-UI*gamma*ABS(z_loc(iIf)))
@@ -4256,34 +4326,13 @@
       
       !#< r obtener vector de Coeficientes de ondas final !#>
       ! multiplicar por los coeficientes de cada interfaz para Ga y Nu
-               coIu = 1+4*(e_f-1)   ! sz
-             if (e_f .ne. 1) then
-               coIu = 1+4*(e_f-1)-2 ! w
-               coFu = 1+4*(e_f-1)-1 ! u
-             end if ! e!= 1
-               coFu = 1+4*(e_f-1)+1 ! sx
-             if (e_f .ne. N+1) then
-               coId = 1+4*(e_f-1)+2 ! w
-!              1+4*(e-1)+3        ! u
-!              1+4*(e-1)+4        ! sz
-               coFd = 1+4*(e_f-1)+5 ! sx
-             end if ! e!= HS
-!     if (coIu .ne. 1) B(1:coIu-1,ik) = 0
-             
       B(1:tam,ik) = CoefparGa(1:tam,e_f,ik,dj,1)* sincGamma(1) + &
                     CoefparNu(1:tam,e_f,ik,dj,1)* sincNu(1) 
       if (e_f .ne. N+1) then
       B(1:tam,ik) = B(1:tam,ik) + & 
                     CoefparGa(1:tam,e_f,ik,dj,2)* sincGamma(2) + &
                     CoefparNu(1:tam,e_f,ik,dj,2)* sincNu(2)
-      
-!     if (coFd .ne. N+1) B(coFd+1:N+1,ik) = 0 
       end if
-!     if (ik .eq. 10) then 
-!     print*,
-!     print*,B(:,ik)
-!     stop "eGAeNU"
-!     end if
       end subroutine  eGAeNU
       
       
@@ -4485,17 +4534,19 @@
 ! G_stra - results 
       ! coeficientes de las ondas planas emitidias en cada interfaz 
       ! para representar el campo difractado por estratigrafía
-      function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k)
+      function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k,ik)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0!,PrintNum,verbose
       use resultVars, only : MecaElem
+      use waveNumVars, only : gamma_E,nu_E
+      use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       
       complex*16, dimension(1:5) :: PSVdiffByStrata
 !     type (MecaElem)              :: PSVdiffByStrata
       real*8, intent(in)           ::  z_i,k
       complex*16, intent(in)       :: cOME_i  
-      integer, intent(in)          :: e!,outpf,mecStart,mecEnd
+      integer, intent(in)          :: e,ik!,outpf,mecStart,mecEnd
       complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
       complex*16 :: gamma,nu,xi,eta
       complex*16 :: egammaN,enuN,egammaP,enuP
@@ -4512,10 +4563,16 @@
 !                   real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
 !     end if !#> 
 !     PSVdiffByStrata = 0
-      gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-      nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-      if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-      if(aimag(nu).gt.0.0)nu= conjg(nu)
+      if (ik .ne. 0) then
+       gamma = gamma_E(ik,e)
+       nu = nu_E(ik,e)
+      else
+       gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
+       nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+       if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+       if(aimag(nu).gt.0.0)nu= conjg(nu)
+      end if
+      
       xi = k**2.0 - nu**2.0
       eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
           
@@ -4550,20 +4607,21 @@
           coeffsPSV(1:2) = (/z0,z0/)
           coeffsPSV(3:4) = coefOndas_PSV(1 : 2)
         elseif (e .eq. N+1) then ! semiespacio de abajo
-          coeffsPSV(1:2) = coefOndas_PSV(4*(e-1)+1+i: 4*(e-1)+2+i)
+          coeffsPSV(1:2) = coefOndas_PSV(4*(e-1)+1+i : 4*(e-1)+2+i)
           coeffsPSV(3:4) = (/z0,z0/)
         else! estrato
           coeffsPSV(1:4) = coefOndas_PSV(4*(e-1)+1+i : 4*(e-1)+4+i)
         end if      
- 
+  
       ! desplazamientos
         ! {W}
         ! {U}
-        subMatD = RESHAPE((/ -gamma,-k*UR,-k*UR,nu, & 
-                              gamma,-k*UR,-k*UR,-nu /), &
-                           (/ 2,4 /))
-
-        subMatD = UI * subMatD
+!       subMatD = RESHAPE((/ -gamma,-k*UR,-k*UR,nu, & 
+!                             gamma,-k*UR,-k*UR,-nu /), &
+!                          (/ 2,4 /))
+!       subMatD = UI * subMatD
+        subMatD = subMatD0(1:2,1:4,e,ik)
+        
         subMatD = matmul(subMatD,diagMat)
         ! Pdown Sdown Pup Sup
         resD = matmul(subMatD, coeffsPSV)
@@ -4572,13 +4630,15 @@
         PSVdiffByStrata(2) = resD(2) !U
        
       ! esfuerzos
-        subMatS = RESHAPE((/ xi,      -2.0*k*gamma,     eta,     &
-                          -2.0*k*nu,     -xi,        2.0*k*nu,   &
-                           xi,       2.0*k*gamma,     eta,       &
-                           2.0*k*nu,     -xi,       -2.0*k*nu /),&
-                           (/3,4/))      
-     
-        subMatS = amu(e) * subMatS
+!       subMatS = RESHAPE((/ xi,      -2.0*k*gamma,     eta,     &
+!                         -2.0*k*nu,     -xi,        2.0*k*nu,   &
+!                          xi,       2.0*k*gamma,     eta,       &
+!                          2.0*k*nu,     -xi,       -2.0*k*nu /),&
+!                          (/3,4/))      
+!    
+!       subMatS = amu(e) * subMatS
+        subMatS = subMatS0(1:3,1:4,e,ik)
+        
         subMatS = matmul(subMatS,diagMat)
         resS = matmul(subMatS, coeffsPSV)
         
@@ -5413,7 +5473,7 @@
             
       subroutine fill_diffbyStrata(i_zf,J,auxK,come,mecS,mecE,p_x,pXi,dir_j)
       use resultvars, only:Punto,FFres, nIpts
-      use waveNumVars, only : NMAX,k_vec,dk,vecNK
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK
       use meshvars, only: npixX,MeshMaxX,MeshMinX 
       use wavelets !fork
       use soilvars, only:alfa0,beta0,N
@@ -5465,7 +5525,7 @@
                p_xaux%isOnInterface = p_x%isOnInterface
                p_xaux%layer = p_x%layer
                p_Xmov => p_xaux
-        po = min(int(vecNK(J)*1.25),nmax); ne = 2*nmax-(po-2)
+        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)
         do i = 1,npixX ! para cada hermanito
           mov_x = MeshMinX + (MeshMaxX - MeshMinX)/(npixX-1) * (i-1)! la coordenada x
           p_Xmov%center%x = mov_x

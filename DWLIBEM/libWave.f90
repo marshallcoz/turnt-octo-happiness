@@ -61,12 +61,13 @@
       integer,save      :: NFREC,NPTSTIME
       integer,dimension (:),allocatable :: vecNK
       complex*16,target :: cOME  
-      real*8   ,save    :: FREC,DFREC,OME,OMEI,TW, smallestWL
+      real*8   ,save    :: FREC,DFREC,OME,OMEI,TW, smallestWL,SpliK
       !Discrete Wave-number:
       real*8   ,save    :: DK    ! delta k
       real*8, dimension(:), allocatable,target :: k_vec
       integer,save      :: NK,NMAX
       complex*16, dimension(:), allocatable :: t_vec
+      complex*16, dimension(:,:), allocatable :: gamma_E,nu_E!(ik,e)
       logical,save      :: trimKplease
       type(C_PTR),save  :: planNmaxF,planNmaxB,& 
                            planNfrecF,planNfrecB,& 
@@ -87,7 +88,10 @@
         !                     | '-- estrato [N+1]
         !                     '-- onda desde la interfaz [4N+2]
         
-        
+        complex*16, dimension(:,:,:,:),allocatable :: subMatD0,subMatS0
+        !                         | '-- ik
+        !                         '- estrato
+        !                      ' '-- renglon,columna
       end module refSolMatrixVars
             
 
@@ -2468,6 +2472,7 @@
 !     print*,'plotted ',trim(titleN)
       end subroutine plotXYabs
       
+
       subroutine plotFK(thisFK,x,z,tt,xAx,yAx,outpf, imecS ,imecE,onlythisJ,JJ) 
       use DISLIN
       use waveNumVars, only : NFREC,NMAX,DFREC,DK
@@ -2492,10 +2497,10 @@
       integer :: i,ik,iMec!,Sf
 !     real :: k
       real :: minX,minY,maxX,maxY,xstep,ystep,miV,maV,Vstep,mama!,x_i,z_i
-      real, dimension(41)   :: ZLVRAY
+      real, dimension(41)   :: ZLVRAY!real, dimension(41)   :: ZLVRAY
       real, parameter :: p = 27. ! sharpness parameter
       logical :: onlythisJ
-      integer :: JJ
+      integer :: JJ,coI
       
       if(verbose>=2)write(outpf,'(a,a,a)') "will plot ",trim(tt),"..."
             
@@ -2580,26 +2585,42 @@
       mama = max(abs(miV),abs(maV))
       miV = -mama
       maV = mama
-      Vstep = (maV-miV)/40.0
-      DO i = 1,41
+      Vstep = (maV-miV)/(size(ZLVRAY)-1)
+      DO i = 1,size(ZLVRAY)
         ZLVRAY(i) = miV + Vstep * (i-1)
       end do
       CALL axspos (int(360,4) ,int(2200,4)) !the position of an axis system. Lower left corner
       call axslen (int(1000,4),int(2000,4)) !size of the axis system.
-      call labdig(int(2,4),'XY') !number of decimal places for labels
+      call labdig(int(0,4),'X') !number of decimal places for labels
+      call labdig(int(2,4),'Y') !number of decimal places for labels
       call labdig(int(1,4),'Z') !number of decimal places for labels
       call labels('EXP','Z')
       call name(trim(xAx),'X') 
       call name(trim(yAx),'Y')
       CALL SETVLT ('SPEC')
+      call setgrf("NAME", "NAME", "LINE", "LINE") 
+      call graf(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
+                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4)) 
      
-      call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
-                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
-                 real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
-                 
+!     call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
+!                real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
+!                real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4))            
+                           
+!     do coI = 1,int(size(ZLVRAY)/3)
+!     call CONTUR(real(vHorz,4), int(size(vHorz),4), & 
+!                 real(vVert,4), int(size(vVert),4), & 
+!                 real(Mre,4), real(ZLVRAY(coI),4))
+!     end do            
+!     
+!     coI = int(size(ZLVRAY)/3)
+!     CALL SHDMOD ('POLY', 'CONTUR')                       
+!     CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
+!                 real(vVert,4), int(size(vVert),4), & 
+!                 real(Mre,4), real(ZLVRAY(1:coI),4),coI)
+      CALL SHDMOD ('POLY', 'CONTUR')                       
       CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
                   real(vVert,4), int(size(vVert),4), & 
-                  real(Mre,4), real(ZLVRAY,4),int(41,4))
+                  real(Mre,4), real(ZLVRAY,4),size(ZLVRAY))
       CALL ENDGRF
       ! imag
       miV = minval(Mim)*0.1!;print *, imec,"min",miV
@@ -2612,26 +2633,42 @@
       mama = max(abs(miV),abs(maV))
       miV = -mama
       maV = mama
-      Vstep = (maV-miV)/40.0
-      DO i = 1,41
+      Vstep = (maV-miV)/(size(ZLVRAY)-1)
+      DO i = 1,size(ZLVRAY)
         ZLVRAY(i) = miV + Vstep * (i-1)
       end do
-      CALL axspos (int(2150,4) ,int(2200,4)) !the position of an axis system. Lower left corner
+      CALL axspos (int(1500,4) ,int(2200,4)) !the position of an axis system. Lower left corner
+!     CALL axspos (int(2150,4) ,int(2200,4)) !the position of an axis system. Lower left corner
       call axslen (int(1000,4),int(2000,4)) !size of the axis system.
-      call labdig(int(2,4),'XY') !number of decimal places for labels
+      call labdig(int(0,4),'XY') !number of decimal places for labels
       call labdig(int(1,4),'Z') !number of decimal places for labels
       call labels('EXP','Z')
       call name(trim(xAx),'X') 
       call name(trim(" "),'Y')
+      call ticks (int(1,4) ,'Y')
       CALL SETVLT ('SPEC')
-     
-      call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
-                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
-                 real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
-                 
+      call setgrf("NAME", "LINE", "LINE", "LINE") 
+!     call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
+!                real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
+!                real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
+!     
+      call graf(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
+                 real(minY,4),real(maxY,4),real(minY,4),real(ystep,4)) 
+!     do coI = 1,int(size(ZLVRAY)/3)
+!     call CONTUR(real(vHorz,4), int(size(vHorz),4), & 
+!                 real(vVert,4), int(size(vVert),4), & 
+!                 real(Mim,4), real(ZLVRAY(coI),4))
+!     end do
+!     
+      CALL SHDMOD ('POLY', 'CONTUR')       
+!     coI = int(size(ZLVRAY)/3)     
+!     CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
+!                 real(vVert,4), int(size(vVert),4), & 
+!                 real(Mim,4), real(ZLVRAY(1:coI),4),coI)                             
       CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
                   real(vVert,4), int(size(vVert),4), & 
-                  real(Mim,4), real(ZLVRAY,4),int(41,4))
+                  real(Mim,4), real(ZLVRAY,4),size(ZLVRAY))
+
       CALL ENDGRF
       ! abs
       miV = minval(Mab) !;print *, imec,"min",miV
@@ -2641,27 +2678,29 @@
       CALL DISFIN()
       cycle
       end if 
-      Vstep = (maV-miV)/40.0
+      Vstep = (maV-miV)/(size(ZLVRAY)-1)
       
-      DO i = 1,41
+      DO i = 1,size(ZLVRAY)
         ZLVRAY(i) = miV + Vstep * (i-1)
       end do
-      CALL axspos (int(4000,4) ,int(2200,4)) !the position of an axis system. Lower left corner
-      call axslen (int(1000,4),int(2000,4)) !size of the axis system.
+      CALL axspos (int(2650,4) ,int(2200,4)) !the position of an axis system. Lower left corner
+!     CALL axspos (int(4000,4) ,int(2200,4)) !the position of an axis system. Lower left corner
+      call axslen (int(2400,4),int(2000,4)) !size of the axis system.
       call labdig(int(2,4),'XY') !number of decimal places for labels
       call labdig(int(1,4),'Z') !number of decimal places for labels
-      call labels('EXP','Z')
+      call labels('FLOAT','Z')
       call name(trim(xAx),'X') 
-      call name(trim(" "),'Y')
+      call name(trim(" "),'Y') 
+      call ticks (int(1,4) ,'Y')
       CALL SETVLT ('TEMP')
-     
+      call setgrf("NAME", "LINE", "LINE", "LINE") 
       call graf3(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), & 
                  real(minY,4),real(maxY,4),real(minY,4),real(ystep,4), & 
                  real(miV,4),real(maV,4),real(miV,4),real(Vstep*4.0,4)) 
-                 
+      CALL SHDMOD ('CELL', 'CONTUR')           
       CALL CONSHD(real(vHorz,4), int(size(vHorz),4), & 
                   real(vVert,4), int(size(vVert),4), & 
-                  real(Mab,4), real(ZLVRAY,4),int(41,4))
+                  real(Mab,4), real(ZLVRAY,4),size(ZLVRAY))
       
       CALL ENDGRF
       

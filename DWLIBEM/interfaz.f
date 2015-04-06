@@ -4,9 +4,10 @@
           complex*16, intent(in),pointer     :: cOME_i 
         end subroutine globalmatrix_PSV
         
-        subroutine gloMat_PSV(this_A,k,cOME_i)
+        subroutine gloMat_PSV(this_A,k,ik,cOME_i)
           complex*16,    intent(inout), dimension(:,:),pointer :: this_A
           real*8,     intent(in),pointer     :: k
+          integer :: ik
           complex*16, intent(in),pointer     :: cOME_i 
         end subroutine gloMat_PSV
         
@@ -51,10 +52,10 @@
          integer, intent(in) :: itabla_x, itabla_z, i_Fuente
         end subroutine asociar
         
-        subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k)
+        subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k,ik)
           use resultvars, only : Punto
           use soilVars, only : N
-          integer, intent(in) :: i_zF,tam
+          integer, intent(in) :: i_zF,tam,ik
           complex*16, intent(inout), dimension(tam) :: this_B
           integer,    intent(in)    :: direction
           real*8,     intent(in)    :: k
