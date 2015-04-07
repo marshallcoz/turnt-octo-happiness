@@ -3077,9 +3077,9 @@
                       p_x%FK(J,1:nmax,3) + auxK(1:nmax,imec) 
                     end if
                  else
-                    if( imec .le. 2) then                                   !
-                      p_x%FK(J,1:nmax,imec) = & 
-                      p_x%FK(J,1:nmax,imec) + auxK(1:nmax,imec) 
+                    if( imec .le. 2) then      
+                      p_x%FK(J,1:po,imec) = auxK(1:po,imec) 
+                      p_x%FK(J,po+1:nmax,imec) = 0
                     end if
                 end if;end if;end if;end if!-------------------------       !
 #ifdef ver
