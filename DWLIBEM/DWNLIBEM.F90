@@ -2955,7 +2955,8 @@
             
       ! ... elementos mecánicos a la profundidad p_X%center%z ........
       ! .... usando los coeficientes de las ondas en el estrato ......
-      savedauxk = z0
+!     savedauxk = z0
+!     savedauxk(po+1:ne-1,:) = 0
       if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana·············
           if (dir_j .eq. 2) then!                                               ·
             if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·
@@ -2978,7 +2979,7 @@
               savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)              !d
           else !PSV                                                             !a
               savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
-                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)           !i
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !i
           end if                                                                !l
         end do ! ik                                                             !i
         do ik = ne,2*Nmax                                                       !n
@@ -2989,7 +2990,7 @@
              savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)               !a
           else !PSV                                                             !
              savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
-                                 p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !
+                                 p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)     !
           end if                                                                !
         end do ! ik                                                             !
       end if! onda cilíndrica circular ··········································
@@ -3034,7 +3035,9 @@
 #endif
       ! fase horizontal
             ! reponer auxK original sin fase horizontal
-          auxK(1:2*nmax,mecS:mecE) = savedAuxK(1:2*nmax,mecS:mecE)
+!         auxK(1:2*nmax,mecS:mecE) = savedAuxK(1:2*nmax,mecS:mecE)
+          auxK(1:po,mecS:mecE)      = savedAuxK(1:po,mecS:mecE)
+          auxK(ne:2*nmax,mecS:mecE) = savedAuxK(ne:2*nmax,mecS:mecE)
             ! agregar información fase horizontal de fuente y receptor 
           do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
             if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then !             ·
@@ -3086,7 +3089,10 @@
 #endif
       ! K -> X  .........................................................   !
          if (p_x%guardarMovieSiblings .eqv. .false.) then
-             auxK(:,iMec) = FFTW(2*nmax,auxK(:,iMec),+1,dk) !backward       !
+!            auxK(:,iMec) = FFTW(2*nmax,auxK(:,iMec),+1,dk) !backward       !
+             auxK(1,iMec) = sum(auxK(1:po,iMec))+sum(auxK(ne:2*nmax,iMec))
+             auxK(1,iMec) = auxK(1,iMec)*dk
+             
 #ifdef ver
        call ETIME(tarray, result)                                           !
        print*,"        fork non movie", result-lastresult                   !
@@ -3189,7 +3195,8 @@
       integer :: ik
       real*8     :: k2
       complex*16, dimension(2,4) :: subMatD,subMatS
-      complex*16, dimension(4,4) :: diagMat
+!     complex*16, dimension(4,4) :: diagMat
+      complex*16, dimension(4) :: diagMat
       complex*16 :: gamma,nu,xi,eta,ega,enu,ck
       integer    :: i,iR,iC,e,bord
       this_A = 0 
@@ -3244,11 +3251,12 @@
             ega = Z0
             enu = Z0
           end if
-          diagMat = RESHAPE((/ UR, Z0, Z0, Z0, & 
-                               Z0, UR, Z0, Z0, & 
-                               Z0, Z0, ega, Z0, & 
-                               Z0, Z0, Z0, enu /), &
-                           (/ 4,4 /))
+!         diagMat = RESHAPE((/ UR, Z0, Z0, Z0, & 
+!                              Z0, UR, Z0, Z0, & 
+!                              Z0, Z0, ega, Z0, & 
+!                              Z0, Z0, Z0, enu /), &
+!                          (/ 4,4 /))
+          diagMat = (/ UR, UR, ega, enu /)
         else !bord .eq. 1 -----------------------------------
           if (e /= 0) then !(radiation condition upper HS)
             ega = exp(-UI * gamma * (Z(e+1)-Z(e))) 
@@ -3257,16 +3265,25 @@
             ega = Z0
             enu = Z0
           end if !<----<----<----<----<----<----<----<----<--
-          diagMat = RESHAPE((/ ega, Z0, Z0, Z0, & 
-                               Z0, enu, Z0, Z0, & 
-                               Z0, Z0, UR, Z0, & 
-                               Z0, Z0, Z0, UR /), &
-                           (/ 4,4 /))
+!         diagMat = RESHAPE((/ ega, Z0, Z0, Z0, & 
+!                              Z0, enu, Z0, Z0, & 
+!                              Z0, Z0, UR, Z0, & 
+!                              Z0, Z0, Z0, UR /), &
+!                          (/ 4,4 /))
+          diagMat = (/ ega, enu, UR, UR /)
         end if
           ! desplazamientos
-          subMatD = matmul(subMatD0(1:2,1:4,e,ik),diagMat)
+!         subMatD = matmul(subMatD0(1:2,1:4,e,ik),diagMat)
+          subMatD(1:2,1) = subMatD0(1:2,1,e,ik)*diagMat(1)
+          subMatD(1:2,2) = subMatD0(1:2,2,e,ik)*diagMat(2)
+          subMatD(1:2,3) = subMatD0(1:2,3,e,ik)*diagMat(3)
+          subMatD(1:2,4) = subMatD0(1:2,4,e,ik)*diagMat(4)
           ! esfuerzos
-          subMatS = matmul(subMatS0(1:2,1:4,e,ik),diagMat)
+!         subMatS = matmul(subMatS0(1:2,1:4,e,ik),diagMat)
+          subMatS(1:2,1) = subMatS0(1:2,1,e,ik)*diagMat(1)
+          subMatS(1:2,2) = subMatS0(1:2,2,e,ik)*diagMat(2)
+          subMatS(1:2,3) = subMatS0(1:2,3,e,ik)*diagMat(3)
+          subMatS(1:2,4) = subMatS0(1:2,4,e,ik)*diagMat(4)
         !ensamble de la macro columna i
           !evaluadas en el borde SUPERIOR del layer i
           if (bord == 0 .AND. e /= 0 ) then 
@@ -4552,10 +4569,10 @@
       complex*16 :: egammaN,enuN,egammaP,enuP
       complex*16, dimension(2,4) :: subMatD
       complex*16, dimension(3,4) :: subMatS
-      complex*16, dimension(4,4) :: diagMat
+!     complex*16, dimension(4,4) :: diagMat
       complex*16, dimension(1:4) :: coeffsPSV
-      complex*16, dimension(1:2) :: resD
-      complex*16, dimension(1:3) :: resS
+!     complex*16, dimension(1:2) :: resD
+!     complex*16, dimension(1:3) :: resS
       integer :: i !#< b
 !     if (verbose > 4) then
 !      write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
@@ -4563,15 +4580,15 @@
 !                   real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
 !     end if !#> 
 !     PSVdiffByStrata = 0
-      if (ik .ne. 0) then
+!     if (ik .ne. 0) then
        gamma = gamma_E(ik,e)
        nu = nu_E(ik,e)
-      else
-       gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-       nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-       if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-       if(aimag(nu).gt.0.0)nu= conjg(nu)
-      end if
+!     else
+!      gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
+!      nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+!      if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+!      if(aimag(nu).gt.0.0)nu= conjg(nu)
+!     end if
       
       xi = k**2.0 - nu**2.0
       eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
@@ -4594,11 +4611,11 @@
         end if
           
       !la matrix diagonal
-         diagMat = RESHAPE((/ egammaN, Z0, Z0, Z0, & 
-                              Z0,    enuN, Z0, Z0, & 
-                              Z0, Z0, egammaP, Z0, & 
-                              Z0, Z0, Z0, enuP /), &
-                           (/ 4,4 /))
+!        diagMat = RESHAPE((/ egammaN, Z0, Z0, Z0, & 
+!                             Z0,    enuN, Z0, Z0, & 
+!                             Z0, Z0, egammaP, Z0, & 
+!                             Z0, Z0, Z0, enuP /), &
+!                          (/ 4,4 /))
       !coeficientes de las ondas en el estrato
       i = 0
       if (z(0) .lt. 0.0) i = 2
@@ -4622,12 +4639,19 @@
 !       subMatD = UI * subMatD
         subMatD = subMatD0(1:2,1:4,e,ik)
         
-        subMatD = matmul(subMatD,diagMat)
-        ! Pdown Sdown Pup Sup
-        resD = matmul(subMatD, coeffsPSV)
+!       subMatD = matmul(subMatD,diagMat)
+!       resD = matmul(subMatD, coeffsPSV)  ! Pdown Sdown Pup Sup
+        subMatD(:,1) = subMatD(:,1)*egammaN*coeffsPSV(1)
+        subMatD(:,2) = subMatD(:,2)*enuN*coeffsPSV(2)
+        subMatD(:,3) = subMatD(:,3)*egammaP*coeffsPSV(3)
+        subMatD(:,4) = subMatD(:,4)*enuP*coeffsPSV(4)
         
-        PSVdiffByStrata(1) = resD(1) !W
-        PSVdiffByStrata(2) = resD(2) !U
+        
+!       PSVdiffByStrata(1) = resD(1) !W
+!       PSVdiffByStrata(2) = resD(2) !U
+        PSVdiffByStrata(1) = sum(subMatD(1,:)) !W
+        PSVdiffByStrata(2) = sum(subMatD(2,:)) !U
+
        
       ! esfuerzos
 !       subMatS = RESHAPE((/ xi,      -2.0*k*gamma,     eta,     &
@@ -4638,13 +4662,19 @@
 !    
 !       subMatS = amu(e) * subMatS
         subMatS = subMatS0(1:3,1:4,e,ik)
+!       subMatS = matmul(subMatS,diagMat)
+!       resS = matmul(subMatS, coeffsPSV)
+        subMatS(:,1) = subMatS(:,1)*egammaN*coeffsPSV(1)
+        subMatS(:,2) = subMatS(:,2)*enuN*coeffsPSV(2)
+        subMatS(:,3) = subMatS(:,3)*egammaP*coeffsPSV(3)
+        subMatS(:,4) = subMatS(:,4)*enuP*coeffsPSV(4)     
         
-        subMatS = matmul(subMatS,diagMat)
-        resS = matmul(subMatS, coeffsPSV)
-        
-        PSVdiffByStrata(3) = resS(1) !s33
-        PSVdiffByStrata(4) = resS(2) !s31
-        PSVdiffByStrata(5) = resS(3) !s11 
+!       PSVdiffByStrata(3) = resS(1) !s33
+!       PSVdiffByStrata(4) = resS(2) !s31
+!       PSVdiffByStrata(5) = resS(3) !s11 
+        PSVdiffByStrata(3) = sum(subMatS(1,:)) !s33
+        PSVdiffByStrata(4) = sum(subMatS(2,:)) !s31
+        PSVdiffByStrata(5) = sum(subMatS(3,:)) !s11 
       end function PSVdiffByStrata
       
       function SHdiffByStrata(coefOndas_SH,  & 
@@ -5550,7 +5580,7 @@
              cycle !imec 
            end if ! onda plana-------------------------------------------
            ! incidencia de una onda cilindrica:
-           auxKmo(po:ne,imec) = 0
+!          auxKmo(po:ne,imec) = 0
            do ik = 1,po!2*Nmax
             auxKmo(ik,imec) = auxk(ik,imec) * &
             exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x), 8))
@@ -5562,7 +5592,9 @@
            !K->X
             !auxKmo(:,imec) = auxKmo(:,imec) * (sqrt(2.0*nmax) * dk) !backward
             !call fork(2*nmax, auxKmo(:,iMec),+1,0,6)
-            auxKmo(:,imec) = FFTW(2*nmax,auxKmo(:,iMec),+1,dk)
+!           auxKmo(:,imec) = FFTW(2*nmax,auxKmo(:,iMec),+1,dk)
+            auxKmo(1,imec) = sum(auxKmo(1:po,imec)) + sum(auxKmo(ne:2*nmax,imec))
+            auxKmo(1,imec) = auxKmo(1,imec) *dk
          end do! imec
           
           ! almacenar
