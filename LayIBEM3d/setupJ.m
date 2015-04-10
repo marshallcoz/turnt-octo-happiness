@@ -10,7 +10,7 @@ else
     f.omei = 0;
 end
 f.come = f.come * (1 - 1i/(2*f.Q)); %amortiguamiento histerético
-
+disp(['J' num2str(J) ' : ' num2str(f.come)])
 nm = size(m,2);
 for im = 1:nm
 if ops.UseAzimi

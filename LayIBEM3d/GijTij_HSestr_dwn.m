@@ -1,13 +1,6 @@
-%% funcion de Green 3D semiespacio estratificado
-function [G,T,FK] = GijTij_HSestr_dwn(m,f,ops,p_x,pXi)
-FK = zeros(1,f.nmax);
-G = zeros(3);
-T = zeros(3);
-%% debug variables
-[m_vars,f_vars] = setupJ(j,m_vars,f_vars,ops); 
-m = m_vars;f=f_vars;
-
-%% Matriz global de continuidad de polarizaciones P-SV
+% funcion de Green 3D semiespacio estratificado
+function [Mpsv,M_sh,cellMat] = GijTij_HSestr_dwn(m,f,ops)
+% Matriz global de continuidad de polarizaciones P-SV
 k = 0:f.dk:f.dk*f.nmax; k(1) = 0.01*f.dk;
 k2 = k.^2;
 Z0 = k*0;
@@ -17,9 +10,9 @@ ome = f.come;
 Mpsv = zeros(4*ops.N+2,4*ops.N+2,f.nmax+1);
 M_sh = zeros(2*ops.N+1,2*ops.N+1,f.nmax+1);
 ega = zeros(2,1,f.nmax+1); enu = zeros(2,1,f.nmax+1);
-sD0 = zeros(2,4,f.nmax+1); sS0 = zeros(2,4,f.nmax+1);
+sD0 = zeros(3,4,f.nmax+1,ops.N+1); sS0 = zeros(6,4,f.nmax+1,ops.N+1);
 sD = zeros(2,4,f.nmax+1);  sS = zeros(2,4,f.nmax+1);
-sD0sh = zeros(1,2,f.nmax+1); sS0sh = zeros(1,2,f.nmax+1);
+sD0sh = zeros(2,2,f.nmax+1,ops.N+1); sS0sh = zeros(5,2,f.nmax+1,ops.N+1);
 sDsh = zeros(1,2,f.nmax+1); sSsh = zeros(1,2,f.nmax+1);
 
 iR= 0;iC= 0; ir= 0; ic= 0;
@@ -41,20 +34,34 @@ for e = 1:ops.N+1
     dKnu = 2*k.*nu;
     xi = k.^2 - nu.^2;
     % P-SV
-    %  subMatD0 = [-gam -k  gam  -k ;
-    %              -k   nu  -k   -nu];
-    sD0(1,1,:)=-gam;  sD0(1,2,:)=-k;    sD0(1,3,:)=gam;  sD0(1,4,:)=-k;
-    sD0(2,1,:)=-k;    sD0(2,2,:)=nu;    sD0(2,3,:)=-k;   sD0(2,4,:)=-nu;
+    sD0(1,1,:,e)=-gam; sD0(1,2,:,e)=-k; sD0(1,3,:,e)=gam; sD0(1,4,:,e)=-k;  %Uz
+    sD0(2,1,:,e)=k;   sD0(2,2,:,e)=-nu; sD0(2,3,:,e)=k;  sD0(2,4,:,e)=nu;   %Ur
+    sD0(3,1,:,e)=-k;   sD0(3,2,:,e)=nu; sD0(3,3,:,e)=-k;  sD0(3,4,:,e)=-nu; %Ut
     % SH
-    sD0sh(1,1,:)= 1; sD0sh(1,2,:)= 1;
+    sD0sh(1,1,:,e)= k; sD0sh(1,2,:,e)= -k; %Ur
+    sD0sh(2,1,:,e)= -k; sD0sh(2,2,:,e)= -k; %Ut
     % P-SV
-    %  subMatS0 = [[xi    -dKnu xi   dKnu];
-    %              [-dKga -xi   dKga -xi ]];
-    sS0(1,1,:)=xi;    sS0(1,2,:)=-dKnu; sS0(1,3,:)=xi;   sS0(1,4,:)=dKnu;
-    sS0(2,1,:)=-dKga; sS0(2,2,:)=-xi;   sS0(2,3,:)=dKga; sS0(2,4,:)=-xi;
-    sS0 = sS0 * amu;
+    %  subMatS0 = [[xi    -dKnu xi   dKnu];  szz
+    %              [-dKga -xi   dKga -xi ]]; szr
+    %        EPD                 ESD             EPU                ESU
+    sS0(1,1,:,e)=xi;    sS0(1,2,:,e)=-dKnu; sS0(1,3,:,e)=xi;    sS0(1,4,:,e)=dKnu; %szz
+    sS0(2,1,:,e)=-dKga; sS0(2,2,:,e)=-xi;   sS0(2,3,:,e)=dKga;  sS0(2,4,:,e)=-xi;  %szr
+    sS0(3,1,:,e)= dKga; sS0(3,2,:,e)= xi;   sS0(3,3,:,e)=-dKga; sS0(3,4,:,e)=xi;   %szt
+    sS0(1:3,:,:,e) = sS0(1:3,:,:,e) * amu;
+    % (nota: los siguientes ocupan los coeficientes corregidos y ya están
+    % corregidos)
+    sS0(4,1,:,e)=1;   sS0(4,2,:,e)=-1i*nu; sS0(4,3,:,e)=1;   sS0(4,4,:,e)=1i*nu; % srr
+    sS0(5,1,:,e)=1;   sS0(5,2,:,e)=-1i*nu; sS0(5,3,:,e)=1;   sS0(5,4,:,e)=1i*nu; % srt
+    sS0(6,1,:,e)=1;   sS0(6,2,:,e)=-1i*nu; sS0(6,3,:,e)=1;   sS0(6,4,:,e)=1i*nu; % stt
+    %sS0(4:6,:,:,e) = sS0(4:6,:,:,e) * 2*amu;
     % SH
-    sS0sh(1,1,:)= -1i*amu*nu; sS0sh(1,2,:)= 1i*amu*nu;
+    sS0sh(1,1,:,e)=  amu*nu.*k; sS0sh(1,2,:,e)= amu*nu.*k; %szr
+    sS0sh(2,1,:,e)= -amu*nu.*k; sS0sh(2,2,:,e)=-amu*nu.*k; %szt
+    % (nota idem)
+    sS0sh(3,1,:,e)=1 ; sS0sh(3,2,:,e)=1; %srr
+    sS0sh(4,1,:,e)=1 ; sS0sh(4,2,:,e)=1; %srt
+    sS0sh(5,1,:,e)=1 ; sS0sh(5,2,:,e)=1; %stt
+    
 % ! la profundidad z de la frontera superior del estrato
 % !         z_i = Z(e)   ! e=1  ->  z = z0 = 0
 % !         z_f = Z(e+1) ! e=1  ->  z = z1 
@@ -63,7 +70,7 @@ for e = 1:ops.N+1
         if (e+bord > ops.N+1), break,end 
           % si 1+0;1+1;2+0;[2+1] > 2
         if (bord == 0) %---->---->---->---->---->---->
-            if (e ~= ops.N+1) % (radiation condition lower HS)
+           if (e ~= ops.N+1) % (radiation condition lower HS)
                ega(1,1,:) = exp(-1i * gam * (m(e+1).z - m(e).z));
                enu(1,1,:) = exp(-1i * nu *  (m(e+1).z - m(e).z));
            else
@@ -72,19 +79,19 @@ for e = 1:ops.N+1
            end
            ega(2,1,:)=ega(1,1,:);enu(2,1,:)=enu(1,1,:);
            % P-SV
-           sD(:,1,:) = sD0(:,1,:);
-           sD(:,2,:) = sD0(:,2,:);
-           sD(:,3,:) = sD0(:,3,:) .* ega;
-           sD(:,4,:) = sD0(:,4,:) .* enu;
-           sS(:,1,:) = sS0(:,1,:);
-           sS(:,2,:) = sS0(:,2,:);
-           sS(:,3,:) = sS0(:,3,:) .* ega;
-           sS(:,4,:) = sS0(:,4,:) .* enu;
+           sD(:,1,:) = sD0(1:2,1,:,e);
+           sD(:,2,:) = sD0(1:2,2,:,e);
+           sD(:,3,:) = sD0(1:2,3,:,e) .* ega;
+           sD(:,4,:) = sD0(1:2,4,:,e) .* enu;
+           sS(:,1,:) = sS0(1:2,1,:,e);
+           sS(:,2,:) = sS0(1:2,2,:,e);
+           sS(:,3,:) = sS0(1:2,3,:,e) .* ega;
+           sS(:,4,:) = sS0(1:2,4,:,e) .* enu;
            % SH
-           sDsh(:,1,:) = sD0sh(:,1,:);
-           sDsh(:,2,:) = sD0sh(:,2,:) .* enu(1,1,:);
-           sSsh(:,1,:) = sS0sh(:,1,:);
-           sSsh(:,2,:) = sS0sh(:,2,:) .* enu(1,1,:);
+           sDsh(:,1,:) = sD0sh(1:1,1,:,e);
+           sDsh(:,2,:) = sD0sh(1:1,2,:,e) .* enu(1,1,:);
+           sSsh(:,1,:) = sS0sh(1:1,1,:,e);
+           sSsh(:,2,:) = sS0sh(1:1,2,:,e) .* enu(1,1,:);
         else %bord .eq. 1 -----------------------------------
             if (e ~= 0) %(radiation condition upper HS)
                 ega(1,1,:) = exp(-1i * gam * (m(e+1).z - m(e).z));
@@ -94,19 +101,19 @@ for e = 1:ops.N+1
                 enu(1,1,:) = Z0;
             end  %<----<----<----<----<----<----<----<----<--
             ega(2,1,:)=ega(1,1,:);enu(2,1,:)=enu(1,1,:);
-            sD(:,1,:) = sD0(:,1,:).* ega;
-            sD(:,2,:) = sD0(:,2,:).* enu;
-            sD(:,3,:) = sD0(:,3,:);
-            sD(:,4,:) = sD0(:,4,:);
-            sS(:,1,:) = sS0(:,1,:).* ega;
-            sS(:,2,:) = sS0(:,2,:).* enu;
-            sS(:,3,:) = sS0(:,3,:);
-            sS(:,4,:) = sS0(:,4,:);
+            sD(:,1,:) = sD0(1:2,1,:,e).* ega;
+            sD(:,2,:) = sD0(1:2,2,:,e).* enu;
+            sD(:,3,:) = sD0(1:2,3,:,e);
+            sD(:,4,:) = sD0(1:2,4,:,e);
+            sS(:,1,:) = sS0(1:2,1,:,e).* ega;
+            sS(:,2,:) = sS0(1:2,2,:,e).* enu;
+            sS(:,3,:) = sS0(1:2,3,:,e);
+            sS(:,4,:) = sS0(1:2,4,:,e);
            % SH
-           sDsh(:,1,:) = sD0sh(:,1,:) .* enu(1,1,:);
-           sDsh(:,2,:) = sD0sh(:,2,:);
-           sSsh(:,1,:) = sS0sh(:,1,:) .* enu(1,1,:);
-           sSsh(:,2,:) = sS0sh(:,2,:);
+           sDsh(:,1,:) = sD0sh(1:1,1,:,e) .* enu(1,1,:);
+           sDsh(:,2,:) = sD0sh(1:1,2,:,e);
+           sSsh(:,1,:) = sS0sh(1:1,1,:,e) .* enu(1,1,:);
+           sSsh(:,2,:) = sS0sh(1:1,2,:,e);
         end
         %ensamble de la macro columna i
         %evaluadas en el borde SUPERIOR del layer i
@@ -148,38 +155,16 @@ for e = 1:ops.N+1
     ic= ic+2;
 end % e
 
-%% take the inverse of the global matrices
+% Guardar matrices para la posteridad
+cellMat = cell(1);
+cellMat{1,1}.sD0 = {sD0};
+cellMat{1,1}.sS0 = {sS0};
+cellMat{1,1}.sD0sh = {sD0sh};
+cellMat{1,1}.sS0sh = {sS0sh};
+cellMat{1,1}.k = {k};
+
+% take the inverse of the global matrices
 for ik=1:f.nmax+1
     Mpsv(:,:,ik) = inv(Mpsv(:,:,ik));
     M_sh(:,:,ik) = inv(M_sh(:,:,ik));
 end
-%% Punto receptor
-[p_x] = pick_receptor(1,res,f_vars);
-[r,th,thp,z] = cilindricas(p_x,pXi);
-
-%% vector de fuente puntual
-zXi = pXi.center(3);
-[eXi,atInterf] = el_estrato_es(m,ops.N,zXi);
-Bpsv = zeros(4*ops.N+2,1,f.nmax+1);
-B_sh = zeros(2*ops.N+1,1,f.nmax+1);
-if (atInterf) % si la fuente está en la interfaz (y estrato) eXi
-    % para fuerza vertical
-    if (pXi.normal(3) == 1)
-        Bpsv(4*(eXi-1)+1,:) = -1/(2*pi)* k;
-    end
-    % para fuerza horizontal en x
-    if (pXi.normal(1) == 1)
-        Bpsv(4*(eXi-1)+2,:) =  1i/(2*pi)* k;
-    end
-    % para fuerza horizontal en y
-    if (pXi.normal(2) == 1)
-        B_sh(2*eXi-1,:) = 1/(2*pi);
-    end
-else % la fuente está dentro del estrato
-    % la fuente (en expansión en WN) se propaga a las interfaces adyacentes
-    
-end % atInterf
-
-
-
-
