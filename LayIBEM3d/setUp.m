@@ -21,7 +21,7 @@ m(2).rho = 1.0; % T/m3
 
 ops.UseAzimi = false;
 ops.sacarSismogramas = true;
-ops.sacarFotoramas = false;
+ops.sacarFotoramas = true;
 ops.tp = 0.3; %ricker (ancho)  / frec central= 1/tp 
 ops.ts = 1.5; %ricker (centro)
 ops.sigma = 10.0; %gaussiana (% de fmax)
@@ -29,8 +29,8 @@ ops.sigma = 10.0; %gaussiana (% de fmax)
 %Receptores
 clear res
 res.Del = 0.1;
-res.box = [[1 1];...
-           [1 1];...
+res.box = [[-1 1];...
+           [-1 1];...
            [1 1]];
 res.norm =[1 1 1];
 

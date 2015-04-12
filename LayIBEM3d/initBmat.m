@@ -1,0 +1,2 @@
+function [Bmat] = initBmat(Bou)
+

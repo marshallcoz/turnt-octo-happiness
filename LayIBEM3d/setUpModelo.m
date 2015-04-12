@@ -39,6 +39,7 @@ ops.sacarSismogramas = true;
 ops.sacarFotoramas = false;
 ops.tp = 0.3; %ricker (ancho)  / frec central= 1/tp 
 ops.ts = 1.5; %ricker (centro)
+ops.sigma = 10.0; %gaussiana (% de fmax)
 
 %Receptores -----------------------------------------
 clear res
