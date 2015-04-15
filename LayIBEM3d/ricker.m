@@ -38,7 +38,8 @@ xlabel('frecuencia en Hertz')
 % rick = ifft(rick)/f.dt; %backward
 % subplot(2,1,1);hold on
 % plot((0:f.ntiempo-1).*f.dt,real(rick),'g--')
-
+chdir out
 saveas(h_rick,'amplitud.jpg');
+chdir ..
 close(h_rick);
 rick = rick';

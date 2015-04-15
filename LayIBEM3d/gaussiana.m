@@ -23,7 +23,8 @@ subplot(2,1,2);
 plot((0:f.ntiempo-1).*f.dt,real(Ut));
 title('Ondícula de amplitud gaussiana')
 xlabel('tiempo en segundos')
-
+cd out
 saveas(h_rick,'amplitud.jpg');
+cd ..
 close(h_rick);
 Uo = Uo';

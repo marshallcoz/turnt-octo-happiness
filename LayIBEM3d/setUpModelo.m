@@ -1,7 +1,7 @@
 function [m,f,ops,res] = setUpModelo
 % de la frecuencia y número de onda
-f.DFREC = 0.2;
-f.NFREC = 200;
+f.DFREC = 0.05;
+f.NFREC = 250;
 f.TW = 5;
 f.Q = 1000;
 f.dwn = true;
@@ -10,17 +10,19 @@ f.nk = 100;
 f.nmax = 2^8;
 f.Dk_R = 2.5;
 
+
+
 % Medios E estratificado
 ops.N = 2; % Num de estratos
-clear m
+clear m                          % E
 m(1).z = 0; 
-m(1).beta0 = 0.5; % [m/s]
-m(1).alfa0 = 1; % [m/s]
+m(1).beta0 = 3; % [m/s]
+m(1).alfa0 = 6; % [m/s]
 m(1).rho = 1.0; % [T/m3]
 
-m(2).z = 2;
-m(2).beta0 = 0.5; % [m/s]
-m(2).alfa0 = 1; % [m/s]
+m(2).z = 2;                      % R
+m(2).beta0 = 3; % [m/s]
+m(2).alfa0 = 6; % [m/s]
 m(2).rho = 1.0; % [T/m3]
 
 % semiespacio
@@ -43,10 +45,15 @@ ops.sigma = 10.0; %gaussiana (% de fmax)
 
 %Receptores -----------------------------------------
 clear res
-res.Del = 0.1; %espacio entre receptores [m]
-res.box = [[1 1];...
-           [1 1];...
-           [1 1]];
+% BoundaryFile
+%res.BouFile = 'Ico5Unit.txt';
+%res.BouFile = 'cuboUni.txt';
+res.BouFile = 'cuboU24.txt';
+
+res.Del = 0.5; %espacio entre receptores [m]
+res.box = [[-1 1];...
+           [2 2];...
+           [0 0]];
 res.norm =[1 1 1];
 
 % ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

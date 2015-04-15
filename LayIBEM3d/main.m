@@ -11,7 +11,7 @@ clear;clc;close('all','hidden')
 
 % receptores y puntos de colocación
 [res] = initreceptores(res,f_vars);
-[Bou] = initBoundary;
+[Bou] = initBoundary(res);
 
 for J=1:f_vars.NFREC+1
 [m_vars,f_vars] = setupJ(J,m_vars,f_vars,ops);

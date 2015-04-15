@@ -22,8 +22,11 @@ else
 end
 m(im).amu = m(im).rho * m(im).beta^2;
 m(im).lambda = m(im).rho * m(im).alfa^2 - 2*m(im).amu;
-bealf2 = (m(im).beta / m(im).alfa)^2;
-m(im).anu = (bealf2 - 0.5)/(-1 + bealf2);
+m(im).bealf = m(im).beta / m(im).alfa;
+m(im).bealf2 = (m(im).bealf)^2;
+m(im).bealf3 = (m(im).bealf)^3;
+m(im).bealf4 = (m(im).bealf)^4;
+m(im).anu = (m(im).bealf2 - 0.5)/(-1 + m(im).bealf2);
 m(im).lam = m(im).rho * m(im).alfa^2 - 2* m(im).amu;
 end
 

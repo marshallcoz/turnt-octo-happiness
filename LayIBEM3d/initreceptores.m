@@ -14,7 +14,7 @@ disp(['Num de receptores: ' num2str(res.nrecep)])
 res.receptor = cell(res.nrecep,1);
 cont = 1;
 
-polZ0c = importdata('PolZ0.txt',' ',1);
+polZ0c = importdata('poligonSlideAtZ0.txt',' ',1);
 xv = polZ0c.data(:,1);
 yv = polZ0c.data(:,2);
 
@@ -24,9 +24,9 @@ for i = 1:res.nx;
            res.receptor{cont}.center = [xran(i) yran(j) zran(k)];
            res.receptor{cont}.p = [i,j,k]; %indice de la coordenada
            res.receptor{cont}.normal(1:3) = res.norm;
-           res.receptor{cont}.region = 'E';
+           res.receptor{cont}.region = 1;%'E';
            inout = inpolygon(xran(i),yran(j),xv,yv);
-           if (inout),res.receptor{cont}.region = 'R';end
+           if (inout),res.receptor{cont}.region = 2;end%'R';end
            
            res.receptor{cont}.greenG = zeros(3,3,f_vars.NFREC); 
            res.receptor{cont}.greenT = zeros(3,3,f_vars.NFREC); 
