@@ -39,6 +39,7 @@ m(ops.N+2).rho = 1.0; % [T/m3]
 ops.UseAzimi = false;
 ops.sacarSismogramas = true;
 ops.sacarFotoramas = false;
+ops.sacarPhiplot = true;
 ops.tp = 0.3; %ricker (ancho)  / frec central= 1/tp 
 ops.ts = 1.5; %ricker (centro)
 ops.sigma = 10.0; %gaussiana (% de fmax)

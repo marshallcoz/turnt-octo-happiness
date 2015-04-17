@@ -16,7 +16,7 @@ else
 end
 clear RNM 
 
-CAKA = f.come/m.beta;
+CAKA = f.come;%/m.beta;
 %CAQA = f.come/m.alfa;
 
 BEA2  = m.bealf2;

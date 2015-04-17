@@ -20,21 +20,30 @@ p0.region = 1;
 Gij = @GijTij_omega;
 GijX = @GijTij_omega_pxEQpXi;
 % end
-GE = zeros(3); TE = GE; G = GE; T = GE;
-mx =0;
+GE = zeros(3); TE = GE; G = GE; T = GE; mx =0;
 % Frequency loop
-for j=1:1%f_vars.NFREC
+for j=1:f_vars.NFREC
     [m,f] = setupJ(j,m_vars,f_vars,ops);
     % incident field
-    for iPx = 1:res.nrecep %for each station
+    regP0 = p0.region;
+    mregP0 = m(regP0);
+    resoutT=zeros(res.nrecep,3,3);
+    resoutG=zeros(res.nrecep,3,3);
+    parfor iPx = 1:res.nrecep %for each station
         [p_x] = pick_receptor(iPx,res);
-        if (p_x.region == p0.region)
-            [G,T] = Gij(m(p0.region),f,p_x,p0);
-            res.receptor{iPx}.greenT(:,:,j) = T(:,:);
-            res.receptor{iPx}.greenG(:,:,j) = G(:,:);
+        if (p_x.region == regP0)
+            [G,T] = Gij(mregP0,f,p_x,p0);
+            resoutT(iPx,:,:) = T(:,:);
+            resoutG(iPx,:,:) = G(:,:);
+%             res.receptor{iPx}.greenT(:,:,j) = T(:,:);
+%             res.receptor{iPx}.greenG(:,:,j) = G(:,:);
         end
     end
-        
+    for iPx = 1:res.nrecep
+        res.receptor{iPx}.greenT(:,:,j) =resoutT(iPx,:,:);
+        res.receptor{iPx}.greenG(:,:,j) =resoutG(iPx,:,:);
+    end
+    
     [Bou] = initBoundary(res);
     if (j==1),plotGeom(j,Bou,res,p0);end
     [Bmat,Bvec,med] = initBmat_allCont(Bou);
@@ -52,7 +61,7 @@ for j=1:1%f_vars.NFREC
                 [GE,TE] = GijX(m(1),f,p_x,pXi); %(region E column)
                 [GR,TR] = GijX(m(2),f,p_x,pXi); %(region R column)
                 GE=GE*DA;GR=GR*DA;
-                TR = -TR;
+                TR = -TR*DA;
             else
                 % full space Green function :
                 [GE,TE] = Gij(m(1),f,p_x,pXi); %(region E column)
@@ -99,8 +108,8 @@ for j=1:1%f_vars.NFREC
     phiVec = zeros(2*med,3);
     for dirFza=1:3 % 3 direcciones de la fuerza
         phiVec(:,dirFza) = linsolve(Bmat,Bvec(:,dirFza));
-        plotphi(j,Bou,phiVec,dirFza);
-    
+        if(ops.sacarPhiplot),plotphi(j,Bou,phiVec,dirFza);end
+        
         % diffracted/refracted field
         for iPx = 1:res.nrecep %for each station
             [p_x] = pick_receptor(iPx,res);
@@ -109,7 +118,7 @@ for j=1:1%f_vars.NFREC
             j_m = 1:3;
             for iPxi = 1:Bou.nBou %for each BE
                 phirange = j_m+lmed*med;
-                [pXi] = pick_Boupoint(iPxi,Bou);
+                %[pXi] = pick_Boupoint(iPxi,Bou);
                 aux(1:3,1:3) = Bou.pt{iPxi}.gG(iPx,:,:);
                 res.receptor{iPx}.greenG(:,dirFza,j) = ...
                 res.receptor{iPx}.greenG(:,dirFza,j) + ...
