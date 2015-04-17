@@ -23,7 +23,7 @@ GijX = @GijTij_omega_pxEQpXi;
 GE = zeros(3); TE = GE; G = GE; T = GE;
 mx =0;
 % Frequency loop
-for j=1:f_vars.NFREC
+for j=1:1%f_vars.NFREC
     [m,f] = setupJ(j,m_vars,f_vars,ops);
     % incident field
     for iPx = 1:res.nrecep %for each station
@@ -34,11 +34,7 @@ for j=1:f_vars.NFREC
             res.receptor{iPx}.greenG(:,:,j) = G(:,:);
         end
     end
-    
-end   
-%%
-for j=10:10%f_vars.NFREC
-    [m,f] = setupJ(j,m_vars,f_vars,ops);    
+        
     [Bou] = initBoundary(res);
     if (j==1),plotGeom(j,Bou,res,p0);end
     [Bmat,Bvec,med] = initBmat_allCont(Bou);
@@ -92,18 +88,18 @@ for j=10:10%f_vars.NFREC
     for iPx = 1:Bou.nBou %for each BE (as a receiver at the boundary) {same region as pXi}
         [p_x] = pick_Boupoint(iPx,Bou);
         [G,T] = Gij(m(p0.region),f,p_x,p0); %(on region E)
-        for i=1:3 % 3 direcciones de la fuerza
-            Bvec(i_m,i) = -T(:,i);
-            Bvec(i_m+med,i) = -G(:,i);
+        for dirFza=1:3 % 3 direcciones de la fuerza
+            Bvec(i_m,dirFza) = -T(:,dirFza);
+            Bvec(i_m+med,dirFza) = -G(:,dirFza);
         end
         i_m = i_m+3;
     end
     
     % solve diffracted field
     phiVec = zeros(2*med,3);
-    for i=1:3 % 3 direcciones de la fuerza
-        phiVec(:,i) = linsolve(Bmat,Bvec(:,i));
-        plotphi(j,Bou,phiVec,i);
+    for dirFza=1:3 % 3 direcciones de la fuerza
+        phiVec(:,dirFza) = linsolve(Bmat,Bvec(:,dirFza));
+        plotphi(j,Bou,phiVec,dirFza);
     
         % diffracted/refracted field
         for iPx = 1:res.nrecep %for each station
@@ -115,13 +111,13 @@ for j=10:10%f_vars.NFREC
                 phirange = j_m+lmed*med;
                 [pXi] = pick_Boupoint(iPxi,Bou);
                 aux(1:3,1:3) = Bou.pt{iPxi}.gG(iPx,:,:);
-                res.receptor{iPx}.greenG(:,i,j) = ...
-                res.receptor{iPx}.greenG(:,i,j) + ...
-                    aux * phiVec(phirange,i);
+                res.receptor{iPx}.greenG(:,dirFza,j) = ...
+                res.receptor{iPx}.greenG(:,dirFza,j) + ...
+                    aux * phiVec(phirange,dirFza);
                 aux(1:3,1:3) = Bou.pt{iPxi}.gT(iPx,:,:);
-                res.receptor{iPx}.greenT(:,i,j) = ...
-                res.receptor{iPx}.greenT(:,i,j) + ...
-                    aux * phiVec(phirange,i);
+                res.receptor{iPx}.greenT(:,dirFza,j) = ...
+                res.receptor{iPx}.greenT(:,dirFza,j) + ...
+                    aux * phiVec(phirange,dirFza);
                 j_m = j_m+3;
             end
         end
@@ -132,16 +128,16 @@ end %frequency loop
 for iPx = 1:res.nrecep %for each station
     [p_x] = pick_receptor(iPx,res);
     
-    for i=1:3 % dir fza
+    for dirFza=1:3 % dir fza
         s = zeros(3,f_vars.ntiempo);
-        s(1:3,1:f_vars.NFREC) =  p_x.greenG(1:3,i,1:f_vars.NFREC);
+        s(1:3,1:f_vars.NFREC) =  p_x.greenG(1:3,dirFza,1:f_vars.NFREC);
         s(1:3,f_vars.ntiempo-((2:f_vars.NFREC)-2)) = conj(s(1:3,2:f_vars.NFREC));
         for comp=1:3 % componente
             thiS=s(comp,:);
             s(comp,:)=thiS(:).*Uo(:);
-            if ops.sacarSismogramas,sismogramaA(iPx,f_vars,s,comp,i,p_x.center),end
+            if ops.sacarSismogramas,sismogramaA(iPx,f_vars,s,comp,dirFza,p_x.center),end
             s(comp,:) = real(ifft(s(comp,:))/f_vars.dt);
-            if ops.sacarSismogramas,sismogramaB(iPx,f_vars,s(comp,:),comp,i),end
+            if ops.sacarSismogramas,sismogramaB(iPx,f_vars,s(comp,:),comp,dirFza),end
         end
     end
 %     if ops.sacarFotoramas

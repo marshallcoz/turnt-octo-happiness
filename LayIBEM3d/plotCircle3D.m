@@ -14,10 +14,10 @@ else %phi
     h=fill3(points(1,:),points(2,:),points(3,:),[1 1 1]*(1-abs(len(tipo))));
     alpha(h,0.9);
     vn(:,1) = real(center);
-    vn(:,2) = center+radius*real(tipo)/len(real(tipo));
+    vn(:,2) = center'+real(tipo)*(radius/len(real(tipo)));
     plot3(vn(1,:),vn(2,:),vn(3,:),'b-','LineWidth',2);
     vn(:,1) = center;
-    vn(:,2) = center+radius*imag(tipo)/len(imag(tipo));
+    vn(:,2) = center'+imag(tipo)*(radius/len(imag(tipo)));
     plot3(vn(1,:),vn(2,:),vn(3,:),'r-','LineWidth',2);
 end
 end

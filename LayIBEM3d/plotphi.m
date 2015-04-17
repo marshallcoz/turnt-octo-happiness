@@ -3,7 +3,8 @@ function plotphi(j,Bou,phiVec,dir)
 hfig = figure('Name','Force density');
 maxphi = max(abs(phiVec(:,dir)));
 subplot(1,2,1);hold on
-phi = phiVec(1:size(phiVec(:,dir),1)/2)/maxphi/2;
+tam = size(phiVec(:,1),1)/2;
+phi = phiVec(1:tam,dir)/maxphi/2;
 l_m=1:3;
 for i = 1:Bou.nBou
     plotCircle3D(Bou.pt{i}.center, ...
@@ -27,10 +28,22 @@ zlim([minz maxz])
 xlabel('x')
 ylabel('y')
 title('{\phi} E')
+mTextBox = uicontrol('style','text');
+set(mTextBox,'String',...
+    ['max= ' num2str(max(phiVec(1:tam,dir))) ...
+    '      '...
+    'min= ' num2str(min(phiVec(1:tam,dir)))]);
+set(mTextBox,'Units','characters')
+mTextBoxPosition = get(mTextBox,'Position');
+mTextBoxPosition(1) = 10;
+mTextBoxPosition(2) = 4;
+mTextBoxPosition(3) = 25;
+mTextBoxPosition(4) = 2;
+set(mTextBox,'Position',mTextBoxPosition);
 %
 set(gca,'Box','off')
 subplot(1,2,2);hold on
-phi = phiVec(size(phiVec(:,dir),1)/2+1:size(phiVec(:,dir),1))/maxphi/2;
+phi = phiVec(tam+1:2*tam,dir)/maxphi/2;
 l_m=1:3;
 for i = 1:Bou.nBou
     plotCircle3D(Bou.pt{i}.center, ...
@@ -55,6 +68,18 @@ zlim([minz maxz])
 xlabel('x')
 ylabel('y')
 title('{\phi} R')
+mTextBox = uicontrol('style','text');
+set(mTextBox,'String',...
+    ['max= ' num2str(max(phiVec(tam+1:2*tam,dir))) ...
+    '      '...
+    'min= ' num2str(min(phiVec(tam+1:2*tam,dir)))]);
+set(mTextBox,'Units','characters')
+mTextBoxPosition = get(mTextBox,'Position');
+mTextBoxPosition(1) = 55;
+mTextBoxPosition(2) = 4;
+mTextBoxPosition(3) = 25;
+mTextBoxPosition(4) = 2;
+set(mTextBox,'Position',mTextBoxPosition);
 %
 set(gca,'Box','off')
 cd out
