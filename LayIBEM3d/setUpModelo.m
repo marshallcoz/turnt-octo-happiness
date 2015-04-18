@@ -25,16 +25,16 @@ m(2).beta0 = 3; % [m/s]
 m(2).alfa0 = 6; % [m/s]
 m(2).rho = 1.0; % [T/m3]
 
-% semiespacio
-m(ops.N+1).z = 3;
-m(ops.N+1).beta0 = 0.5; % [m/s]
-m(ops.N+1).alfa0 = 1; % [m/s]
-m(ops.N+1).rho = 1.0; % [T/m3]
-
-%Medio R homogeneo
-m(ops.N+2).beta0 = 0.5; % [m/s]
-m(ops.N+2).alfa0 = 1; % [m/s]
-m(ops.N+2).rho = 1.0; % [T/m3]
+% % semiespacio
+% m(ops.N+1).z = 3;
+% m(ops.N+1).beta0 = 0.5; % [m/s]
+% m(ops.N+1).alfa0 = 1; % [m/s]
+% m(ops.N+1).rho = 1.0; % [T/m3]
+% 
+% %Medio R homogeneo
+% m(ops.N+2).beta0 = 0.5; % [m/s]
+% m(ops.N+2).alfa0 = 1; % [m/s]
+% m(ops.N+2).rho = 1.0; % [T/m3]
 
 ops.UseAzimi = false;
 ops.sacarSismogramas = true;
@@ -47,9 +47,9 @@ ops.sigma = 10.0; %gaussiana (% de fmax)
 %Receptores -----------------------------------------
 clear res
 % BoundaryFile
-%res.BouFile = 'Ico5Unit.txt';
+res.BouFile = 'Ico5Unit.txt';
 %res.BouFile = 'cuboUni.txt';
-res.BouFile = 'cuboU24.txt';
+%res.BouFile = 'cuboU24.txt';
 
 res.Del = 0.5; %espacio entre receptores [m]
 res.box = [[-1 1];...

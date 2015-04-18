@@ -1,6 +1,6 @@
 function plotphi(j,Bou,phiVec,dir)
 % plot the problem geometry
-hfig = figure('Name','Force density');
+hfig = figure('Name',['Force density given F' num2str(dir)]);
 maxphi = max(abs(phiVec(:,dir)));
 subplot(1,2,1);hold on
 tam = size(phiVec(:,1),1)/2;
@@ -30,15 +30,23 @@ ylabel('y')
 title('{\phi} E')
 mTextBox = uicontrol('style','text');
 set(mTextBox,'String',...
-    ['max= ' num2str(max(phiVec(1:tam,dir))) ...
-    '      '...
-    'min= ' num2str(min(phiVec(1:tam,dir)))]);
+    ['max= ' num2str(max(phiVec(1:tam,dir)))]);
 set(mTextBox,'Units','characters')
 mTextBoxPosition = get(mTextBox,'Position');
 mTextBoxPosition(1) = 10;
 mTextBoxPosition(2) = 4;
 mTextBoxPosition(3) = 25;
-mTextBoxPosition(4) = 2;
+mTextBoxPosition(4) = 1;
+set(mTextBox,'Position',mTextBoxPosition);
+mTextBox = uicontrol('style','text');
+set(mTextBox,'String',...
+    ['min= ' num2str(min(phiVec(1:tam,dir)))]);
+set(mTextBox,'Units','characters')
+mTextBoxPosition = get(mTextBox,'Position');
+mTextBoxPosition(1) = 10;
+mTextBoxPosition(2) = 3;
+mTextBoxPosition(3) = 25;
+mTextBoxPosition(4) = 1;
 set(mTextBox,'Position',mTextBoxPosition);
 %
 set(gca,'Box','off')
@@ -70,15 +78,23 @@ ylabel('y')
 title('{\phi} R')
 mTextBox = uicontrol('style','text');
 set(mTextBox,'String',...
-    ['max= ' num2str(max(phiVec(tam+1:2*tam,dir))) ...
-    '      '...
-    'min= ' num2str(min(phiVec(tam+1:2*tam,dir)))]);
+    ['max= ' num2str(max(phiVec(tam+1:2*tam,dir)))]);
 set(mTextBox,'Units','characters')
 mTextBoxPosition = get(mTextBox,'Position');
 mTextBoxPosition(1) = 55;
 mTextBoxPosition(2) = 4;
 mTextBoxPosition(3) = 25;
-mTextBoxPosition(4) = 2;
+mTextBoxPosition(4) = 1;
+set(mTextBox,'Position',mTextBoxPosition);
+mTextBox = uicontrol('style','text');
+set(mTextBox,'String',...
+    ['min= ' num2str(min(phiVec(tam+1:2*tam,dir)))]);
+set(mTextBox,'Units','characters')
+mTextBoxPosition = get(mTextBox,'Position');
+mTextBoxPosition(1) = 55;
+mTextBoxPosition(2) = 3;
+mTextBoxPosition(3) = 25;
+mTextBoxPosition(4) = 1;
 set(mTextBox,'Position',mTextBoxPosition);
 %
 set(gca,'Box','off')

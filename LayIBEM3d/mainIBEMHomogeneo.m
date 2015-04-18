@@ -22,30 +22,32 @@ GijX = @GijTij_omega_pxEQpXi;
 % end
 GE = zeros(3); TE = GE; G = GE; T = GE; mx =0;
 % Frequency loop
-for j=1:f_vars.NFREC
+jini = 1;
+jfin = f_vars.NFREC;
+for j=jini:jfin
     [m,f] = setupJ(j,m_vars,f_vars,ops);
     % incident field
     regP0 = p0.region;
     mregP0 = m(regP0);
-    resoutT=zeros(res.nrecep,3,3);
-    resoutG=zeros(res.nrecep,3,3);
-    parfor iPx = 1:res.nrecep %for each station
+%     resoutT=zeros(res.nrecep,3,3);
+%     resoutG=zeros(res.nrecep,3,3);
+    for iPx = 1:res.nrecep %for each station
         [p_x] = pick_receptor(iPx,res);
         if (p_x.region == regP0)
             [G,T] = Gij(mregP0,f,p_x,p0);
-            resoutT(iPx,:,:) = T(:,:);
-            resoutG(iPx,:,:) = G(:,:);
-%             res.receptor{iPx}.greenT(:,:,j) = T(:,:);
-%             res.receptor{iPx}.greenG(:,:,j) = G(:,:);
+%             resoutT(iPx,:,:) = T(:,:);
+%             resoutG(iPx,:,:) = G(:,:);
+            res.receptor{iPx}.greenT(:,:,j) = T(:,:);
+            res.receptor{iPx}.greenG(:,:,j) = G(:,:);
         end
     end
-    for iPx = 1:res.nrecep
-        res.receptor{iPx}.greenT(:,:,j) =resoutT(iPx,:,:);
-        res.receptor{iPx}.greenG(:,:,j) =resoutG(iPx,:,:);
-    end
+%     for iPx = 1:res.nrecep
+%         res.receptor{iPx}.greenT(:,:,j) =resoutT(iPx,:,:);
+%         res.receptor{iPx}.greenG(:,:,j) =resoutG(iPx,:,:);
+%     end
     
     [Bou] = initBoundary(res);
-    if (j==1),plotGeom(j,Bou,res,p0);end
+    if (j==jini),plotGeom(j,Bou,res,p0);end
     [Bmat,Bvec,med] = initBmat_allCont(Bou);
     
     % fill the continuity conditions matrix
@@ -61,7 +63,7 @@ for j=1:f_vars.NFREC
                 [GE,TE] = GijX(m(1),f,p_x,pXi); %(region E column)
                 [GR,TR] = GijX(m(2),f,p_x,pXi); %(region R column)
                 GE=GE*DA;GR=GR*DA;
-                TR = -TR*DA;
+                TR = -TR;
             else
                 % full space Green function :
                 [GE,TE] = Gij(m(1),f,p_x,pXi); %(region E column)
@@ -118,14 +120,14 @@ for j=1:f_vars.NFREC
             j_m = 1:3;
             for iPxi = 1:Bou.nBou %for each BE
                 phirange = j_m+lmed*med;
-                %[pXi] = pick_Boupoint(iPxi,Bou);
-                aux(1:3,1:3) = Bou.pt{iPxi}.gG(iPx,:,:);
-                res.receptor{iPx}.greenG(:,dirFza,j) = ...
-                res.receptor{iPx}.greenG(:,dirFza,j) + ...
+                [pXi] = pick_Boupoint(iPxi,Bou);
+                aux(1:3,1:3) = pXi.gG(iPx,:,:);
+                p_x.greenG(:,dirFza,j) = ...
+                p_x.greenG(:,dirFza,j) + ...
                     aux * phiVec(phirange,dirFza);
-                aux(1:3,1:3) = Bou.pt{iPxi}.gT(iPx,:,:);
-                res.receptor{iPx}.greenT(:,dirFza,j) = ...
-                res.receptor{iPx}.greenT(:,dirFza,j) + ...
+                aux(1:3,1:3) = pXi.gT(iPx,:,:);
+                p_x.greenT(:,dirFza,j) = ...
+                p_x.greenT(:,dirFza,j) + ...
                     aux * phiVec(phirange,dirFza);
                 j_m = j_m+3;
             end

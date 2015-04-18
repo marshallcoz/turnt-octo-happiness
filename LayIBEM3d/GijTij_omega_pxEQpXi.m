@@ -9,14 +9,14 @@ RNM = distancia(p_x,pXi); %distancia
 R = pXi.radio; %radio del disco
 if (RNM >= 0.1*R)
     EPS = RNM/R;
-    G = (p_x.center(1:3) - pXi.center(1:3))./RNM; %cosenos directores
+    G = (p_x.center(1:3) - pXi.center(1:3))/RNM; %cosenos directores
 else
     EPS = 0;
     G = 0;
 end
 clear RNM 
 
-CAKA = f.come;%/m.beta;
+CAKA = f.come/m.beta;
 %CAQA = f.come/m.alfa;
 
 BEA2  = m.bealf2;
@@ -31,9 +31,9 @@ AKR2=CAKR*CAKR;
 %AQR3=AQR2*CAQR;
 AKR3=AKR2*CAKR;
 if (EPS == 0)
-F1=1-1i*(2.+BEA3)*CAKR/6.-1*(1.+.5*BEA4)*AKR2/9.+1i*BEA2*BEA3*AKR3/24.;
+F1=1-1i*(2.0+BEA3)*CAKR/6.0-1*(1.0+0.5*BEA4)*AKR2/9.0+1i*BEA2*BEA3*AKR3/24.0;
 F1=F1/(pi*R);
-F2=1*(1.+BEA2)/2.-1i*(2.+BEA3)*CAKR/6.-1*(2.+BEA4)*AKR2/18.+1i*AKR3/24.;
+F2=1*(1.0+BEA2)/2.0-1i*(2.0+BEA3)*CAKR/6.0-1*(2.0+BEA4)*AKR2/18.0+1i*AKR3/24.0;
 F2=F2/(pi*R);
 for I=1:3
     for J=1:3
