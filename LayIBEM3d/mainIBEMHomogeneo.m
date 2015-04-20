@@ -1,13 +1,13 @@
 %% programa principal IBEM INCLUSION HOMOGENEO
-%clear;clc;close('all','hidden')
-%cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/LayIBEM3d'
-% del medio y la frecuencia
-[m_vars,f_vars,ops,res] = setUpModelo;
+clear;clc;close('all','hidden')
+cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/LayIBEM3d'
+rmdir('out','s')
 mkdir out
 mkdir out/phi
-%fuente real
-p0.center(1:3) =[0 -1.5 0];
-p0.region = 1;
+
+% del medio y la frecuencia
+[m_vars,f_vars,ops,res,p0] = setUpModelo;
+
 [Uo] = ricker(f_vars,ops.ts,ops.tp);
 %[Uo] = gaussiana(f_vars,ops.sigma);
 

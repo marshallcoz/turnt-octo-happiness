@@ -34,11 +34,11 @@ for obj in scene.objects:
             bpy.ops.mesh.select_all(action = 'DESELECT')
             for f in bm.faces:
                 for ed in f.edges:
-                    len = ed.calc_length()
+                    length = ed.calc_length()
                     factor = 1
-                    if (len > diamMax):
+                    if (length > diamMax):
                         ed.select = True
-                        factor = max(factor,int(len/diamMax)+1)
+                        factor = max(factor,int(length/diamMax)+1)
                         factor = min(factor,maxfactor)
             bpy.ops.mesh.subdivide(factor)
             for f in bm.faces:
@@ -56,21 +56,27 @@ for obj in scene.objects:
             if (iter >= maxiter):
                 keepgoing = False 
         print("---------------------------------")
-        print("-------max radius = "+ str(radioMax)+" --------")
-        print(" ")
-        print(" ")
+        currfi = bpy.data.filepath + str(radioMax) + ".txt"
+        outfile = open(currfi,'w')
+        outfile.write("----"+bpy.data.filepath+str(radioMax)+"----\n")
+        outfile.write(str(len(bm.faces))+"\n")
         # Presentar los resultados
         for f in bm.faces:
             cen = f.calc_center_bounds()
             nor = f.normal
             are = f.calc_area()
             rad = (are / pi ) ** (0.5)
-            print(format(cen.x,G)+" "+format(cen.y,G)+" "+format(cen.z,G)+" "+format(nor.x,G)+" "+format(nor.y,G)+" "+format(nor.z,G)+" "+format(rad,G))
+            outfile.write(format(cen.x,G)+" "+format(cen.y,G)+" "+format(cen.z,G)+" "+
+            	format(nor.x,G)+" "+format(nor.y,G)+" "+format(nor.z,G)+" "+format(rad,G)+"\n")
+            outfile.write(str(len(f.verts))+"\n")
+            for vf in f.verts:
+            	cen = vf.co
+            	outfile.write(format(cen.x,G)+" "+format(cen.y,G)+" "+format(cen.z,G)+"\n")
             #print("center: " + str(f.calc_center_bounds()))
             #print("normal: " + str(f.normal))
             #print("area: " + str(f.calc_area()))
             contador = contador + 1
-        print(" ")
+        outfile.close()
         print("There are "+ str(contador) + " colocation points")
 #bpy.ops.wm.save_mainfile()
 filepath = bpy.data.filepath

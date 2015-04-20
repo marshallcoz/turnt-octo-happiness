@@ -2,9 +2,10 @@ function plotGeom(j,Bou,res,p0)
 % plot the problem geometry
 hfig = figure('Name','Geometry');hold on
 for i = 1:Bou.nBou
+   plotPatch(Bou.pt{i}.vert);
    plotCircle3D(Bou.pt{i}.center, ...
                 Bou.pt{i}.normal, ...
-                Bou.pt{i}.radio,2);
+                Bou.pt{i}.radio,1);
 end
 maxx = -1000;
 minx = 1000;

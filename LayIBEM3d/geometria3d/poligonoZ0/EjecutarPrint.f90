@@ -3,7 +3,7 @@
       character(len=300) :: path,blendRoute,GeomFile,scriptfile,params
       character(len=900) :: auxtxt  
       CHARACTER(len=300) :: arg
-      real :: maxRadio
+      real :: profZ
       CALL getcwd(path)
       write(scriptfile,'(a,a)') trim(path),"/poligonoEnLaSuperficie.py"
 !     scriptfile = "/Users/marshall/Desktop/script.py"
@@ -24,8 +24,15 @@
       
       params = "-b -P"
       
+      CALL get_command_argument(2, arg)
+      IF (LEN_TRIM(arg) .ne. 0) then
+      read(arg,*) profZ
+      else
+      stop "(arg2) Especifique radio Maximo"
+      end if
+      
       write(auxtxt,*) trim(blendRoute)," ",trim(GeomFile) & 
-                     ," ",trim(params)," ",trim(scriptfile)
+                     ," ",trim(params)," ",trim(scriptfile)," --",profZ
       call system(auxtxt)
       write(6,*)"ending"
       end

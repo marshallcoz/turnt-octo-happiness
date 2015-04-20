@@ -1,4 +1,4 @@
-function [m,f,ops,res] = setUpModelo
+function [m,f,ops,res,p0] = setUpModelo
 % de la frecuencia y número de onda
 f.DFREC = 0.05;
 f.NFREC = 250;
@@ -9,8 +9,6 @@ f.ntiempo = 2^10; % cantidad de puntos en tiempo
 f.nk = 100;
 f.nmax = 2^8;
 f.Dk_R = 2.5;
-
-
 
 % Medios E estratificado
 ops.N = 2; % Num de estratos
@@ -47,15 +45,19 @@ ops.sigma = 10.0; %gaussiana (% de fmax)
 %Receptores -----------------------------------------
 clear res
 % BoundaryFile
-res.BouFile = 'Ico5Unit.txt';
-%res.BouFile = 'cuboUni.txt';
-%res.BouFile = 'cuboU24.txt';
+%res.BouFile = 'Ico5Unit.txt';
+res.BouFile = 'icoshpere2.blend.txt';
+res.BouFileZ0 = 'icoshpere2.blendz0.0.txt';
 
-res.Del = 0.5; %espacio entre receptores [m]
-res.box = [[-1 1];...
-           [2 2];...
+res.Del = 0.25; %espacio entre receptores [m]
+res.box = [[-2 2];...
+           [-2 2];...
            [0 0]];
 res.norm =[1 1 1];
+
+% fuente real :::::::::::::::::::::::::::::::
+p0.center(1:3) =[0 -2 0];
+p0.region = 1;
 
 % ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 % otras variables :: 
