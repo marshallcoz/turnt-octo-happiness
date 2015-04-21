@@ -12,7 +12,9 @@ end
 plot(tiem,vec,'k')
 xlabel('tiempo en segundos')
 cd out
+cd Sis
 %saveas(h_figura,[name '.jpg']);
 hgsave(h_figura,[name '.fig']);
+cd ..
 cd ..
 close(h_figura);

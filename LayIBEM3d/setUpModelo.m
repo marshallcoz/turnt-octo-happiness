@@ -1,7 +1,7 @@
 function [m,f,ops,res,p0] = setUpModelo
 % de la frecuencia y número de onda
-f.DFREC = 0.05;
-f.NFREC = 250;
+f.DFREC = 0.1;
+f.NFREC = 100;
 f.TW = 5;
 f.Q = 1000;
 f.dwn = true;
@@ -14,13 +14,13 @@ f.Dk_R = 2.5;
 ops.N = 2; % Num de estratos
 clear m                          % E
 m(1).z = 0; 
-m(1).beta0 = 3; % [m/s]
-m(1).alfa0 = 6; % [m/s]
+m(1).beta0 = 40; % [m/s]
+m(1).alfa0 = 80; % [m/s]
 m(1).rho = 1.0; % [T/m3]
 
 m(2).z = 2;                      % R
-m(2).beta0 = 3; % [m/s]
-m(2).alfa0 = 6; % [m/s]
+m(2).beta0 = 20; % [m/s]
+m(2).alfa0 = 40; % [m/s]
 m(2).rho = 1.0; % [T/m3]
 
 % % semiespacio
@@ -36,8 +36,8 @@ m(2).rho = 1.0; % [T/m3]
 
 ops.UseAzimi = false;
 ops.sacarSismogramas = true;
-ops.sacarFotoramas = false;
-ops.sacarPhiplot = true;
+ops.sacarFotoramas = true;
+ops.sacarPhiplot = false;
 ops.tp = 0.3; %ricker (ancho)  / frec central= 1/tp 
 ops.ts = 1.5; %ricker (centro)
 ops.sigma = 10.0; %gaussiana (% de fmax)
@@ -46,11 +46,13 @@ ops.sigma = 10.0; %gaussiana (% de fmax)
 clear res
 % BoundaryFile
 %res.BouFile = 'Ico5Unit.txt';
-res.BouFile = 'icoshpere2.blend.txt';
-res.BouFileZ0 = 'icoshpere2.blendz0.0.txt';
+%res.BouFile = 'icoshpere2.blend.txt';
+%res.BouFileZ0 = 'icoshpere2.blendz0.0.txt';
+res.BouFile = 'icosphere3.blend.txt';
+res.BouFileZ0 = 'icosphere3.blendz0.0.txt';
 
-res.Del = 0.25; %espacio entre receptores [m]
-res.box = [[-2 2];...
+res.Del = 0.2; %espacio entre receptores [m]
+res.box = [[0 2];...
            [-2 2];...
            [0 0]];
 res.norm =[1 1 1];

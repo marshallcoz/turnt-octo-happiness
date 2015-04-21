@@ -22,10 +22,10 @@ for iPx = 1:res.nrecep %for each station
     minx = min(minx,p_x.center(1));
     miny = min(miny,p_x.center(2));
     minz = min(minz,p_x.center(3));
-    
 end
 p_x = p0;
-text(p_x.center(1),p_x.center(2),p_x.center(3),'{\color{red}X}')
+%text(p_x.center(1),p_x.center(2),p_x.center(3),'{\color{red}X}')
+plot3(p_x.center(1),p_x.center(2),p_x.center(3),'r.','MarkerSize',25)
     maxx = max(maxx,p0.center(1));
     maxy = max(maxy,p0.center(2));
     maxz = max(maxz,p0.center(3));
@@ -45,6 +45,8 @@ axis equal
 xlim([minx maxx])
 ylim([miny maxy])
 zlim([minz maxz])
+xlabel('x')
+ylabel('y')
 %
 set(gca,'Box','off')
 cd out

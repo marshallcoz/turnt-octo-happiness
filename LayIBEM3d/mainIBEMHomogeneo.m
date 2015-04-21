@@ -1,9 +1,11 @@
 %% programa principal IBEM INCLUSION HOMOGENEO
 clear;clc;close('all','hidden')
 cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/LayIBEM3d'
+%%
 rmdir('out','s')
 mkdir out
 mkdir out/phi
+mkdir out/Sis
 
 % del medio y la frecuencia
 [m_vars,f_vars,ops,res,p0] = setUpModelo;
@@ -14,7 +16,7 @@ mkdir out/phi
 % receptores y puntos de colocación
 [res] = initreceptores(res,f_vars);
 
-% if f_vars.dwn==true
+%% if f_vars.dwn==true
 %     Gij = @GijTij_dwn;
 % else
 Gij = @GijTij_omega;
@@ -151,42 +153,46 @@ for iPx = 1:res.nrecep %for each station
             if ops.sacarSismogramas,sismogramaB(iPx,f_vars,s(comp,:),comp,dirFza),end
         end
     end
-%     if ops.sacarFotoramas
-%         res.fotogramas(1:3,1:f_vars.ntiempo,p_x.p(1),p_x.p(2),p_x.p(3)) ...
-%             = s(1:3,1:f_vars.ntiempo);
-%         mx = max(mx,max(s));
-%     end
+    if ops.sacarFotoramas
+        res.fotogramas(1:3,1:f_vars.ntiempo,p_x.p(1),p_x.p(2),p_x.p(3)) ...
+            = s(1:3,1:f_vars.ntiempo);
+        mx = max(mx,max(s));
+    end
 end
 % mx = mean(mx);
 
 
 %% graficar fotogramas
-% if ops.sacarFotoramas
-% disp('haciendo fotograms')
-% contadort=1;
-% for t=461:10:1024%161:10:1024%f_vars.ntiempo
-%     h_figura = figure('Name',['Gi1_' num2str(t)]);hold on; set(gcf,'Visible', 'off')
-%     quiver3(pXi.center(1),pXi.center(2),pXi.center(3),...
-%         pXi.normal(1),pXi.normal(2),pXi.normal(3),1,'r');
-%     for iRecep = 1:res.nrecep
-%         [p_x] = pick_receptor(iRecep,res);
-%         n = res.fotogramas(1:3,t,p_x.p(1),p_x.p(2),p_x.p(3));
-%         mag = comprimir(magnitud(n(1:3)),mx);
-%         if abs(mag) < 0.001/mx
-%             continue
-%         else
-%             quiver3(p_x.center(1),p_x.center(2),p_x.center(3),...
-%             n(1),n(2),n(3),mag,'k');
-%         end
-%     end
-%     view(-35,65)
-%     xlim(res.box(1,:));
-%     ylim(res.box(2,:));
-%     zlim([0 2]);
-%     xlabel('x');ylabel('y');zlabel('z')
-%     title(['t=' num2str(t*f_vars.dt) 'sec']);
-%     saveas(h_figura,['F' num2str(dirFza) '_' num2str(contadort) '.jpg']);
-%     contadort = contadort+1;
-%     close('all','hidden')
-% end
-% end
+if ops.sacarFotoramas
+disp('haciendo fotograms')
+contadort=1;
+for t=1:10:f_vars.ntiempo%161:10:1024%f_vars.ntiempo
+    h_figura = figure('Name',['Gi1_' num2str(t)]);hold on; set(gcf,'Visible', 'off')
+    quiver3(pXi.center(1),pXi.center(2),pXi.center(3),...
+        pXi.normal(1),pXi.normal(2),pXi.normal(3),1,'r');
+    for iRecep = 1:res.nrecep
+        [p_x] = pick_receptor(iRecep,res);
+        n = res.fotogramas(1:3,t,p_x.p(1),p_x.p(2),p_x.p(3));
+        mag = comprimir(magnitud(n(1:3)),mx);
+        if abs(mag) < 0.001/mx
+            continue
+        else
+            quiver3(p_x.center(1),p_x.center(2),p_x.center(3),...
+            n(1),n(2),n(3),mag,'k');
+        end
+    end
+    view(-35,65)
+    xlim(res.box(1,:));
+    ylim(res.box(2,:));
+    zlim([0 2]);
+    xlabel('x');ylabel('y');zlabel('z')
+    title(['t=' num2str(t*f_vars.dt) 'sec']);
+    cd out
+    cd vid
+    saveas(h_figura,['F' num2str(dirFza) '_' num2str(contadort) '.jpg']);
+    cd ..
+    cd ..
+    contadort = contadort+1;
+    close('all','hidden')
+end
+end

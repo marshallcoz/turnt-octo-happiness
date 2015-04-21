@@ -27,6 +27,8 @@ title('Espectro de pulso con t_0 = -ts')
 plot((0:f.ntiempo-1).*f.DFREC,real(rick),'r');hold on;
 plot((0:f.ntiempo-1).*f.DFREC,imag(rick),'b');
 plot((0:f.ntiempo-1).*f.DFREC,abs(rick),'k')
+[ymM] = get(gca,'ylim');
+line([1 1]*f.DFREC*f.NFREC,[ymM(1) ymM(2)])
 xlim([0 f.ntiempo/2*f.DFREC]);
 xlabel('frecuencia en Hertz')
 
