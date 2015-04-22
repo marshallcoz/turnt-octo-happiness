@@ -35,7 +35,7 @@ m(2).rho = 1.0; % [T/m3]
 % m(ops.N+2).rho = 1.0; % [T/m3]
 
 ops.UseAzimi = false;
-ops.sacarSismogramas = true;
+ops.sacarSismogramas = false;
 ops.sacarFotoramas = true;
 ops.sacarPhiplot = false;
 ops.tp = 0.3; %ricker (ancho)  / frec central= 1/tp 
@@ -46,8 +46,8 @@ ops.sigma = 10.0; %gaussiana (% de fmax)
 clear res
 % BoundaryFile
 %res.BouFile = 'Ico5Unit.txt';
-%res.BouFile = 'icoshpere2.blend.txt';
-%res.BouFileZ0 = 'icoshpere2.blendz0.0.txt';
+% res.BouFile = 'icoshpere2.blend.txt';
+% res.BouFileZ0 = 'icoshpere2.blendz0.0.txt';
 res.BouFile = 'icosphere3.blend.txt';
 res.BouFileZ0 = 'icosphere3.blendz0.0.txt';
 
@@ -58,7 +58,7 @@ res.box = [[0 2];...
 res.norm =[1 1 1];
 
 % fuente real :::::::::::::::::::::::::::::::
-p0.center(1:3) =[0 -2 0];
+p0.center(1:3) =[0 -4 0];
 p0.region = 1;
 
 % ::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::

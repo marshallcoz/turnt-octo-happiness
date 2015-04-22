@@ -382,19 +382,8 @@
          pt_workA => workA
       if (PSV) then
          tam = size(Ak,1)
-       
-!      if (developerfeature .eq. 3) then
-!        do ik = 1,vecNK(J),3 ! k positivo (Aorig -> nmax+1)
-!        pointAp => Ak(1:tam,1:tam,ik)
-!        pt_k => k_vec(ik)
-!        call gloMat_PSV(pointAp,pt_k,pt_cOME_i)
-!        call inverseA(pointAp,pt_ipivA,pt_workA,tam)
-!        
-!        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)
-!        end do ! ik
-!      go to 12
-!      end if
-       call makeGANU (J)
+
+       call makeGANU (J) !los numeros de onda horizontales para P y S 
        
        do ik = 1,vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
@@ -2892,7 +2881,7 @@
         B(:,po:ne) = 0                                                           !
         if (dir_j .eq. 2) then                                                   !
          tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
-         do ik = 1,po                                                            !n
+         do ik = 1,po+1                                                            !n
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !d
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !a
          end do                                                                  !                                     
@@ -2906,7 +2895,7 @@
          
          ! si la fuente está sobre una interfaz ...............
          if (pXi%isOnInterface) then
-           do ik = 1,po                                                            !r
+           do ik = 1,po+1                                                            !r
              call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)      !i
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
            end do                                                                  !a
@@ -2915,9 +2904,9 @@
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
            end do
          else ! la fuente está entre interfaces ..............
-           do ik = 1,po
+           do ik = 1,po+1
              call eGAeNU(i_zF,ik,pXI,dj)
-           end do                                                                 
+           end do!                                                                 
            do ik = ne,2*NMAX
              call eGAeNU(i_zF,ik,pXI,dj)
            end do
@@ -2971,7 +2960,7 @@
                               p_X%center%z, p_X%layer,cOME,k,0)!                  ·a
           end if!                                                               ·
       else ! onda plana incidente / onda cilíndrica circular ····················
-        do ik = 1,po                                                            !
+        do ik = 1,po+1                                                            !
           if (dir_j .eq. 2) then !SH                                            !
               Meca_diff = SHdiffByStrata(B(:,ik), &                             !
                              p_X%center%z, p_X%layer, &                         !o
@@ -3036,7 +3025,7 @@
       ! fase horizontal
             ! reponer auxK original sin fase horizontal
 !         auxK(1:2*nmax,mecS:mecE) = savedAuxK(1:2*nmax,mecS:mecE)
-          auxK(1:po,mecS:mecE)      = savedAuxK(1:po,mecS:mecE)
+          auxK(1:po+1,mecS:mecE)      = savedAuxK(1:po+1,mecS:mecE)
           auxK(ne:2*nmax,mecS:mecE) = savedAuxK(ne:2*nmax,mecS:mecE)
             ! agregar información fase horizontal de fuente y receptor 
           do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
@@ -3054,7 +3043,7 @@
                 exp(-UI*k*(p_x%center%x - xf))            !                 ·
                 CYCLE ! imec                              !                 ·
             end if ! ························································
-            do ik = 1,po                                                    !
+            do ik = 1,po+1                                                    !
                 auxk(ik,imec) = auxk(ik,imec) * &                           !
                 exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
             end do !  ik                                                    !i
@@ -3090,7 +3079,7 @@
       ! K -> X  .........................................................   !
          if (p_x%guardarMovieSiblings .eqv. .false.) then
 !            auxK(:,iMec) = FFTW(2*nmax,auxK(:,iMec),+1,dk) !backward       !
-             auxK(1,iMec) = sum(auxK(1:po,iMec))+sum(auxK(ne:2*nmax,iMec))
+             auxK(1,iMec) = sum(auxK(1:po+1,iMec))+sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = auxK(1,iMec)*dk
              
 #ifdef ver
@@ -3140,6 +3129,7 @@
       use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, gamma=>gamma_E,nu=>nu_E
       use soilVars, only : ALFA,BETA,N,alfa0,beta0
       use sourceVars, only : FirstSource=>Po,PW_pol
+!     use dislin
       implicit none
       integer :: J,po,ne,e,ii,ik,ikI(2),ikF(2)
       real*8  :: k
@@ -3147,10 +3137,10 @@
       
       ! gamma y nu en esta frecuencia
        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)
-       ikI(1) = 1 
-       ikF(1) = po
-       ikI(2) = ne
-       ikF(2) = 2*nmax
+       ikI(1) = 1  ! positivos
+       ikF(1) = po+1 ! 
+       ikI(2) = ne     ! negativos
+       ikF(2) = 2*nmax !
        do e = 1,N+1
           omeAlf = cOME**2.0/ALFA(e)**2.0
           omeBet = cOME**2.0/BETA(e)**2.0
@@ -3164,9 +3154,10 @@
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        
        ! de ondas cilíndricas
-       do ii=1,2 ! los num de onda positivos, negativos
+       do ii = 1,2 ! los num de onda positivos, negativos
        do ik = ikI(ii),ikF(ii) !  todos los num de onda
           k = k_vec(ik)
+!         print*,ii,ik,k
           ! algunas valores constantes para todo el estrato          
           gamma(ik,e) = sqrt(omeAlf - k**2.0)
           nu(ik,e) = sqrt(omeBet - k**2.0)
@@ -3178,6 +3169,8 @@
           if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        end do ! ik
        end do ! ii
+!      call qplot(real(k_vec,4),real(aimag(gamma(:,e)),4), 2*nmax)
+!      stop
        end do ! e 
       end subroutine makeGANU
 
@@ -3186,13 +3179,13 @@
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
       use debugStuff
-      use waveNumVars, only : gamma_E,nu_E
+      use waveNumVars, only : gamma_E,nu_E,nmax
       use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       complex*16,    intent(inout), dimension(:,:),pointer :: this_A
       real*8,     intent(in),pointer     :: k
       complex*16, intent(in),pointer     :: cOME_i 
-      integer :: ik
+      integer :: ik,neik
       real*8     :: k2
       complex*16, dimension(2,4) :: subMatD,subMatS
 !     complex*16, dimension(4,4) :: diagMat
@@ -3225,6 +3218,8 @@
                                                gamma, ck, ck,-nu /), &
                            (/ 2,4 /))
           subMatD0(1:2,1:4,e,ik) = subMatD0(1:2,1:4,e,ik) * UI
+          
+          
           k2 = 2.0*k
 !         subMatS0 = RESHAPE((/ xi,-k2*gamma,-k2*nu,-xi,& 
 !                              xi,k2*gamma,k2*nu,-xi /),&
@@ -3236,6 +3231,26 @@
                            k2*nu,     -xi,       -k2*nu /),&
                            (/3,4/)) 
           subMatS0(1:3,1:4,e,ik) = amu(e) * subMatS0(1:3,1:4,e,ik)
+          ! y para k negativo aprovechando la simetria de gamma y nu
+          neik = 2*nmax - (ik-2)
+          if (neik .le. 2*nmax) then
+          subMatD0(1:2,1:4,e,neik) = RESHAPE((/ -gamma, -ck, -ck,nu,& 
+                                               gamma, -ck, -ck,-nu /), &
+                           (/ 2,4 /))
+          subMatD0(1:2,1:4,e,neik) = subMatD0(1:2,1:4,e,neik) * UI
+          
+          ! y para el k negativo aprovechando simetria de gamma,nu,xi,eta,
+          subMatS0(1:3,1:4,e,neik) = RESHAPE(& 
+                        (/ xi,      k2*gamma,     eta,     &
+                           k2*nu,     -xi,       -k2*nu,   &
+                           xi,      -k2*gamma,     eta,       &
+                          -k2*nu,     -xi,        k2*nu /),&
+                           (/3,4/)) 
+          subMatS0(1:3,1:4,e,neik) = amu(e) * subMatS0(1:3,1:4,e,neik)
+          end if
+          
+          
+          
           ! la profundidad z de la frontera superior del estrato
 !         z_i = Z(e)   ! e=1  ->  z = z0 = 0
 !         z_f = Z(e+1) ! e=1  ->  z = z1 
@@ -3840,14 +3855,14 @@
       ! negativos
       do ik=nmax+2,2*NMAX
         ikp = (2*NMAX +2-ik)
-!       print*,ik,ikp;cycle
-!     call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),"antes")
+!     print*,ik,ikp!;cycle
+!     call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ikp),"lado positivo",6)
         do r=1,tam
         do c=1,tam
         Ak(r,c,ik) = Ak(r,c,ikp) * Comal(r,c)
         end do
         end do
-!     call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),"despu")
+!     call scripToMatlabMNmatrixZ(tam,tam,Ak(1:tam,1:tam,ik),"lado negativo",6)
 !     stop
       end do
 !     stop "parImpar_gloMat"
@@ -4112,7 +4127,7 @@
       real*8 :: k
        pos = min(int(vecNK(J)*SpliK),nmax); neg = 2*nmax-(pos-2)
        ikI(1) = 1
-       ikF(1) = pos
+       ikF(1) = pos+1
        ikI(2) = neg
        ikF(2) = 2*nmax
        do ii=1,2 ! los num de onda positivos, negativos
@@ -4215,7 +4230,7 @@
        tam = 4*N+2
        pos = min(int(vecNK(J)*SpliK),nmax); neg = 2*nmax-(pos-2)
        ikI(1) = 1
-       ikF(1) = pos
+       ikF(1) = pos+1
        ikI(2) = neg
        ikF(2) = 2*nmax
        do ii=1,2 ! los num de onda positivos, negativos
@@ -4290,20 +4305,8 @@
       
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
       if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente 
-      
-!     omeAlf = cOME**2.0/ALFA(e_f)**2.0
-!     omeBet = cOME**2.0/BETA(e_f)**2.0
-!         ! algunas valores constantes para todo el estrato          
-!         gamma = sqrt(omeAlf - k**2.0)
-!         nu = sqrt(omeBet - k**2.0)
-!         ! Se debe cumplir que la parte imaginaria del número de onda 
-!         ! vertical debe ser menor que cero. La parte imaginaria contri-
-!         ! buye a tener ondas planas inhomogéneas con decaimiento expo-
-!         ! nencial a medida que z crece.
-!         if(aimag(gamma).gt.0.0_8)gamma = conjg(gamma)
-!         if(aimag(nu).gt.0.0_8)nu=conjg(nu) 
-          gamma = gamma_E(ik,e_f)
-          nu = nu_E(ik,e_f)
+      gamma = gamma_E(ik,e_f)
+      nu = nu_E(ik,e_f)
           
       do iIf = 1,2
           egamz(iIf) = exp(-UI*gamma*ABS(z_loc(iIf)))
@@ -4801,6 +4804,7 @@
       logical :: shouldI,XinoEstaEnInterfaz,usarGreenex!,estratosIguales
       
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0
+      return
 !     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
@@ -7868,3 +7872,4 @@
         end if
         end if        
       end subroutine plot_at_eta
+

@@ -1,8 +1,8 @@
-function plotGeom(j,Bou,res,p0)
+function [xli,yli,zli] = plotGeom(j,Bou,res,receptor,p0)
 % plot the problem geometry
 hfig = figure('Name','Geometry');hold on
 for i = 1:Bou.nBou
-   plotPatch(Bou.pt{i}.vert);
+   plotPatch(Bou.pt{i}.vert,0.9);
    plotCircle3D(Bou.pt{i}.center, ...
                 Bou.pt{i}.normal, ...
                 Bou.pt{i}.radio,1);
@@ -14,7 +14,7 @@ miny = 1000;
 maxz = -1000;
 minz = 1000;
 for iPx = 1:res.nrecep %for each station
-    [p_x] = pick_receptor(iPx,res);
+    [p_x] = receptor{iPx};%pick_receptor(iPx,res);
     text(p_x.center(1),p_x.center(2),p_x.center(3),'{\color{blue}V}')
     maxx = max(maxx,p_x.center(1));
     maxy = max(maxy,p_x.center(2));
@@ -42,11 +42,13 @@ miny = min(min(get(gca,'ylim')),miny);
 minz = min(min(get(gca,'zlim')),minz);
 light('Position',[maxx*2 miny*2 maxz*5],'Style','infinite');
 axis equal
-xlim([minx maxx])
-ylim([miny maxy])
-zlim([minz maxz])
-xlabel('x')
-ylabel('y')
+xli = [minx maxx];
+yli = [miny maxy];
+zli = [minz maxz];
+xlim(xli)
+ylim(yli)
+zlim(zli)
+xlabel('x');ylabel('y');zlabel('z')
 %
 set(gca,'Box','off')
 cd out

@@ -1,4 +1,23 @@
 Points of interest test pocos puntos
+2  <- Por lo menos (1)
+1  128  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
+___________________________________________________________
+1.0  1.0  <- escala:x escala:y
+0.0  0.0  <- offset:x offset:y
+ X        Z          nx       nz   guardarFK=2   ptColocSobreEst
+-1       0          0.0      1.0        1            F   1
+ 1       0          0.0      1.0        1            F   1
+Sabanapoints -----------------------------------------------
+1.0  1.0  <- escala:x escala:y
+0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
+npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
+128    -2.000001    0.03125      0.0   0.0   F   F
+hacer zeros el rango en la sabana:
+0   62
+
+
+
+Points of interest test pocos puntos
 1  <- Por lo menos (1)
 1  128  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 ___________________________________________________________
