@@ -47,8 +47,8 @@ res.fotogramas = zeros(3,3,f_vars.ntiempo,res.nx,res.ny,res.nz);
 
 view(45,36)
 axis equal
-xlim([min(xran) max(xran)])
-ylim([min(yran) max(yran)])
+if(res.nx > 1), xlim([min(xran) max(xran)]);end
+if(res.ny > 1), ylim([min(yran) max(yran)]);end
 maxz = max(zran);
 minz = min(zran);
 maxz = max(max(get(gca,'zlim')),maxz);

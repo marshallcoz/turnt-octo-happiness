@@ -22,8 +22,8 @@ for i = 1:Bou.nBou
   iren = iren+1;
 end
 
-% now the green functions from each segment to each station
-for i = 1:Bou.nBou
-    Bou.pt{i}.gG = zeros(res.nrecep,3,3); %just valid each frequency
-    Bou.pt{i}.gT = zeros(res.nrecep,3,3); 
-end
+% % now the green functions from each segment to each station
+% for i = 1:Bou.nBou
+%     Bou.pt{i}.gG = zeros(res.nrecep,3,3); %just valid each frequency
+%     Bou.pt{i}.gT = zeros(res.nrecep,3,3); 
+% end

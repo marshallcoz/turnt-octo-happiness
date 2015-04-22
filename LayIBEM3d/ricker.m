@@ -1,6 +1,6 @@
 % Ricker wavelet in frecuency
 % En frecuencia se ha corregido que el tiempo inicial en ts
-function [rick] = ricker(f,ts,tp)
+function [rick] = ricker(f,ts,tp,t0)
 a = pi*(-ts)/tp;
 rick = zeros(f.ntiempo,1);
 rick(1) = (a*a-0.5)*exp(-a*a);
@@ -17,8 +17,8 @@ xlabel('tiempo en segundos')
 rick = fft(rick)*f.dt; %forward
 
 tvec = zeros(f.ntiempo,1);
-tvec(1) = exp(-1i*(0.01)*( 2*pi*f.DFREC)*(-ts));
-tvec(2:f.ntiempo/2+1) = exp(-1i*(1:f.ntiempo/2)*( 2*pi*f.DFREC)*(-ts));
+tvec(1) = exp(-1i*(0.01)*( 2*pi*f.DFREC)*(t0));
+tvec(2:f.ntiempo/2+1) = exp(-1i*(1:f.ntiempo/2)*( 2*pi*f.DFREC)*(t0));
 tvec(f.ntiempo/2+2:f.ntiempo) = conj(tvec(f.ntiempo/2:-1:2));
 rick = rick .* tvec;
 

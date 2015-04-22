@@ -220,8 +220,8 @@
       end do
       allocate( gamma_E(0:2*nmax,N+1))
       allocate( nu_E(0:2*nmax,N+1))
-      allocate( subMatD0(2,4,N+1,2*nmax))
-      allocate( subMatS0(3,4,N+1,2*nmax))
+      allocate( subMatD0(2,4,N+1,0:2*nmax))
+      allocate( subMatS0(3,4,N+1,0:2*nmax))
       allocate(t_vec(NPTSTIME))
       t_vec(1:NPTSTIME) = z0
       t_vec(1) = exp(cmplx(0.0,-0.01* dfrec * t0*(2*pi),8))
@@ -1525,7 +1525,7 @@
       integer :: iR
       huboCambios = .false.
       allocate(auxA(1)); allocate(auxB(1))
-      
+      print*,"Reading topography file"
       CALL chdir("ins")
       !Read Surface topography
       inquire(file="boundaries.txt",exist=lexist)
@@ -1693,17 +1693,16 @@
       
       minBeta = minval(BETA0(1:N+2))
       maxBeta = maxval(BETA0(1:N+2))
-!     if (abs(minBeta - maxBeta) .lt. 0.01) then
-!     shadecolor_inc = 0.8_4
-!     else
-!     shadecolor_inc = real(0.6-(maxBeta-beta0(N+2))*((0.6-0.89)/(maxBeta-minBeta)),4)
-!     end if
-      do e=1,N+2
-      layershadecolor(e)= real(0.4-(maxBeta-beta0(e))*((0.4-0.79)/(maxBeta-minBeta)),4)
-!       print*,i,layershadecolor(J)
-      end do
-      shadecolor_inc = layershadecolor(N+2)
       
+      if (abs(minBeta - maxBeta) .lt. 0.01) then
+        shadecolor_inc = layershadecolor(1)
+      else
+        do e=1,N+2
+          layershadecolor(e)= real(0.4-(maxBeta-beta0(e))*((0.4-0.79)/(maxBeta-minBeta)),4)
+          shadecolor_inc = layershadecolor(N+2)
+          !print*,e,layershadecolor(e)
+        end do
+      end if
       
 !     go to 384
       nXIoriginal = nXI
@@ -2780,7 +2779,7 @@
       use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
-      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK!,DFREC
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
       use wavelets !fork 
       use dislin
       use sourceVars, only: tipofuente, nFuentes, PW_pol
@@ -2835,7 +2834,7 @@
          i_FuenteFinal = nFuentes ! Cantidad de fuentes reales
          if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente·p
             ! con incidencia de onda plana no usamos atenuación                  ·l
-            cOME = real(cOME_in) * UR!                                           ·a
+            cOME = OME * UR  !real(cOME_in) * UR!                                ·a
          end if! ·································································n
       else; itabla_x = 2 + pota(i_zF,1) + 1 !    la primer fuente virtual
             i_FuenteFinal = 1; end if       !        a esa profundidad
@@ -2957,7 +2956,7 @@
             if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·p
             if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(pXi%gamma))!         ·l
                  savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
-                              p_X%center%z, p_X%layer,cOME,k,0)!                  ·a
+                              p_X%center%z, p_X%layer,cOME,k,0)!                ·a
           end if!                                                               ·
       else ! onda plana incidente / onda cilíndrica circular ····················
         do ik = 1,po+1                                                            !
@@ -4804,7 +4803,6 @@
       logical :: shouldI,XinoEstaEnInterfaz,usarGreenex!,estratosIguales
       
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0
-      return
 !     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
@@ -5329,7 +5327,7 @@
           (auxk(1,1) + FF%V)* nf(dir_j)
         end if
       else !PSV 
-        call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5)
+      call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5)
       !  | Tx |
       !  | Tz |
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) = &
