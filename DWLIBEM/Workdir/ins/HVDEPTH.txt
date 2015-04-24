@@ -1,9 +1,10 @@
 N = NUMBER OF LAYERS NOT COUNTING UPPER/LOWER HALF-SPACE: H=-/+8888:
-0
+1
 H(m) Alfa(m/s) Beta(m/s) Dens(T/m3)   
-8888   2.0    1.0     1.0 <--- (AT LEAST THIS ONE)
+2.5   4.0    2.0     1.0
+8888   4.0    2.0     1.0 <--- (AT LEAST THIS ONE)
 DFREC  nFREC  nPts_time    nK       Q         TW       tmax
-0.25    100      1024      400     10000.0      3     2.0
+0.075    170      1024      300     10000.0      1.5     1.5
 
 
 

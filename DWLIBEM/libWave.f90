@@ -11,6 +11,7 @@
       logical    :: PrintEtas
       logical    :: PlotFilledSabanas
       logical    :: plotFKS
+      logical    :: plotFKCK
       logical    :: saveG
       integer    :: multSubdiv ! De 6 en adelante 
       real       :: cKbeta ! 1.1 - 3 (default 1.5)

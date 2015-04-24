@@ -481,14 +481,14 @@
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) ;stop
-!      call chdir(trim(adjustl(rutaOut))) 
-!      open(421,FILE= "outA.m",action="write",status="replace")
+       call chdir(trim(adjustl(rutaOut))) 
+       open(421,FILE= "outA.m",action="write",status="replace")
 !      write(arg,'(a)') "Bf"
 !      call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
-!      write(arg,'(a)') "Mf"
-!      call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
-!      close(421)
-!      CALL chdir("..")
+       write(arg,'(a)') "Mf"
+       call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
+       close(421)
+       CALL chdir("..")
 !      stop 456 
 !#>
       call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
@@ -832,8 +832,9 @@
         end if !#>
        end if !psv
        
+       
       call plotSisGram(PSV,SH,.true.)    
-      call F_K_exp(XF)
+      if (plotFKCK) call F_K_exp(XF)
       
          
       if (makeVideo) then 
@@ -938,6 +939,7 @@
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
+      READ(35,'(L1)') plotFKCK
       READ(35,'(L1)') PrintEtas
       READ(35,'(L1)') PlotFilledSabanas
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
@@ -2870,7 +2872,7 @@
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
             pt_ipivA => ipivA; pt_workA => workA!                                ·
             call gloMat_PSV(pointA,pt_k,0,pt_come_i)!                              ·
-            call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
+            call inverseA(pointA,pt_ipivA,pt_workA,tam)!    
             call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
           end if!                                                                ·
@@ -3125,7 +3127,7 @@
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
 
       subroutine makeGANU (J)
-      use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, gamma=>gamma_E,nu=>nu_E
+      use waveNumVars, only : vecNK,SpliK,nmax,OME,cOME,k_vec, gamma=>gamma_E,nu=>nu_E
       use soilVars, only : ALFA,BETA,N,alfa0,beta0
       use sourceVars, only : FirstSource=>Po,PW_pol
 !     use dislin
@@ -3145,10 +3147,10 @@
           omeBet = cOME**2.0/BETA(e)**2.0
        ! de la onda plana
        ik = 0
-       if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(FirstSource(1)%gamma))
-       if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(FirstSource(1)%gamma))
-       gamma(ik,e) = sqrt(omeAlf - k**2.0)
-       nu(ik,e) = sqrt(omeBet - k**2.0)
+       if(PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(FirstSource(1)%gamma))
+       if(PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(FirstSource(1)%gamma))
+       gamma(ik,e) = sqrt(OME**2.0/ALFA0(N+1)**2.0 - k**2.0)
+       nu(ik,e) = sqrt(OME**2.0/BETA0(N+1)**2.0 - k**2.0)
        if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        
@@ -3868,6 +3870,69 @@
       end subroutine parImpar_gloMat
       
 ! G_stra - term indep
+      subroutine PSVvectorB_ondaplana(this_B,come,gamma)
+      use soilvars, only : n,lambda0,amu0,alfa0,beta0,Z!,beta,alfa
+      use glovars, only:UI,z0
+      use sourceVars, only: PW_pol
+      use debugStuff
+      implicit none
+      complex*16, intent(inout), dimension(1:4*N+2) :: this_B
+      complex*16, intent(in)    :: come ! no trae amortiguamiento
+      real*8, intent(in) :: gamma
+      integer :: i,e
+      real*8,dimension(1:2) :: theta
+      complex*16 :: kx,kz,U,W,c,Tx,Tz
+      real*8 :: z_loc
+      !     Colocamos la onda incindente en la interfaz
+      !     con el semiespacio de abajo.
+      e = N+1 
+      z_loc = 0! (Z(N+1)- Z(N+1)) 
+      if (PW_pol .eq. 1) then
+        c = beta0(N+1) !SV
+        theta(1) = cos(gamma)
+        theta(2) = sin(gamma)
+      elseif (PW_pol .eq. 2) then 
+        c = alfa0(N+1) !P
+        theta(1) = sin(gamma)
+        theta(2) = -cos(gamma)
+      end if
+      
+      kx = come/c * sin(gamma)
+      kz = come/c * cos(gamma)
+      U = (theta(1))* exp(UI * kz * (z_loc))
+      W = (theta(2))* exp(UI * kz * (z_loc))
+      
+      i=0
+      this_B = Z0 
+      if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
+        i = 2                                                !
+        this_B(1+4*(e-1)-2 + i) = W !  w                     !
+        this_B(1+4*(e-1)-1 + i) = U !  u                     !
+      end if                                                 !  
+      ! ······················································
+      if (e .ne. 1) then                                     ! 
+        this_B(1+4*(e-1)-2 + i) = W !  w                     !
+        this_B(1+4*(e-1)-1 + i) = U !  u                     !
+      end if                                                 !
+      !.......................................................
+      Tz = UI * ( &                           !
+                 ( W * kz * (LAMBDA0(e) + 2.0*AMU0(e))) & !
+               - ( U * kx * LAMBDA0(e))) ! szz           !
+      Tx = UI * AMU0(e) &                      !
+              * ( kz * U - kx * W ) ! szx              !
+      
+      ! Tracciones en la frontera de la región de la fuente.........
+      this_B(1+4*(e-1)   + i) = Tz
+      this_B(1+4*(e-1)+1 + i) = Tx
+      !                   sxx = UI * ( &                           !
+      !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
+      !                   + ( W * kz * LAMBDA(e)))                 !
+      !............................................................!
+!     call showMNmatrixZ(4*N+2,1, this_B ,"  B  ",6)
+      end subroutine PSVvectorB_ondaplana
+      
+      
+      
       subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k,ik)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
@@ -4357,64 +4422,7 @@
       
       
       
-      subroutine PSVvectorB_ondaplana(this_B,come,gamma)
-      use soilvars, only : n,lambda0,amu0,alfa0,beta0,Z!,beta,alfa
-      use glovars, only:UI,z0
-      use sourceVars, only: PW_pol
-      use debugStuff
-      implicit none
-      complex*16, intent(inout), dimension(1:4*N+2) :: this_B
-      complex*16, intent(in)    :: come ! no trae amortiguamiento
-      real*8, intent(in) :: gamma
-      integer :: i,e
-      real*8,dimension(1:2) :: theta
-      complex*16 :: kx,kz,U,W,c
-      real*8 :: z_loc
-      !     Colocamos la onda incindente en la interfaz
-      !     con el semiespacio de abajo.
-      e = N+1 
-      z_loc = 0! (Z(N+1)- Z(N+1)) 
-      if (PW_pol .eq. 1) then
-        c = beta0(N+1) !SV
-        theta(1) = cos(gamma)
-        theta(2) = sin(gamma)
-      elseif (PW_pol .eq. 2) then 
-        c = alfa0(N+1) !P
-        theta(1) = sin(gamma)
-        theta(2) = -cos(gamma)
-      end if
       
-      kx = come/c * sin(gamma)
-      kz = come/c * cos(gamma)
-      U = (theta(1))* exp(UI * kz * (z_loc))
-      W = (theta(2))* exp(UI * kz * (z_loc))
-      
-      i=0
-      this_B(1:4*N+2) = Z0 
-      if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
-        i = 2                                                !
-        this_B(1+4*(e-1)-2 + i) = W !  w                     !
-        this_B(1+4*(e-1)-1 + i) = U !  u                     !
-      end if                                                 !  
-      ! ······················································
-      if (e .ne. 1) then                                     ! 
-        this_B(1+4*(e-1)-2 + i) = W !  w                     !
-        this_B(1+4*(e-1)-1 + i) = U !  u                     !
-      end if                                                 !
-      !.......................................................
-      
-      ! Tracciones en la frontera de la región de la fuente.........
-      this_B(1+4*(e-1)   + i) = UI * ( &                           !
-                            ( W * kz * (LAMBDA0(e) + 2.0*AMU0(e))) & !
-                          - ( U * kx * LAMBDA0(e))) ! szz           !
-      this_B(1+4*(e-1)+1 + i) = UI * AMU0(e) &                      !
-                          * ( kz * U - kx * W ) ! szx              !
-      !                   sxx = UI * ( &                           !
-      !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
-      !                   + ( W * kz * LAMBDA(e)))                 !
-      !............................................................!
-!     call showMNmatrixZ(4*N+2,1, this_B ,"  B  ",6)
-      end subroutine PSVvectorB_ondaplana
       
       subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
@@ -4571,10 +4579,7 @@
       complex*16 :: egammaN,enuN,egammaP,enuP
       complex*16, dimension(2,4) :: subMatD
       complex*16, dimension(3,4) :: subMatS
-!     complex*16, dimension(4,4) :: diagMat
       complex*16, dimension(1:4) :: coeffsPSV
-!     complex*16, dimension(1:2) :: resD
-!     complex*16, dimension(1:3) :: resS
       integer :: i !#< b
 !     if (verbose > 4) then
 !      write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
@@ -4803,7 +4808,6 @@
       logical :: shouldI,XinoEstaEnInterfaz,usarGreenex!,estratosIguales
       
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0
-!     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
       shouldI = .false.
@@ -4882,7 +4886,7 @@
         
       if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
-       ome = real(cOME) * UR                                                !
+       ome = cOME!real(cOME) * UR                                                !
        if (PW_pol .eq. 1) then                                              !
         c = beta0(N+1) !SV                                                  !
         theta(1) = cos(pxi%gamma)                                           !
@@ -5332,10 +5336,13 @@
       !  | Tz |
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) = &
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) - (&
+!         FF%Tx)!ok
           (TractionPSV(auxk(1,3:5), p_x%normal,0) + FF%Tx) * nf(dir_j)) !ok
+          
           
         trac0vec(p_x%boundaryIndex *2 - (1 - 1)) = &
         trac0vec(p_x%boundaryIndex *2 - (1 - 1)) - (&
+!       FF%Tz) !ok
           (TractionPSV(auxk(1,3:5), p_x%normal,1) + FF%Tz) * nf(dir_j)) !ok
           
        if (p_X%tipoFrontera .eq.1) then !los desplazamientos
@@ -5343,10 +5350,13 @@
       !  |   U   |
         trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) = &
         trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) - &
+!         FF%W
           (auxK(1,1) + FF%W)* nf(dir_j)
+                   
                    
         trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) = &
         trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) - &
+!         FF%U
           (auxK(1,2) + FF%U)* nf(dir_j)
        end if
       end if !dir_j
@@ -5477,7 +5487,7 @@
                     pXi%boundaryIndex *2 ) = 0.5_8*UR
           end if!
         else
-          if (i_zF .le. 0) then 
+            if (i_zF .le. 0) then 
             print*,i_zF;print*,p_X%center;print*,pXi%center
             stop "fill_ibemMat: (i_zF .le. 0)"; end if
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,3,5)
@@ -5492,6 +5502,9 @@
         if (p_X% tipoFrontera .eq.1) then 
       !  |  Wx   Wz  |
       !  |  Ux   Uz  |
+            if (i_zF .le. 0) then 
+            print*,i_zF;print*,p_X%center;print*,pXi%center
+            stop "fill_ibemMat: (i_zF .le. 0)"; end if
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,2)
           ibemMat((p_x%boundaryIndex *2 -(1 - 0)) + 2* n_con_sub, & 
                    pXi%boundaryIndex *2 -(2 - dj)) = (auxK(1,1) + FF%W)
@@ -7870,4 +7883,3 @@
         end if
         end if        
       end subroutine plot_at_eta
-
