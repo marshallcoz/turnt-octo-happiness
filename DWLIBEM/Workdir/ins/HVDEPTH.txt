@@ -4,7 +4,7 @@ H(m) Alfa(m/s) Beta(m/s) Dens(T/m3)
 2.5   4.0    2.0     1.0
 8888   4.0    2.0     1.0 <--- (AT LEAST THIS ONE)
 DFREC  nFREC  nPts_time    nK       Q         TW       tmax
-0.075    170      1024      300     10000.0      1.5     1.5
+0.075    170      1024      200     10000.0      1.5     1.5
 
 
 

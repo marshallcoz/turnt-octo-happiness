@@ -1092,6 +1092,11 @@
       NMAX = int(log10(real(NMAX)) / log10(2.)+0.99 )
       NMAX = 2**NMAX     !adjuste to a 2**N value
       
+!     do i = 1,nfrec+1
+!     print*,"po ",min(int(vecNK(i)*SpliK),nmax)
+!     print*,"ne ",2*nmax-(min(int(vecNK(i)*SpliK),nmax)-2)
+!     end do
+!     stop 1099
       ! complex frecuency to "smooth" the poles and be able to integrate
         ! Bouchon (2003) OMEI entre -pi/T y -2pi/T ; T= 2pi/DFREC tiempo total
         ! tengo TW la ventana de tiempo de interés. 
@@ -2876,6 +2881,7 @@
             call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
           end if!                                                                ·
+        po = 1; ne = 2*nmax                    !
       else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
       ! La fuente es cilíndrica, puede tratarse de la fuente real o una virtual ·· 
         po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)                    !
