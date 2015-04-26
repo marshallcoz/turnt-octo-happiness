@@ -7,7 +7,7 @@
 Num. de fuente(s) puntual(es) [int]:
 1                          normal            of segment/p. wave
  X        Z     |    nx      ny      nz    |  theta    l       region
-0.0     1.5         0.0     0.0     1.0       10.0     4.5       1
+0.0     3.0         0.0     0.0     1.0       0.0    3       1
 -------------------------------------------------------------------------
 1.0         Amplitude Scale [real]
 1           Amplitude Function: 0 dirac; 1 ricker; 2 gaussian [int]
@@ -20,6 +20,9 @@ Num. de fuente(s) puntual(es) [int]:
 The plane wave Z is the Half-Space interface
 
 Be kind and keep the file format.
+la longitud del segmento no deber ser muy grande de lo contrario hay
+aliasing en el integrando y se arruina.
+
 
 
 |      tipofuente incidence [int]

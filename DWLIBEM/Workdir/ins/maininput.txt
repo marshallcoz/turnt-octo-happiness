@@ -2,12 +2,12 @@
 F	make a video [logical]
 T	Solve IBEM boundary [logical]
 F	The inclusion is the layered media, the rest is homogeneous.
-F	Plot FK de medio sin topografia [logical]
+T	Plot FK de medio sin topografia [logical]
 F       Plot FK and CK
 F       Plot displacement at frecuency Eta.
-F       Plot filled sheets
+T       Plot filled sheets
 F	Save the Green funcs. for later use with "-L" argument [logical]
-15	Segments per wavelength [int :: R]
+10	Segments per wavelength [int :: R]
 F   168	Keep the subdivision of at least the Jth frequency [logical] [integer]
 F 1 151	Overdeterminate system
 1.5	K integrand runs up to fmax / (R * beta) [real :: R]

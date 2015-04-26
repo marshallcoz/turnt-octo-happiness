@@ -7,7 +7,7 @@ Superficie (x,y)ini - (x,y)fin en CAJA
 0.0  0.0   <- offset:x offset:y
 1.0    <- [negativo invierte normal]
 ***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
-0.05  0.05   <- escala:x escala:y
+0.5  0.5   <- escala:x escala:y
 0.0  0.6   <- offset:x offset:y
 1.0    <- [negativo invierte normal]
     1.0000         0    0.9766    0.2150   F
@@ -46,7 +46,7 @@ Superficie (x,y)ini - (x,y)fin en CAJA
 1.0    <- [negativo invierte normal]
 Inclusion properties
 Alfa(m/s) Beta(m/s) Dens(T/m3) 
-4.0   2.0   1.0
+18.0   9.0   1.0
 Cualquier receptor dentro de esta superficie está en el aire
 0    N segmentos 
 1 1  <- escala:x escala:y
@@ -55,7 +55,7 @@ Cualquier receptor dentro de estas superficies está en la region homogenea
 1  N de regiones
 30  Total de segmentos
 30    N segmentos 
-0.05  0.05   <- escala:x escala:y
+0.5  0.5   <- escala:x escala:y
 0.0  0.6   <- offset:x offset:y
     1.0000         0    0.9766    0.2150   
     0.9766    0.2150    0.9076    0.4199   
