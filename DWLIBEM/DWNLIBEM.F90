@@ -12,7 +12,6 @@
       use waveVars, only : t0
       use peli, only : fotogramas,fotogramas_region
       use GeometryVars, only : longitudcaracteristica_a
-      use sourceVars, only: PW_pol
       implicit none
       interface
         include 'interfaz.f'
@@ -211,10 +210,7 @@
         end do
       end if !#>
       
-      allocate(k_vec(0:2*nmax))
-      if(PW_pol .eq. 1) k_vec(0) = real(OME/beta0(1)*sin(Po(1)%gamma))
-      if(PW_pol .eq. 2) k_vec(0) = real(OME/alfa0(1)*sin(Po(1)%gamma))
-      if(PW_pol .eq. 3) k_vec(0) = real(OME/beta0(1)*sin(Po(1)%gamma))
+      allocate(k_vec(2*nmax))
       k_vec(1) = real(dk * 0.01,8)
       do ik = 2,NMAX+1
         k_vec(ik) = real(ik-1,8) * dk
@@ -224,6 +220,7 @@
       end do
       allocate( gamma_E(0:2*nmax,N+1))
       allocate( nu_E(0:2*nmax,N+1))
+      allocate( eta_E(0:2*nmax,N+1))
       allocate( subMatD0(2,4,N+1,0:2*nmax))
       allocate( subMatS0(3,4,N+1,0:2*nmax))
       allocate(t_vec(NPTSTIME))
@@ -250,6 +247,7 @@
          !#< r  TODO: recalcular campo incidente !#>
          call loadW(PSV,SH)
          call plotSisGram(PSV,SH,.false.) 
+         
          
          call F_K_exp(XF)
          
@@ -431,7 +429,7 @@
          if(skipdir(1) .and. skipdir(3)) cycle
         end if! dir
        if(.not. skipdir(dir)) then 
-!        call diffField_at_iz(0,dir,J,cOME)
+         call diffField_at_iz(0,dir,J,cOME)
        end if
        ! fill IBEM matrix
        if (workboundary) then
@@ -483,24 +481,24 @@
        
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
-!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6)
+!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) ;stop
        call chdir(trim(adjustl(rutaOut))) 
        open(421,FILE= "outA.m",action="write",status="replace")
-       write(arg,'(a)') "Bf"
-       call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
+!      write(arg,'(a)') "Bf"
+!      call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
        write(arg,'(a)') "Mf"
        call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
        close(421)
        CALL chdir("..")
 !      stop 456 
 !#>
-!     call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
+      call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
       
       if(info .ne. 0) stop "problem with ibem system"
       if (any(isnan(real(trac0vec)))) stop "487 valió madres el ibem"
       end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       !#< b
-      call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
+!     call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
       if (verbose .ge. 2) then
          call chdir(trim(adjustl(rutaOut)))
          CALL chdir("phi")
@@ -560,7 +558,7 @@
                        allpoints(iP_x)%resp(J)%Tx
       end do !i
       end do !iP_x
-      
+      !
       if (makeVideo) then 
       do m = 1,npixX
       do iP_x = mPtini,mPtfin !cada receptor X 
@@ -835,9 +833,8 @@
         end if !#>
        end if !psv
        
-       
       call plotSisGram(PSV,SH,.true.)    
-      if (plotFKCK) call F_K_exp(XF)
+      call F_K_exp(XF)
       
          
       if (makeVideo) then 
@@ -942,7 +939,6 @@
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
-      READ(35,'(L1)') plotFKCK
       READ(35,'(L1)') PrintEtas
       READ(35,'(L1)') PlotFilledSabanas
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
@@ -1095,11 +1091,6 @@
       NMAX = int(log10(real(NMAX)) / log10(2.)+0.99 )
       NMAX = 2**NMAX     !adjuste to a 2**N value
       
-!     do i = 1,nfrec+1
-!     print*,"po ",min(int(vecNK(i)*SpliK),nmax)
-!     print*,"ne ",2*nmax-(min(int(vecNK(i)*SpliK),nmax)-2)
-!     end do
-!     stop 1099
       ! complex frecuency to "smooth" the poles and be able to integrate
         ! Bouchon (2003) OMEI entre -pi/T y -2pi/T ; T= 2pi/DFREC tiempo total
         ! tengo TW la ventana de tiempo de interés. 
@@ -1353,7 +1344,7 @@
       use glovars, only:pi,PrintNum
       use resultVars, only : Punto
       use Gquadrature, only: Gquad_n
-      use soilVars, only : N
+      use soilVars, only : Z,N
       implicit none 
       interface
         subroutine punGa (BP) 
@@ -1393,11 +1384,8 @@
        Po(i)%gamma = PW_theta*pi/180.0
        Po(i)%length = l
        if (tipoFuente .eq. 1) then ! onda plana
-         Po(i)%center%x = 0
-         Po(i)%center%z = 0!Z(N+1)
-         Po(i)%normal%x = 1
-         Po(i)%normal%z = 0
-         efsource = 1!N+1
+         Po(i)%center%z = Z(N+1)
+         efsource = N+1
          intfsource = .true.
        else
          efsource = thelayeris(real(zfsource,8))
@@ -2795,8 +2783,8 @@
       use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
       use wavelets !fork 
       use dislin
-      use sourceVars, only: tipofuente, nFuentes!, PW_pol
-      use soilvars, only:N,Z!,alfa0,beta0!,alfa,beta
+      use sourceVars, only: tipofuente, nFuentes, PW_pol
+      use soilvars, only:N,Z,alfa0,beta0!,alfa,beta
       use, intrinsic :: iso_c_binding!, only : C_INT
       implicit none
       interface
@@ -2840,19 +2828,13 @@
       real :: result,lastresult
       real, dimension(2) :: tarray
 #endif
-      ! ¿calcular sólo G, sólo T o ambos?
-      if (dir_j .eq. 2) then; mecS = 1; mecE = 3 !V,s32,s12
-      else;                   mecS = 1; mecE = 5 !W,U,s33,s31,s11
-      end if
-      dj = dir_j; if(dj .eq. 3) dj = 2 
-      
       cOME = cOME_in 
+      dj = dir_j; if(dj .eq. 3) dj = 2 
       if (i_zF .eq. 0) then
          itabla_x = 3 ! En la tabla (pota) de índices: la fuente real -> (0,3)
          i_FuenteFinal = nFuentes ! Cantidad de fuentes reales
-         if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente·
-            ! con incidencia de onda plana no usamos atenuación cuando vemos     .p
-            ! el resultado sólo en la frecuencia                                 ·l
+         if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente·p
+            ! con incidencia de onda plana no usamos atenuación                  ·l
             cOME = OME * UR  !real(cOME_in) * UR!                                ·a
          end if! ·································································n
       else; itabla_x = 2 + pota(i_zF,1) + 1 !    la primer fuente virtual
@@ -2871,8 +2853,7 @@
       ! el número de onda horizontal asociado al ángulo de incidencia ············
       if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente   ·
           if (dir_j .eq. 2) then! SH                                             ·
-!           if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!          ·o
-            k = k_vec(0)
+            if(PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·o
             tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1!                       ·n
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·d
             pt_k => k; pt_come_i => cOME!                                        ·a
@@ -2882,27 +2863,26 @@
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
             B(:,0) = matmul(Ak(:,:,0),B(:,0))!                                   ·a
           else!  P-SV                                                            ·n
-            k = k_vec(0)
+            if(PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·a
+            if(PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!          ·
             tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
             pt_k => k; pt_come_i => cOME!                                        ·
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
             pt_ipivA => ipivA; pt_workA => workA!                                ·
-            call gloMat_PSV(pointA,pt_k,0,pt_come_i)!                            ·
+            call gloMat_PSV(pointA,pt_k,0,pt_come_i)!                              ·
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
             call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
-!           print*,B(:,0)
           end if!                                                                ·
-        po = 0; ne = 2*nmax                    !
+          po = 0; ne = 2*nmax
       else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
       ! La fuente es cilíndrica, puede tratarse de la fuente real o una virtual ·· 
-        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2) 
-        B(:,po:ne) = 0 
-!       print*,po,ne,nmax
+        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)                    !
+        B(:,po:ne) = 0                                                           !
         if (dir_j .eq. 2) then                                                   !
          tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
-         do ik = 1,po+1                                                          !n
+         do ik = 1,po+1                                                            !n
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !d
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !a
          end do                                                                  !                                     
@@ -2916,8 +2896,8 @@
          
          ! si la fuente está sobre una interfaz ...............
          if (pXi%isOnInterface) then
-           do ik = 1,po+1                                                          !r
-             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !i
+           do ik = 1,po+1                                                            !r
+             call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)      !i
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
            end do                                                                  !a
            do ik = ne,2*NMAX                                                       !
@@ -2953,7 +2933,10 @@
             call asociar(p_X, i_Fuente, itabla_z, 3)
             if (p_X%layer .eq. N+2) cycle
 !           dj = dir_j; if(dj .eq. 3) dj = 2 
-        
+        ! ¿calcular sólo G, sólo T o ambos?
+            if (dir_j .eq. 2) then; mecS = 1; mecE = 3 !V,s32,s12
+            else;                   mecS = 1; mecE = 5 !W,U,s33,s31,s11
+            end if
 #ifdef ver 
        call ETIME(tarray, result)
        print*,"  p_x%center%z",p_x%center%z,"[m]  ",result-lastresult
@@ -2966,19 +2949,19 @@
 !     savedauxk(po+1:ne-1,:) = 0
       if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana·············
           if (dir_j .eq. 2) then!                                               ·
-!           if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·
+            if(PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·
                  Meca_diff = SHdiffByStrata(B(:,0), &!                          ·o
                              p_X%center%z, p_X%layer, & !                       ·n
-                             cOME,k_vec(0),mecS,mecE,outpf) !                   ·d
+                             cOME,k,mecS,mecE,outpf) !                          ·d
                  savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) !          ·a
           else !                                                                ·
-!           if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·p
-!           if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(pXi%gamma))!         ·l
+            if(PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·p
+            if(PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!         ·l
                  savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
-                              p_X%center%z, p_X%layer,cOME,k_vec(0),0)!         ·n
-          end if!                                                               ·a
+                              p_X%center%z, p_X%layer,cOME,k,0)!                ·a
+          end if!                                                               ·
       else ! onda plana incidente / onda cilíndrica circular ····················
-        do ik = 1,po+1                                                          !
+        do ik = 1,po+1                                                            !
           if (dir_j .eq. 2) then !SH                                            !
               Meca_diff = SHdiffByStrata(B(:,ik), &                             !
                              p_X%center%z, p_X%layer, &                         !o
@@ -3048,10 +3031,17 @@
             ! agregar información fase horizontal de fuente y receptor 
           do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
             if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then !             ·
-                k = k_vec(0)
+              if (dir_j .eq. 2) then!                                       ·
+!               if(PW_pol .eq. 3) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·p
+                if(PW_pol .eq. 3) k = real(OME/beta0(N+1)*sin(pXi%gamma))! ·p
+              else!                                                         ·l
+!               if(PW_pol .eq. 1) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·a
+!               if(PW_pol .eq. 2) kx = cOME/alfa(N+1)*sin(pXi%gamma)!       ·n
+                if(PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(pXi%gamma))! ·a
+                if(PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(pXi%gamma))! ·n
+              end if  !                                                     ·a
                 auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
                 exp(-UI*k*(p_x%center%x - xf))            !                 ·
-!               print*,auxk(1,imec)
                 CYCLE ! imec                              !                 ·
             end if ! ························································
             do ik = 1,po+1                                                    !
@@ -3137,9 +3127,10 @@
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
 
       subroutine makeGANU (J)
-      use waveNumVars, only : vecNK,SpliK,nmax,OME,cOME,k_vec, gamma=>gamma_E,nu=>nu_E
+      use waveNumVars, only : vecNK,SpliK,nmax,ome,cOME,k_vec, & 
+         gamma=>gamma_E,nu=>nu_E,eta=>eta_E
       use soilVars, only : ALFA,BETA,N,alfa0,beta0
-!     use sourceVars, only : FirstSource=>Po,PW_pol
+      use sourceVars, only : FteRea=>Po,PW_pol
 !     use dislin
       implicit none
       integer :: J,po,ne,e,ii,ik,ikI(2),ikF(2)
@@ -3157,13 +3148,13 @@
           omeBet = cOME**2.0/BETA(e)**2.0
        ! de la onda plana
        ik = 0
-       k = k_vec(ik)
-!      if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(FirstSource(1)%gamma))
-!      if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(FirstSource(1)%gamma))
-       gamma(ik,e) = sqrt(OME**2.0/ALFA0(1)**2.0 - k**2.0)
-       nu(ik,e) = sqrt(OME**2.0/BETA0(1)**2.0 - k**2.0)
+       if(PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(FteRea(1)%gamma))
+       if(PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(FteRea(1)%gamma))
+       gamma(ik,e) = sqrt(OME**2.0/ALFA0(N+1)**2.0 - k**2.0)
+       nu(ik,e) = sqrt(OME**2.0/BETA0(N+1)**2.0 - k**2.0)
        if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+       eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
        
        ! de ondas cilíndricas
        do ii = 1,2 ! los num de onda positivos, negativos
@@ -3179,6 +3170,7 @@
           ! nencial a medida que z crece.
           if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
           if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+          eta(ik,e) = 2.0*gamma(ik,e)**2.0 - cOME**2.0 / BETA(e)**2.0
        end do ! ik
        end do ! ii
 !      call qplot(real(k_vec,4),real(aimag(gamma(:,e)),4), 2*nmax)
@@ -3191,7 +3183,7 @@
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
       use debugStuff
-      use waveNumVars, only : gamma_E,nu_E,nmax
+      use waveNumVars, only : gamma_E,nu_E,eta_E,nmax
       use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       complex*16,    intent(inout), dimension(:,:),pointer :: this_A
@@ -3223,8 +3215,8 @@
 !         end if
           !print*,e,ik,gamma,nu
           xi = k**2.0 - nu**2.0 
-          eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
-      
+!         eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+          eta = eta_E(ik,e)
           ! en fortran los elementos se indican por columnas:
           subMatD0(1:2,1:4,e,ik) = RESHAPE((/ -gamma, ck, ck,nu,& 
                                                gamma, ck, ck,-nu /), &
@@ -3892,10 +3884,11 @@
       real*8, intent(in) :: gamma
       integer :: i,e
       real*8,dimension(1:2) :: theta
-      complex*16 :: kx,kz,U,W,c,Tx,Tz
+      complex*16 :: kx,kz,U,W,c
       real*8 :: z_loc
-      !     Colocamos la onda incindente con la superficie libre
-      e = 1 
+      !     Colocamos la onda incindente en la interfaz
+      !     con el semiespacio de abajo.
+      e = N+1 
       z_loc = 0! (Z(N+1)- Z(N+1)) 
       if (PW_pol .eq. 1) then
         c = beta0(N+1) !SV
@@ -3913,7 +3906,7 @@
       W = (theta(2))* exp(UI * kz * (z_loc))
       
       i=0
-      this_B = Z0 
+      this_B(1:4*N+2) = Z0 
       if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
         i = 2                                                !
         this_B(1+4*(e-1)-2 + i) = W !  w                     !
@@ -3925,22 +3918,19 @@
         this_B(1+4*(e-1)-1 + i) = U !  u                     !
       end if                                                 !
       !.......................................................
-      Tz = UI * ( &                                          !
-                 ( W * kz * (LAMBDA0(e) + 2.0*AMU0(e))) &    !
-               - ( U * kx * LAMBDA0(e))) ! szz               !
-      Tx = UI * AMU0(e) &                                    !
-              * ( kz * U - kx * W ) ! szx                    !
       
       ! Tracciones en la frontera de la región de la fuente.........
-      this_B(1+4*(e-1)   + i) = Tz
-      this_B(1+4*(e-1)+1 + i) = Tx
+      this_B(1+4*(e-1)   + i) = UI * ( &                           !
+                            ( W * kz * (LAMBDA0(e) + 2.0*AMU0(e))) & !
+                          - ( U * kx * LAMBDA0(e))) ! szz           !
+      this_B(1+4*(e-1)+1 + i) = UI * AMU0(e) &                      !
+                          * ( kz * U - kx * W ) ! szx              !
       !                   sxx = UI * ( &                           !
       !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
       !                   + ( W * kz * LAMBDA(e)))                 !
       !............................................................!
 !     call showMNmatrixZ(4*N+2,1, this_B ,"  B  ",6)
       end subroutine PSVvectorB_ondaplana
-      
       
       
       subroutine PSVvectorB_force(i_zF,this_B,tam,pXi,direction,cOME,k,ik)
@@ -4429,11 +4419,6 @@
       end if
       end subroutine  eGAeNU
       
-      
-      
-      
-      
-      
       subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
@@ -4575,7 +4560,7 @@
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0!,PrintNum,verbose
       use resultVars, only : MecaElem
-      use waveNumVars, only : gamma_E,nu_E
+      use waveNumVars, only : gamma_E,nu_E,ome
       use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       
@@ -4589,7 +4574,10 @@
       complex*16 :: egammaN,enuN,egammaP,enuP
       complex*16, dimension(2,4) :: subMatD
       complex*16, dimension(3,4) :: subMatS
+!     complex*16, dimension(4,4) :: diagMat
       complex*16, dimension(1:4) :: coeffsPSV
+!     complex*16, dimension(1:2) :: resD
+!     complex*16, dimension(1:3) :: resS
       integer :: i !#< b
 !     if (verbose > 4) then
 !      write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
@@ -4597,18 +4585,22 @@
 !                   real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
 !     end if !#> 
 !     PSVdiffByStrata = 0
-!     if (ik .ne. 0) then
+      if (ik .ne. 0) then
        gamma = gamma_E(ik,e)
        nu = nu_E(ik,e)
-!     else
-!      gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-!      nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-!      if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-!      if(aimag(nu).gt.0.0)nu= conjg(nu)
-!     end if
-      
+       
       xi = k**2.0 - nu**2.0
       eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+      else
+       gamma = sqrt(OME**2.0_8/ALFA0(e)**2.0_8 - k**2.0_8)
+       nu = sqrt(OME**2.0_8/BETA0(e)**2.0_8 - k**2.0_8)
+       if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+       if(aimag(nu).gt.0.0)nu= conjg(nu)
+       
+      xi = k**2.0 - nu**2.0
+      eta = 2.0*gamma**2.0 - OME**2.0 / BETA0(e)**2.0
+      end if
+      
           
       !downward waves
         if (e /= 0) then !(radiation condition upper HS)
@@ -4697,7 +4689,7 @@
       function SHdiffByStrata(coefOndas_SH,  & 
                                z_i,e,cOME_i,k,mecStart,mecEnd,outpf)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-      use gloVars, only : verbose,UI,UR,Z0
+      use gloVars, only : UI,UR,Z0,verbose
       use resultVars, only : MecaElem
       implicit none
       type (MecaElem)              :: SHdiffByStrata
@@ -4715,12 +4707,13 @@
       complex*16, dimension(1,1) :: resDsh
       complex*16, dimension(2,1) :: resSsh
       integer :: i
+      
+      SHdiffByStrata%Rw_sh(1:3) = z0!#< b
       if (verbose > 4) then
        write(outpf,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
                     "SHdiffByStrata at w:", & 
                     real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
-      end if
-      SHdiffByStrata%Rw_sh(1:3) = z0
+      end if !#> 
       ! algunas valores constantes para todo el estrato
       nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
       if(aimag(nu).gt.0.0)nu= conjg(nu)
@@ -4783,6 +4776,7 @@
       use hank !     use specfun
       use resultvars, only : Punto,FFres
       use sourceVars, only: tipofuente, PW_pol
+      use waveNumVars, only : OME
       use Gquadrature, only : Gquad_n
       implicit none
       interface
@@ -4805,7 +4799,7 @@
       complex*16 :: omeP,omeS
       complex*16 :: H0s,H1s,H2s,H0p,H1p,H2p !Hankel 
       complex*16 :: szz,szx,sxx
-      complex*16 :: ome
+!     complex*16 :: ome
       integer :: i,j
       integer, pointer :: e
       real*8 :: nX(2)
@@ -4818,6 +4812,7 @@
       logical :: shouldI,XinoEstaEnInterfaz,usarGreenex!,estratosIguales
       
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0
+!     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
       shouldI = .false.
@@ -4896,21 +4891,20 @@
         
       if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
-       ome = cOME!real(cOME) * UR                                                !
        if (PW_pol .eq. 1) then                                              !
-        c = beta0(1) !SV                                                  !
+        c = beta0(N+1) !SV                                                  !
         theta(1) = cos(pxi%gamma)                                           !
         theta(2) = sin(pxi%gamma)                                           !
        elseif (PW_pol .eq. 2) then                                          !
-        c = alfa0(1) !P                                                   !
+        c = alfa0(N+1) !P                                                   !
         theta(1) = sin(pxi%gamma)                                           !
         theta(2) = -cos(pxi%gamma)                                          !
        end if                                                               !
         kx = ome/c * sin(pxi%gamma)                                         !
         kz = ome/c * cos(pxi%gamma)                                         !
-        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(e))) &         !
+        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
               * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
-        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(e))) &         !
+        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
               * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
         szz = UI * ( &                                                      !
                     ( FF%W * kz * (LAMBDA0(e) + 2.0* AMU0(e))) &            !
@@ -5158,8 +5152,6 @@
       FF%W=z0;FF%U=z0     
       GEU=0.5772156649_8
       
-      !come = ur * real(comein)
-      
 !     e = p_X%layer !N+2
       BEALF = beta(e)/alfa(e)
       ALFBE = 1.0/BEALF
@@ -5346,13 +5338,10 @@
       !  | Tz |
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) = &
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) - (&
-!         FF%Tx)!ok
           (TractionPSV(auxk(1,3:5), p_x%normal,0) + FF%Tx) * nf(dir_j)) !ok
-          
           
         trac0vec(p_x%boundaryIndex *2 - (1 - 1)) = &
         trac0vec(p_x%boundaryIndex *2 - (1 - 1)) - (&
-!       FF%Tz) !ok
           (TractionPSV(auxk(1,3:5), p_x%normal,1) + FF%Tz) * nf(dir_j)) !ok
           
        if (p_X%tipoFrontera .eq.1) then !los desplazamientos
@@ -5360,13 +5349,10 @@
       !  |   U   |
         trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) = &
         trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) - &
-!         FF%W
           (auxK(1,1) + FF%W)* nf(dir_j)
-                   
                    
         trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) = &
         trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) - &
-!         FF%U
           (auxK(1,2) + FF%U)* nf(dir_j)
        end if
       end if !dir_j
@@ -5497,10 +5483,9 @@
                     pXi%boundaryIndex *2 ) = 0.5_8*UR
           end if!
         else
-            if (i_zF .le. 0) then 
+          if (i_zF .le. 0) then 
             print*,i_zF;print*,p_X%center;print*,pXi%center
             stop "fill_ibemMat: (i_zF .le. 0)"; end if
-            if (i_zF .eq. 0) stop "5504: 0 donde no"
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,3,5)
           ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
                   pXi%boundaryIndex *2 -(2 - dj)) = &
@@ -5513,9 +5498,6 @@
         if (p_X% tipoFrontera .eq.1) then 
       !  |  Wx   Wz  |
       !  |  Ux   Uz  |
-            if (i_zF .le. 0) then 
-            print*,i_zF;print*,p_X%center;print*,pXi%center
-            stop "fill_ibemMat: (i_zF .le. 0)"; end if
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,2)
           ibemMat((p_x%boundaryIndex *2 -(1 - 0)) + 2* n_con_sub, & 
                    pXi%boundaryIndex *2 -(2 - dj)) = (auxK(1,1) + FF%W)
@@ -5529,7 +5511,7 @@
             
       subroutine fill_diffbyStrata(i_zf,J,auxK,come,mecS,mecE,p_x,pXi,dir_j)
       use resultvars, only:Punto,FFres, nIpts
-      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,ome
       use meshvars, only: npixX,MeshMaxX,MeshMinX 
       use wavelets !fork
       use soilvars, only:alfa0,beta0,N
@@ -5596,10 +5578,10 @@
            ! si es incidencia de una onda plana para una k y cycle imec
            if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana
              if (dir_j .eq. 2) then
-               if(PW_pol .eq. 3) kx = real(cOME)/beta0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 3) kx = OME/beta0(N+1)*sin(pXi%gamma)
              else
-               if(PW_pol .eq. 1) kx = real(cOME)/beta0(N+1)*sin(pXi%gamma)
-               if(PW_pol .eq. 2) kx = real(cOME)/alfa0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 1) kx = OME/beta0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 2) kx = OME/alfa0(N+1)*sin(pXi%gamma)
              end if
              auxkmo(1,imec) = auxk(1,imec) * & 
              exp(-UI*kx*(p_Xmov%center%x))
