@@ -1,6 +1,6 @@
 2	verbose [int]
 F	make a video [logical]
-T	Solve IBEM boundary [logical]
+F	Solve IBEM boundary [logical]
 F	The inclusion is the layered media, the rest is homogeneous.
 T	Plot FK de medio sin topografia [logical]
 T       Plot displacement at frecuency Eta.

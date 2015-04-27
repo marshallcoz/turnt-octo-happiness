@@ -46,7 +46,7 @@ Superficie (x,y)ini - (x,y)fin en CAJA
 1.0    <- [negativo invierte normal]
 Inclusion properties
 Alfa(m/s) Beta(m/s) Dens(T/m3) 
-2.0   1.0   1.0
+20.0   10.0   1.0
 Cualquier receptor dentro de esta superficie está en el aire
 0    N segmentos 
 1 1  <- escala:x escala:y
