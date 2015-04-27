@@ -68,7 +68,7 @@
       real*8, dimension(:), allocatable,target :: k_vec
       integer,save      :: NK,NMAX
       complex*16, dimension(:), allocatable :: t_vec
-      complex*16, dimension(:,:), allocatable :: gamma_E,nu_E!(ik,e)
+      complex*16, dimension(:,:), allocatable :: gamma_E,nu_E,eta_E!(ik,e)
       logical,save      :: trimKplease
       type(C_PTR),save  :: planNmaxF,planNmaxB,& 
                            planNfrecF,planNfrecB,& 
