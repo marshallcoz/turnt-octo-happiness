@@ -212,9 +212,9 @@
       end if !#>
       
       allocate(k_vec(0:2*nmax))
-      if(PW_pol .eq. 1) k_vec(0) = real(OME/beta0(N+1)*sin(Po(1)%gamma))
-      if(PW_pol .eq. 2) k_vec(0) = real(OME/alfa0(N+1)*sin(Po(1)%gamma))
-      if(PW_pol .eq. 3) k_vec(0) = real(OME/beta0(N+1)*sin(Po(1)%gamma))
+      if(PW_pol .eq. 1) k_vec(0) = real(OME/beta0(1)*sin(Po(1)%gamma))
+      if(PW_pol .eq. 2) k_vec(0) = real(OME/alfa0(1)*sin(Po(1)%gamma))
+      if(PW_pol .eq. 3) k_vec(0) = real(OME/beta0(1)*sin(Po(1)%gamma))
       k_vec(1) = real(dk * 0.01,8)
       do ik = 2,NMAX+1
         k_vec(ik) = real(ik-1,8) * dk
@@ -250,7 +250,6 @@
          !#< r  TODO: recalcular campo incidente !#>
          call loadW(PSV,SH)
          call plotSisGram(PSV,SH,.false.) 
-         
          
          call F_K_exp(XF)
          
@@ -432,7 +431,7 @@
          if(skipdir(1) .and. skipdir(3)) cycle
         end if! dir
        if(.not. skipdir(dir)) then 
-         call diffField_at_iz(0,dir,J,cOME)
+!        call diffField_at_iz(0,dir,J,cOME)
        end if
        ! fill IBEM matrix
        if (workboundary) then
@@ -484,24 +483,24 @@
        
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
-!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) ;stop
+!     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6)
        call chdir(trim(adjustl(rutaOut))) 
        open(421,FILE= "outA.m",action="write",status="replace")
-!      write(arg,'(a)') "Bf"
-!      call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
+       write(arg,'(a)') "Bf"
+       call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
        write(arg,'(a)') "Mf"
        call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
        close(421)
        CALL chdir("..")
 !      stop 456 
 !#>
-      call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
+!     call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
       
       if(info .ne. 0) stop "problem with ibem system"
       if (any(isnan(real(trac0vec)))) stop "487 valió madres el ibem"
       end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       !#< b
-!     call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
+      call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
       if (verbose .ge. 2) then
          call chdir(trim(adjustl(rutaOut)))
          CALL chdir("phi")
@@ -1354,7 +1353,7 @@
       use glovars, only:pi,PrintNum
       use resultVars, only : Punto
       use Gquadrature, only: Gquad_n
-      use soilVars, only : Z,N
+      use soilVars, only : N
       implicit none 
       interface
         subroutine punGa (BP) 
@@ -1394,8 +1393,11 @@
        Po(i)%gamma = PW_theta*pi/180.0
        Po(i)%length = l
        if (tipoFuente .eq. 1) then ! onda plana
-         Po(i)%center%z = Z(N+1)
-         efsource = N+1
+         Po(i)%center%x = 0
+         Po(i)%center%z = 0!Z(N+1)
+         Po(i)%normal%x = 1
+         Po(i)%normal%z = 0
+         efsource = 1!N+1
          intfsource = .true.
        else
          efsource = thelayeris(real(zfsource,8))
@@ -2842,13 +2844,12 @@
       if (dir_j .eq. 2) then; mecS = 1; mecE = 3 !V,s32,s12
       else;                   mecS = 1; mecE = 5 !W,U,s33,s31,s11
       end if
-            
-      cOME = cOME_in 
       dj = dir_j; if(dj .eq. 3) dj = 2 
+      
+      cOME = cOME_in 
       if (i_zF .eq. 0) then
          itabla_x = 3 ! En la tabla (pota) de índices: la fuente real -> (0,3)
          i_FuenteFinal = nFuentes ! Cantidad de fuentes reales
-         
          if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente·
             ! con incidencia de onda plana no usamos atenuación cuando vemos     .p
             ! el resultado sólo en la frecuencia                                 ·l
@@ -2891,16 +2892,14 @@
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
             call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
+!           print*,B(:,0)
           end if!                                                                ·
-        po = 1; ne = 2*nmax                    !
+        po = 0; ne = 2*nmax                    !
       else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
       ! La fuente es cilíndrica, puede tratarse de la fuente real o una virtual ·· 
-        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)                   !
-!       B(:,po:ne) = 0 
-!       if (i_zF .eq. 0) then
-!        po = 0
-!        ne = 2*nmax+1
-!       end if                                                          !
+        po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2) 
+        B(:,po:ne) = 0 
+!       print*,po,ne,nmax
         if (dir_j .eq. 2) then                                                   !
          tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
          do ik = 1,po+1                                                          !n
@@ -3052,6 +3051,7 @@
                 k = k_vec(0)
                 auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
                 exp(-UI*k*(p_x%center%x - xf))            !                 ·
+!               print*,auxk(1,imec)
                 CYCLE ! imec                              !                 ·
             end if ! ························································
             do ik = 1,po+1                                                    !
@@ -3160,8 +3160,8 @@
        k = k_vec(ik)
 !      if(PW_pol .eq. 1) k = real(cOME/beta0(N+1)*sin(FirstSource(1)%gamma))
 !      if(PW_pol .eq. 2) k = real(cOME/alfa0(N+1)*sin(FirstSource(1)%gamma))
-       gamma(ik,e) = sqrt(OME**2.0/ALFA0(N+1)**2.0 - k**2.0)
-       nu(ik,e) = sqrt(OME**2.0/BETA0(N+1)**2.0 - k**2.0)
+       gamma(ik,e) = sqrt(OME**2.0/ALFA0(1)**2.0 - k**2.0)
+       nu(ik,e) = sqrt(OME**2.0/BETA0(1)**2.0 - k**2.0)
        if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        
@@ -4898,19 +4898,19 @@
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
        ome = cOME!real(cOME) * UR                                                !
        if (PW_pol .eq. 1) then                                              !
-        c = beta0(N+1) !SV                                                  !
+        c = beta0(1) !SV                                                  !
         theta(1) = cos(pxi%gamma)                                           !
         theta(2) = sin(pxi%gamma)                                           !
        elseif (PW_pol .eq. 2) then                                          !
-        c = alfa0(N+1) !P                                                   !
+        c = alfa0(1) !P                                                   !
         theta(1) = sin(pxi%gamma)                                           !
         theta(2) = -cos(pxi%gamma)                                          !
        end if                                                               !
         kx = ome/c * sin(pxi%gamma)                                         !
         kz = ome/c * cos(pxi%gamma)                                         !
-        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(e))) &         !
               * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
-        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(e))) &         !
               * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
         szz = UI * ( &                                                      !
                     ( FF%W * kz * (LAMBDA0(e) + 2.0* AMU0(e))) &            !
@@ -5500,6 +5500,7 @@
             if (i_zF .le. 0) then 
             print*,i_zF;print*,p_X%center;print*,pXi%center
             stop "fill_ibemMat: (i_zF .le. 0)"; end if
+            if (i_zF .eq. 0) stop "5504: 0 donde no"
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,3,5)
           ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
                   pXi%boundaryIndex *2 -(2 - dj)) = &
