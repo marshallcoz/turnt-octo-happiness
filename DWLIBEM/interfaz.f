@@ -4,11 +4,11 @@
           complex*16, intent(in),pointer     :: cOME_i 
         end subroutine globalmatrix_PSV
         
-        subroutine gloMat_PSV(this_A,k,ik,cOME_i)
+        subroutine gloMat_PSV(this_A,k,ik)
           complex*16,    intent(inout), dimension(:,:),pointer :: this_A
           real*8,     intent(in),pointer     :: k
           integer :: ik
-          complex*16, intent(in),pointer     :: cOME_i 
+!         complex*16, intent(in),pointer     :: cOME_i 
         end subroutine gloMat_PSV
         
         subroutine globalmatrix_SH(this_A,k,cOME_i)

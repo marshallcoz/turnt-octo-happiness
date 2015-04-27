@@ -389,7 +389,7 @@
        do ik = 1,vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)
-         call gloMat_PSV(pointAp,pt_k,ik,pt_cOME_i)
+         call gloMat_PSV(pointAp,pt_k,ik)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
        end do ! ik
        
@@ -482,14 +482,14 @@
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,1 , trac0vec,"  b  ",6) ;stop
-       call chdir(trim(adjustl(rutaOut))) 
-       open(421,FILE= "outA.m",action="write",status="replace")
+!      call chdir(trim(adjustl(rutaOut))) 
+!      open(421,FILE= "outA.m",action="write",status="replace")
 !      write(arg,'(a)') "Bf"
 !      call scripToMatlabMNmatrixZ(Mi,1,trac0vec(1:Mi),arg,421)
-       write(arg,'(a)') "Mf"
-       call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
-       close(421)
-       CALL chdir("..")
+!      write(arg,'(a)') "Mf"
+!      call scripToMatlabMNmatrixZ(Mi,Ni,ibemMat(1:Mi,1:Ni),arg,421)
+!      close(421)
+!      CALL chdir("..")
 !      stop 456 
 !#>
       call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
@@ -2870,7 +2870,7 @@
             pt_k => k; pt_come_i => cOME!                                        ·
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
             pt_ipivA => ipivA; pt_workA => workA!                                ·
-            call gloMat_PSV(pointA,pt_k,0,pt_come_i)!                              ·
+            call gloMat_PSV(pointA,pt_k,0)!                              ·
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
             call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
@@ -3178,7 +3178,7 @@
        end do ! e 
       end subroutine makeGANU
 
-      subroutine gloMat_PSV(this_A,k,ik,cOME_i)
+      subroutine gloMat_PSV(this_A,k,ik)
       ! Calcular para +k. Una vez invertida la matrix, hay paridades para -k.
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
@@ -3188,7 +3188,7 @@
       implicit none
       complex*16,    intent(inout), dimension(:,:),pointer :: this_A
       real*8,     intent(in),pointer     :: k
-      complex*16, intent(in),pointer     :: cOME_i 
+!     complex*16, intent(in),pointer     :: cOME_i 
       integer :: ik,neik
       real*8     :: k2
       complex*16, dimension(2,4) :: subMatD,subMatS
@@ -3738,7 +3738,7 @@
               if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
               if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
             end do ! e
-         call gloMat_PSV(pointAp,pt_k,ik,pt_cOME_i)
+         call gloMat_PSV(pointAp,pt_k,ik)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do
       
@@ -3767,7 +3767,7 @@
       end subroutine intrplr_gloMat
       
       
-      subroutine intrplr_zpoly_gloMat(k0,n,pt_cOME_i,pt_ipivA,pt_workA)
+      subroutine intrplr_zpoly_gloMat(k0,n,pt_ipivA,pt_workA)
       use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
       use waveNumVars, only : k_vec, NMAX
       use fitting
@@ -3780,7 +3780,7 @@
       real*8 :: step
       real*8, dimension(n)     :: xdat
       complex*16, dimension(n) :: ydat
-      complex*16, pointer :: pt_cOME_i
+!     complex*16, pointer :: pt_cOME_i
       integer, dimension(:), pointer :: pt_ipivA
       complex*16, dimension(:),pointer :: pt_workA
       complex*16, dimension(:,:), pointer :: pointAp
@@ -3800,7 +3800,7 @@
          k1 = k0 + int((i-1)*step)
          pointAp => Ak(1:tam,1:tam,k1)
          pt_k => k_vec(k1)
-         call gloMat_PSV(pointAp,pt_k,k1,pt_cOME_i)
+         call gloMat_PSV(pointAp,pt_k,k1)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do
       ! interpolar cada elemento
@@ -4660,7 +4660,7 @@
 !       PSVdiffByStrata(2) = resD(2) !U
         PSVdiffByStrata(1) = sum(subMatD(1,:)) !W
         PSVdiffByStrata(2) = sum(subMatD(2,:)) !U
-
+        
        
       ! esfuerzos
 !       subMatS = RESHAPE((/ xi,      -2.0*k*gamma,     eta,     &

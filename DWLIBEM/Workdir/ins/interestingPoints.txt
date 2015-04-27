@@ -12,7 +12,7 @@ Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
 npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
-128    -1.500001  0.0234     0.0   0    F   F
+128    -10.00001  0.156     0.0   0    F   F
 hacer zeros el rango en la sabana:
 0   62
 
