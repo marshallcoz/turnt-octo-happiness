@@ -4,7 +4,9 @@ H(m) Alfa(m/s) Beta(m/s) Dens(T/m3)
 2.0   20.0    10.0     1.0
 8888   20.0    10.0     1.0 <--- (AT LEAST THIS ONE)
 DFREC  nFREC  nPts_time    nK       Q         TW       tmax
-0.25    100      1024      400     10000.0      3     2.0
+0.25    100      1024     1000     10000.0    4.0     2.0
+
+
 
 N = NUMBER OF LAYERS NOT COUNTING UPPER/LOWER HALF-SPACE: H=-/+8888:
 0
@@ -12,6 +14,9 @@ H(m) Alfa(m/s) Beta(m/s) Dens(T/m3)
 8888   20.0    10.0     1.0 <--- (AT LEAST THIS ONE)
 DFREC  nFREC  nPts_time    nK       Q         TW       tmax
 0.25    100      1024      400     10000.0      3     2.0
+
+
+
 
 
 

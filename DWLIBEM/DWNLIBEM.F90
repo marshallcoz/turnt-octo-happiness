@@ -220,6 +220,7 @@
       end do
       allocate( gamma_E(0:2*nmax,N+1))
       allocate( nu_E(0:2*nmax,N+1))
+      allocate( eta_E(0:2*nmax,N+1))
       allocate( subMatD0(2,4,N+1,0:2*nmax))
       allocate( subMatS0(3,4,N+1,0:2*nmax))
       allocate(t_vec(NPTSTIME))
@@ -2852,7 +2853,7 @@
       ! el número de onda horizontal asociado al ángulo de incidencia ············
       if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana incidente   ·
           if (dir_j .eq. 2) then! SH                                             ·
-            if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!          ·o
+            if(PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·o
             tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1!                       ·n
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·d
             pt_k => k; pt_come_i => cOME!                                        ·a
@@ -2862,8 +2863,8 @@
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
             B(:,0) = matmul(Ak(:,:,0),B(:,0))!                                   ·a
           else!  P-SV                                                            ·n
-            if(PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(pXi%gamma))!          ·a
-            if(PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(pXi%gamma))!          ·
+            if(PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·a
+            if(PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!          ·
             tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
             pt_k => k; pt_come_i => cOME!                                        ·
@@ -2948,14 +2949,14 @@
 !     savedauxk(po+1:ne-1,:) = 0
       if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana·············
           if (dir_j .eq. 2) then!                                               ·
-            if(PW_pol .eq. 3) k = real(cOME/beta0(N+1)*sin(pXi%gamma))!         ·
+            if(PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·
                  Meca_diff = SHdiffByStrata(B(:,0), &!                          ·o
                              p_X%center%z, p_X%layer, & !                       ·n
                              cOME,k,mecS,mecE,outpf) !                          ·d
                  savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) !          ·a
           else !                                                                ·
-            if(PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(pXi%gamma))!         ·p
-            if(PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(pXi%gamma))!         ·l
+            if(PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·p
+            if(PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!         ·l
                  savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
                               p_X%center%z, p_X%layer,cOME,k,0)!                ·a
           end if!                                                               ·
@@ -3126,7 +3127,8 @@
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
 
       subroutine makeGANU (J)
-      use waveNumVars, only : vecNK,SpliK,nmax,ome,cOME,k_vec, gamma=>gamma_E,nu=>nu_E
+      use waveNumVars, only : vecNK,SpliK,nmax,ome,cOME,k_vec, & 
+         gamma=>gamma_E,nu=>nu_E,eta=>eta_E
       use soilVars, only : ALFA,BETA,N,alfa0,beta0
       use sourceVars, only : FteRea=>Po,PW_pol
 !     use dislin
@@ -3152,6 +3154,7 @@
        nu(ik,e) = sqrt(OME**2.0/BETA0(N+1)**2.0 - k**2.0)
        if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+       eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
        
        ! de ondas cilíndricas
        do ii = 1,2 ! los num de onda positivos, negativos
@@ -3167,6 +3170,7 @@
           ! nencial a medida que z crece.
           if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
           if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+          eta(ik,e) = 2.0*gamma(ik,e)**2.0 - cOME**2.0 / BETA(e)**2.0
        end do ! ik
        end do ! ii
 !      call qplot(real(k_vec,4),real(aimag(gamma(:,e)),4), 2*nmax)
@@ -3179,7 +3183,7 @@
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
       use debugStuff
-      use waveNumVars, only : gamma_E,nu_E,nmax
+      use waveNumVars, only : gamma_E,nu_E,eta_E,nmax
       use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       complex*16,    intent(inout), dimension(:,:),pointer :: this_A
@@ -3211,8 +3215,8 @@
 !         end if
           !print*,e,ik,gamma,nu
           xi = k**2.0 - nu**2.0 
-          eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
-      
+!         eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+          eta = eta_E(ik,e)
           ! en fortran los elementos se indican por columnas:
           subMatD0(1:2,1:4,e,ik) = RESHAPE((/ -gamma, ck, ck,nu,& 
                                                gamma, ck, ck,-nu /), &
@@ -4556,7 +4560,7 @@
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0!,PrintNum,verbose
       use resultVars, only : MecaElem
-      use waveNumVars, only : gamma_E,nu_E
+      use waveNumVars, only : gamma_E,nu_E,ome
       use refSolMatrixVars, only : subMatD0,subMatS0
       implicit none
       
@@ -4581,18 +4585,22 @@
 !                   real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
 !     end if !#> 
 !     PSVdiffByStrata = 0
-!     if (ik .ne. 0) then
+      if (ik .ne. 0) then
        gamma = gamma_E(ik,e)
        nu = nu_E(ik,e)
-!     else
-!      gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-!      nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-!      if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-!      if(aimag(nu).gt.0.0)nu= conjg(nu)
-!     end if
-      
+       
       xi = k**2.0 - nu**2.0
       eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+      else
+       gamma = sqrt(OME**2.0_8/ALFA0(e)**2.0_8 - k**2.0_8)
+       nu = sqrt(OME**2.0_8/BETA0(e)**2.0_8 - k**2.0_8)
+       if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
+       if(aimag(nu).gt.0.0)nu= conjg(nu)
+       
+      xi = k**2.0 - nu**2.0
+      eta = 2.0*gamma**2.0 - OME**2.0 / BETA0(e)**2.0
+      end if
+      
           
       !downward waves
         if (e /= 0) then !(radiation condition upper HS)
@@ -4681,7 +4689,7 @@
       function SHdiffByStrata(coefOndas_SH,  & 
                                z_i,e,cOME_i,k,mecStart,mecEnd,outpf)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-      use gloVars, only : verbose,UI,UR,Z0
+      use gloVars, only : UI,UR,Z0,verbose
       use resultVars, only : MecaElem
       implicit none
       type (MecaElem)              :: SHdiffByStrata
@@ -4699,12 +4707,13 @@
       complex*16, dimension(1,1) :: resDsh
       complex*16, dimension(2,1) :: resSsh
       integer :: i
+      
+      SHdiffByStrata%Rw_sh(1:3) = z0!#< b
       if (verbose > 4) then
        write(outpf,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
                     "SHdiffByStrata at w:", & 
                     real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
-      end if
-      SHdiffByStrata%Rw_sh(1:3) = z0
+      end if !#> 
       ! algunas valores constantes para todo el estrato
       nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
       if(aimag(nu).gt.0.0)nu= conjg(nu)
@@ -4882,7 +4891,6 @@
         
       if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
-!      ome = real(cOME) * UR                                                !
        if (PW_pol .eq. 1) then                                              !
         c = beta0(N+1) !SV                                                  !
         theta(1) = cos(pxi%gamma)                                           !
@@ -5143,8 +5151,6 @@
 !     stop "Greeneer"
       FF%W=z0;FF%U=z0     
       GEU=0.5772156649_8
-      
-      !come = ur * real(comein)
       
 !     e = p_X%layer !N+2
       BEALF = beta(e)/alfa(e)
@@ -5505,7 +5511,7 @@
             
       subroutine fill_diffbyStrata(i_zf,J,auxK,come,mecS,mecE,p_x,pXi,dir_j)
       use resultvars, only:Punto,FFres, nIpts
-      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,ome
       use meshvars, only: npixX,MeshMaxX,MeshMinX 
       use wavelets !fork
       use soilvars, only:alfa0,beta0,N
@@ -5572,10 +5578,10 @@
            ! si es incidencia de una onda plana para una k y cycle imec
            if ((i_zF .eq. 0) .and. (tipofuente .eq. 1)) then ! onda plana
              if (dir_j .eq. 2) then
-               if(PW_pol .eq. 3) kx = real(cOME)/beta0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 3) kx = OME/beta0(N+1)*sin(pXi%gamma)
              else
-               if(PW_pol .eq. 1) kx = real(cOME)/beta0(N+1)*sin(pXi%gamma)
-               if(PW_pol .eq. 2) kx = real(cOME)/alfa0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 1) kx = OME/beta0(N+1)*sin(pXi%gamma)
+               if(PW_pol .eq. 2) kx = OME/alfa0(N+1)*sin(pXi%gamma)
              end if
              auxkmo(1,imec) = auxk(1,imec) * & 
              exp(-UI*kx*(p_Xmov%center%x))
