@@ -249,7 +249,7 @@
          call plotSisGram(PSV,SH,.false.) 
          
          
-         call F_K_exp(XF)
+         if (plotFKCK) call F_K_exp(XF)
          
          if (makeVideo) then 
           call loadG_fotogramas
@@ -478,6 +478,16 @@
       iPIVbem = ik*l
       Mi = ik*l
       Ni = ik*l
+       
+      if (saveG) then
+       call chdir(trim(adjustl(rutaOut)));call chdir("phi")
+       write(arg,'(a,I0)') "ibemJ",J,".bin"
+       open(421,FILE= trim(arg), ACCESS='STREAM',action="write",status="replace")
+       do i = 1,Mi;do l = 1,Ni
+        write(421) ibemMat(i,l)
+       end do;end do
+       close(421);CALL chdir("..");CALL chdir("..")
+      end if       
        
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
@@ -834,7 +844,7 @@
        end if !psv
        
       call plotSisGram(PSV,SH,.true.)    
-      call F_K_exp(XF)
+      if (plotFKCK) call F_K_exp(XF)
       
          
       if (makeVideo) then 
@@ -939,6 +949,7 @@
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
+      READ(35,'(L1)') plotFKCK
       READ(35,'(L1)') PrintEtas
       READ(35,'(L1)') PlotFilledSabanas
       READ(35,'(L1)') saveG!; print*,"Save Green funcs?", saveG
@@ -1977,6 +1988,7 @@
       allpoints(1:nPts)%region = reg(1)!'estr'
       if (verbose .ge. 2) write(PrintNum,*) "center,region,layer"
       do i = 1, nPts
+        
         cn = adentroOafuera(real(allpoints(i)%center%x,4), & 
                             real(allpoints(i)%center%z,4),'void')
 !       print*,i,cn;cycle
@@ -3148,10 +3160,10 @@
           omeBet = cOME**2.0/BETA(e)**2.0
        ! de la onda plana
        ik = 0
-       if(PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(FteRea(1)%gamma))
-       if(PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(FteRea(1)%gamma))
-       gamma(ik,e) = sqrt(OME**2.0/ALFA0(N+1)**2.0 - k**2.0)
-       nu(ik,e) = sqrt(OME**2.0/BETA0(N+1)**2.0 - k**2.0)
+       if(PW_pol .eq. 1) k = real(OME/beta0(e)*sin(FteRea(1)%gamma))
+       if(PW_pol .eq. 2) k = real(OME/alfa0(e)*sin(FteRea(1)%gamma))
+       gamma(ik,e) = sqrt(OME**2.0/ALFA0(e)**2.0 - k**2.0)
+       nu(ik,e) = sqrt(OME**2.0/BETA0(e)**2.0 - k**2.0)
        if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
@@ -6622,9 +6634,6 @@
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
           exp(-OMEI * Dt*((/(i,i=0,nT-1)/)))
-        ! remover efecto de la velocidad imaginaria
-          !p_fot = p_fot * & 
-          !exp((1./2./Qq) * Dt*((/(i,i=0, nT-1)/))) 
           if (verbose .ge. 2) then
             CALL chdir("perPixelTraces")
             write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
