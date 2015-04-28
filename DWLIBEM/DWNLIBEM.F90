@@ -112,7 +112,9 @@
       end if !#>
       call checarWisdom(2*nfrec,2*nmax,NPTSTIME) ! FFTw
         nIpts=0; nMpts=0; nBpts = 0; iPtfin = 0; mPtfin = 0
-      call getsource(skipdir,PSV,SH)
+        
+      call getsource
+      call getPolaridad(skipdir,PSV,SH)
       if (PSV) write(PrintNum,*) "  this a P-SV case"
       if (SH)  write(PrintNum,*) "  this a SH case"
       if (workBoundary .eqv. .true.) call getTopography
@@ -136,24 +138,24 @@
       if (PSV) call Churubusco(.true.)
       call chdir("..")
       end if
- !#< blue
-      call chdir(trim(adjustl(rutaOut)))
+ !#< blue    
+         call chdir(trim(adjustl(rutaOut)))
          write(titleN,'(a)') '0___OriginalGeometry.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
-         call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.)
+         call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.) 
          
-         write(titleN,'(a)') '0___Sensors.pdf'
-         write(extension,'(a)') 'PDF'
-         BP => BouPoints
-         call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.)
+       write(titleN,'(a)') '0___Sensors.pdf'
+       write(extension,'(a)') 'PDF'
+       BP => BouPoints
+       call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.)
          
-         if (workBoundary .eqv. .true.) then 
+       if (workBoundary .eqv. .true.) then 
          write(titleN,'(a)') '0___Inclusion.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
          call drawBoundary(BP,nbpts,titleN,extension,.true.,.false.)
-         end if
+       end if
       call chdir("..")
               
       call get_command_argument(1, arg)
@@ -422,17 +424,32 @@
          Ak(1:size(Ak,1),1:size(Ak,2),Nmax:2:-1)
       end if!sh
      
-      do dir= 1,3 !x,y,z direction of force application
+      ! campo incidente
+         
+       do dir= 1,3 !x,y,z direction of force application
         if(dir .eq. 2) then
          if(skipdir(dir)) cycle
         else ! 1 o 3
          if(skipdir(1) .and. skipdir(3)) cycle
         end if! dir
        if(.not. skipdir(dir)) then 
-         call diffField_at_iz(0,dir,J,cOME)
+         if (Po(1)%region .eq. 1) then
+           call diffField_at_iz(0,dir,J,cOME)
+         else
+           if (workboundary) then
+             call termIndepR(dir,cOME)
+           end if
+         end if
        end if
-       ! fill IBEM matrix
-       if (workboundary) then
+       end do !dir 
+      ! matriz IBEM 
+      if (workboundary) then
+      do dir= 1,3 !x,y,z direction of force application
+        if(dir .eq. 2) then
+         if(skipdir(dir)) cycle
+        else ! 1 o 3
+         if(skipdir(1) .and. skipdir(3)) cycle
+        end if! dir
          if(.not. skipdir(dir)) then 
           if (Po(1)%region .eq. 2) then
            call termIndepR(dir,cOME)
@@ -458,10 +475,8 @@
          end if !n_vall
       !*****(funcions de Green de desplazamiento en la región R)*****************
          call GreenReg_R(J,dir,cOME)
-       end if !workboundary
       end do !dir
      
-      if (workboundary) then  !; print*,"solve ibem"
 !     call showMNmatrixZabs(2*nBpts,1, trac0vec,"  t0 ",PrintNum)
       if (PSV) then 
       ik = 2
@@ -478,16 +493,6 @@
       iPIVbem = ik*l
       Mi = ik*l
       Ni = ik*l
-       
-      if (saveG) then
-       call chdir(trim(adjustl(rutaOut)));call chdir("phi")
-       write(arg,'(a,I0)') "ibemJ",J,".bin"
-       open(421,FILE= trim(arg), ACCESS='STREAM',action="write",status="replace")
-       do i = 1,Mi;do l = 1,Ni
-        write(421) ibemMat(i,l)
-       end do;end do
-       close(421);CALL chdir("..");CALL chdir("..")
-      end if       
        
 !#< b
 !     if (verbose .ge. 1) call showMNmatrixZ(Mi,Ni, ibemMat ," mat ",6)
@@ -507,6 +512,8 @@
       if(info .ne. 0) stop "problem with ibem system"
       if (any(isnan(real(trac0vec)))) stop "487 valió madres el ibem"
       end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
+      
+      
       !#< b
 !     call showMNmatrixZ(Mi,1, trac0vec,"phi  ",6)
       if (verbose .ge. 2) then
@@ -1349,7 +1356,50 @@
       end do
       end function tellisoninterface
       
-      subroutine getsource(skipdir,PSV,SH)
+      subroutine getPolaridad(skipdir,PSV,SH)
+      
+      logical :: skipdir(3),PSV,SH
+      logical :: lexist
+      integer :: input
+      CALL chdir("ins")
+      inquire(file="source.txt",exist=lexist)
+      if (lexist) then
+        OPEN(77,FILE="source.txt",FORM="FORMATTED")
+      else
+        write(6,'(a)') 'There is a missing input file. '
+        stop 'Check "source.txt" on Working directory' 
+      end if
+      READ(77,*);READ(77,*) input
+      close(77)
+      SH = .false.; PSV = .false.;skipdir = .true.
+      
+      if (input .eq. 2) then 
+      SH = .true.
+      skipdir(2) = .false.
+      return
+      end if
+      !
+      if (input .eq. 1) then 
+      PSV = .true.
+      skipdir(1) = .false.
+      return
+      end if
+      !
+      if (input .eq. 3) then 
+      PSV = .true.
+      skipdir(3) = .false.
+      return
+      end if
+      !
+      if (input .eq. 4) then 
+      PSV = .true.
+      skipdir(1) = .false.
+      skipdir(3) = .false.
+      return
+      end if
+      end subroutine getPolaridad
+      
+      subroutine getsource
       use wavevars, only: Escala,Ts,Tp, ampfunction, sigGaus, t0
       use sourceVars, only: Po, tipoFuente, PW_pol, nFuentes
       use glovars, only:pi,PrintNum
@@ -1364,7 +1414,6 @@
         end subroutine punGa
       end interface 
       
-      logical :: skipdir(3),PSV,SH
       integer :: thelayeris,efsource,i,regi
       logical :: lexist, tellisoninterface, intfsource
       real    :: xfsource,zfsource,l
@@ -1378,13 +1427,17 @@
         write(6,'(a)') 'There is a missing input file. '
         stop 'Check "source.txt" on Working directory' 
       end if
-      READ(77,*);READ(77,*);READ(77,*);READ(77,*)
-      READ(77,*) tipoFuente;READ(77,*);READ(77,*)
-      READ(77,*) nFuentes;READ(77,*) 
+      READ(77,*);READ(77,*);READ(77,*);
+      READ(77,*) nFuentes;READ(77,*);READ(77,*) 
+      
       allocate(Po(nFuentes))
+      write(Printnum,'(a)') &
+       "---------------------------------------------------------------------------------"
       do i=1,nFuentes
        READ(77,*) xfsource, zfsource, nxfsource,&
-                 nyfsource, nzfsource, PW_theta, l, regi
+                 nyfsource, nzfsource, PW_theta, l, regi,&
+                 Escala, ampfunction, Ts, Tp, sigGaus,&
+                 PW_pol, tipoFuente
        Po(i)%center%x = xfsource
        Po(i)%center%z = zfsource
        Po(i)%normal%x = nxfsource 
@@ -1424,29 +1477,25 @@
         Po(i)%isSourceSegmentForce = .false.
         Po(i)%length = 1.0_8
        end if
-      end do
-      READ(77,*); READ(77,*) Escala; READ(77,*) ampfunction; READ(77,*) t0
-      READ(77,*) Ts; READ(77,*) Tp; READ(77,*) sigGaus
-      READ(77,*) PW_pol; close(77); CALL chdir("..")
-      do i = 1,nFuentes
-      write(Printnum,'(a)') &
-       "---------------------------------------------------------------------------------"
+      
       write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,F9.2,a,I0,a,I0)') & 
       "   Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
       "n=[",Po(i)%normal%x,",",Po(i)%normal%y,",",Po(i)%normal%z,& 
       "] r= ",Po(i)%region," e=",Po(i)%layer
       end do
+      READ(77,*);READ(77,*) t0
+      close(77); CALL chdir("..")
       
-      skipdir = .true.
-      SH = .false. ; PSV = .false.
-      do i=1,Nfuentes
-       if (abs(Po(i)%normal%x) .gt. 0.001_8) skipdir(1) = .false.
-       if (abs(Po(i)%normal%y) .gt. 0.001_8) skipdir(2) = .false.
-       if (abs(Po(i)%normal%z) .gt. 0.001_8) skipdir(3) = .false.
-      end do
-      if (skipdir(2) .eqv. .false.) SH = .true.
-      if (skipdir(1) .eqv. .false.) PSV = .true.
-      if (skipdir(3) .eqv. .false.) PSV = .true.
+!     skipdir = .true.
+!     SH = .false. ; PSV = .false.
+!     do i=1,Nfuentes
+!      if (abs(Po(i)%normal%x) .gt. 0.001_8) skipdir(1) = .false.
+!      if (abs(Po(i)%normal%y) .gt. 0.001_8) skipdir(2) = .false.
+!      if (abs(Po(i)%normal%z) .gt. 0.001_8) skipdir(3) = .false.
+!     end do
+!     if (skipdir(2) .eqv. .false.) SH = .true.
+!     if (skipdir(1) .eqv. .false.) PSV = .true.
+!     if (skipdir(3) .eqv. .false.) PSV = .true.
       end subroutine getsource
       
       subroutine getVideoPoints
@@ -3137,7 +3186,6 @@
       end subroutine diffField_at_iz
       
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
-
       subroutine makeGANU (J)
       use waveNumVars, only : vecNK,SpliK,nmax,ome,cOME,k_vec, & 
          gamma=>gamma_E,nu=>nu_E,eta=>eta_E
@@ -6034,7 +6082,7 @@
       type(Punto), pointer :: pXi,p_X
       integer :: iP_x,iPxi,ipxi_I,ipxi_F,dj,dir_j!,iPhi_I,iPhi_F
       type(FFres),target :: FF
-!     print*,"ren=",ren !primer renglon del primer elemento de sobredeterminado
+!     print*,"ren=",ren !primer renglon del primer elemento de sobredeterminad
       do iP_x = 1,nIpts  !cada receptor X
       p_X => allpoints(iP_x) 
 !     col = 1

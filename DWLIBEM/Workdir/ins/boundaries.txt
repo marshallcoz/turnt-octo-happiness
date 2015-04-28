@@ -1,3 +1,55 @@
+Superficie (x,y)ini - (x,y)fin en metros MINI4
+0     N_topo segmentos :: T^0 + T^d = 0
+4   N_cont segmentos :: T^d = T^0; u^d = u^0
+4    N_vall segmentos :: T^d = 0
+***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
+1.0 1.0  <- escala:x escala:y
+0 0  <- offset:x offset:y
+1.0  <- escala:n
+***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
+6 6  <- escala:x escala:y
+10 10  <- offset:x offset:y
+1.0  <- escala:n
+    1.0    0.0    0.0    1.0   F
+    0.0    1.0   -1.0    0.0   F
+   -1.0    0.0    0.0   -1.0   F
+    0.0   -1.0    1.0    0.0   F
+***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
+5.0 5.0  <- escala:x escala:y
+10 10  <- offset:x offset:y
+-1.0  <- escala:n
+    1.0    0.0    0.0    1.0   F
+    0.0    1.0   -1.0    0.0   F
+   -1.0    0.0    0.0   -1.0   F
+    0.0   -1.0    1.0    0.0   F
+Inclusion properties
+Alfa(m/s) Beta(m/s) Dens(T/m3) 
+10000 5000 2.0       5600.   2800.  2.5
+Cualquier receptor dentro de esta superficie está en el aire
+4    N segmentos 
+5.0 5.0  <- escala:x escala:y
+10 10  <- offset:x offset:y
+    1.0    0.0    0.0    1.0   F
+    0.0    1.0   -1.0    0.0   F
+   -1.0    0.0    0.0   -1.0   F
+    0.0   -1.0    1.0    0.0   F
+Cualquier receptor dentro de estas superficies está en la region homogenea
+1  N de regiones
+4  Total de segmentos
+4    N segmentos 
+6 6  <- escala:x escala:y
+10 10  <- offset:x offset:y
+    1.0    0.0    0.0    1.0   F
+    0.0    1.0   -1.0    0.0   F
+   -1.0    0.0    0.0   -1.0   F
+    0.0   -1.0    1.0    0.0   F 
+Borde de región homogenea cuando flip12 .true.
+0    N segmentos 
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+
+
+
 Superficie (x,y)ini - (x,y)fin en metros TUNEL-CIRCULAR 30
 0     N_topo segmentos :: T^0 + T^d = 0
 30    N_cont segmentos :: T^d = T^0; u^d = u^0
@@ -76,7 +128,7 @@ Superficie (x,y)ini - (x,y)fin en metros TUNEL-CIRCULAR 30
     0.9766   -0.2150    1.0000    0.0000   F
 Inclusion properties
 Alfa(m/s) Beta(m/s) Dens(T/m3) 
-5600.   2800.  2.5
+10000 5000 2.0       5600.   2800.  2.5
 Cualquier receptor dentro de esta superficie está en el aire
 30    N segmentos 
 5.0 5.0  <- escala:x escala:y
