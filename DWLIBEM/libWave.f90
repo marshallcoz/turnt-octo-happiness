@@ -44,14 +44,14 @@
       
 
       module waveVars
-      real, save :: Escala
       real*8, save :: Dt,maxtime  !segundos
       real, save :: t0
-      integer, save :: ampfunction ! 0 dirac; 1 ricker
-      complex*16, dimension(:), allocatable :: Uo
-      real, save :: Ts 
-      real, save :: Tp 
-      real, save :: sigGaus
+      complex*16, dimension(:,:), allocatable :: Uo
+!     real, save :: Escala
+!     real, save :: Ts 
+!     real, save :: Tp 
+!     integer, save :: ampfunction ! 0 dirac; 1 ricker
+!     real, save :: sigGaus
       end module waveVars
       
 
@@ -138,7 +138,14 @@
         ! 0 TE^0 + TE^d = 0 
         ! 1 TE^0 + TE^d = TR^r; uE^0 + uE^d = uR^r
         ! 2 TR^r = 0
-
+        logical :: atBou
+        real :: Escala
+        real :: Ts 
+        real :: Tp 
+        integer :: ampfunction ! 0 dirac; 1 ricker
+        real :: sigGaus
+        integer :: PW_pol
+        integer :: tipofuente
       !                       ,--- f: 1...nfrec+1
       !                       | ,--- k: 1...NMAX+1 / 2*NMAX
       !                       | | ,--- iMec: 1:3 (desps) W,U,V
@@ -151,9 +158,9 @@
         ! espectro campo total inquirePoints : 
       !                        ,--- f: 1...nfrec+1
       !                        | ,--- iMec: 1:2 y 3
-        complex*16, dimension (:,:), allocatable :: W
-        type(FFres),dimension (:), allocatable :: resp
-        complex*16, dimension (:,:,:), allocatable :: Wmov
+!       complex*16, dimension (:,:), allocatable :: W
+        type(FFres),dimension (:,:), allocatable :: resp
+        complex*16, dimension (:,:,:,:), allocatable :: Wmov
       
       !                 ,--- xXx (indice punto integracion Gaussiana)
       !                 | ,--- (1,2) -> (x,z)
@@ -174,7 +181,7 @@
         integer, save :: nIpts, nSabanapts, nMpts, nBpts, nPts,&
                        iPtini,iPtfin,mPtini,mPtfin, & 
                        n_top_sub,n_con_sub,n_val_sub,n_OD
-        complex*16, dimension(:,:), allocatable :: ibemMat,copyibemmat
+        complex*16, dimension(:,:), allocatable :: ibemMat,ibemMatS
         complex*16, dimension(:), allocatable :: trac0vec 
         integer, dimension(:), allocatable :: IPIVbem
           complex*16, allocatable, save, target :: Sabana(:,:) !(punto,traza)
@@ -187,7 +194,7 @@
 
       module peli
         real, dimension(:),allocatable :: coords_Z ,coords_X
-        complex*16, dimension(:,:,:,:), allocatable,target :: fotogramas
+        complex*16, dimension(:,:,:,:,:), allocatable,target :: fotogramas
         integer, dimension(:,:), allocatable :: fotogramas_Region
       end module peli
       
@@ -196,12 +203,11 @@
         use resultVars, only : Punto
         type (Punto),dimension(:),allocatable, save, target :: Po
         logical, save :: SH,PSV
-        integer :: tipofuente
         integer :: nFuentes
-        integer :: PW_pol
+        integer :: currentiFte
       end module sourceVars
-      
-
+      ! use sourceVars, only : currentiFte
+      !  ,currentiFte  ,iFte   iFte => currentiFte
       module meshVars
         integer, save :: npixX,npixZ,nmarkZ,nmarkX
         real, save :: MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,MeshVecLen
@@ -350,7 +356,7 @@
       real,  dimension(1+1) :: surf_poly 
       real*8, allocatable, save :: midPoint(:,:)
       real*8, allocatable, save :: normXI(:,:)
-      type (Punto), dimension(:), allocatable, save, target :: origGeom,origGeom_R
+      type (Punto), dimension(:), allocatable, save, target :: origGeom!,origGeom_R
       Type segemntedcoords
         real*8, dimension(:), allocatable :: x,z !cantidad de nodos de la subdivisión
       end Type segemntedcoords
@@ -364,12 +370,14 @@
       contains 
       
       !  The Ricker wavelet on the time domain saved on   Uo
-      subroutine ricker
+      subroutine ricker(Uo,Ts,Tp)
       use gloVars, only : PI,UR
-      use waveVars, only : Uo,Ts,Tp,Dt
+      use waveVars, only : Dt
       use waveNumVars, only : NPTSTIME
       implicit none
       integer :: i
+      complex*16, dimension(NPTSTIME) :: Uo
+      real :: Ts,Tp
       real*8 :: A,B
       Uo = 0;
       A = nearest(pi*(-Ts) / Tp,1.0)
@@ -389,13 +397,14 @@
       end do
       end subroutine ricker
       
-      subroutine gaussian
-      use waveVars, only : Uo,sigGaus
+      subroutine gaussian(sigGaus)
+!     use waveVars, only : Uo,sigGaus
       use waveNumVars, only : NPTSTIME!,nfrec
       implicit none
       integer :: i
       real*8 :: f,s
-      
+      complex*16, dimension(NPTSTIME) :: Uo
+      real :: sigGaus
       f = 0.0
       !positivos
       s = real(sigGaus/100.0 * NPTSTIME/2,8)
