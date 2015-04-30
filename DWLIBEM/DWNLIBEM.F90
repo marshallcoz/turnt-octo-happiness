@@ -1020,6 +1020,7 @@
       read(35,*) PrintNum
       read(35,*) longitudcaracteristica_a
       read(35,*) fraccionDeSmallestWL_segm_de_esquina
+      read(35,*) PWfrecReal
       close(35)    
       CALL chdir("..")
       end subroutine getMainInput
@@ -2935,14 +2936,14 @@
 !#define ver 1
       ! esta función es llamada con cada profundidad donde hay
       ! por lo menos una fuente.
-      use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum
+      use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum,PWfrecReal
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
       use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
       use wavelets !fork 
       use dislin
       use sourceVars, only: Po,iFte=>currentiFte!nFuentes,tipofuente, , PW_pol
-      use soilvars, only:N,Z,alfa0,beta0!,alfa,beta
+      use soilvars, only:N,Z,alfa0,beta0,alfa,beta
       use, intrinsic :: iso_c_binding!, only : C_INT
       implicit none
       interface
@@ -2969,7 +2970,7 @@
       real*8,target :: k
       real*8, pointer :: zf,xf,pt_k
       complex*16, dimension(:,:), allocatable, target :: auxK,savedAuxK
-      complex*16, target  :: cOME
+      complex*16, target  :: cOME,alf,bet
       complex*16, pointer :: pt_cOME_i
       integer, dimension(:),allocatable,target :: ipivA
       integer, dimension(:),pointer :: pt_ipivA
@@ -3000,7 +3001,17 @@
 !        i_FuenteFinal = 1 ! Cantidad de fuentes reales
          if (isPW) then ! onda plana incidente·p
             ! con incidencia de onda plana no usamos atenuación                  ·l
-            cOME = OME * UR  !real(cOME_in) * UR!                                ·a
+           if (PWfrecReal) then 
+             cOME = OME * UR  !real(cOME_in) * UR!                               ·a
+             alf = alfa0(N+1)
+             bet = beta0(N+1)
+           else
+             cOME = cOME_in  !real(cOME_in) * UR!                               ·a
+             alf = alfa(N+1)
+             bet = beta(N+1)
+           end if
+           if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)!          ·a
+           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
          end if! ·································································n
       else; itabla_x = 2 + pota(i_zF,1) + 1 !    la primer fuente virtual
 !           i_FuenteFinal = 1; 
@@ -3020,7 +3031,7 @@
       ! el número de onda horizontal asociado al ángulo de incidencia ············
       if (isPW) then ! onda plana incidente   ·
           if (dir_j .eq. 2) then! SH                                             ·
-            if(Po(iFte)%PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·o
+!           if(Po(iFte)%PW_pol .eq. 3) k = cOME/bet*sin(pXi%gamma)!          ·o
             tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1!                       ·n
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·d
             pt_k => k; pt_come_i => cOME!                                        ·a
@@ -3030,8 +3041,13 @@
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
             B(:,0) = matmul(Ak(:,:,0),B(:,0))!                                   ·a
           else!  P-SV                                                            ·n
-            if(Po(iFte)%PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·a
-            if(Po(iFte)%PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!          ·
+!           if (PWfrecReal) then
+!           if(Po(iFte)%PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!          ·a
+!           if(Po(iFte)%PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!          ·
+!           else
+!           if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/beta(N+1))*sin(pXi%gamma)!          ·a
+!           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alfa(N+1))*sin(pXi%gamma)
+!           end if        
             tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
             pt_k => k; pt_come_i => cOME!                                        ·
@@ -3039,7 +3055,7 @@
             pt_ipivA => ipivA; pt_workA => workA!                                ·
             call gloMat_PSV(pointA,pt_k,0)!                              ·
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
-            call PSVvectorB_ondaplana(B(:,0),cOME,pxi%gamma)!                    ·
+            call PSVvectorB_ondaplana(B(:,0),pxi%gamma)!                    ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
           end if!                                                                ·
           pos = 0; ne = 2*nmax
@@ -3115,14 +3131,14 @@
 !     savedauxk(po+1:ne-1,:) = 0
       if (isPW) then ! onda plana·············
           if (dir_j .eq. 2) then!                                               ·
-            if(Po(iFte)%PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·
+!           if(Po(iFte)%PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·
                  Meca_diff = SHdiffByStrata(B(:,0), &!                          ·o
                              p_X%center%z, p_X%layer, & !                       ·n
                              cOME,k,mecS,mecE,outpf) !                          ·d
                  savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) !          ·a
           else !                                                                ·
-            if(Po(iFte)%PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·p
-            if(Po(iFte)%PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!         ·l
+!           if(Po(iFte)%PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!         ·p
+!           if(Po(iFte)%PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!         ·l
                  savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
                               p_X%center%z, p_X%layer,cOME,k,0)!                ·a
           end if!                                                               ·
@@ -3197,15 +3213,15 @@
             ! agregar información fase horizontal de fuente y receptor 
           do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
             if (isPW) then !             ·
-              if (dir_j .eq. 2) then!                                       ·
-!               if(PW_pol .eq. 3) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·p
-                if(Po(iFte)%PW_pol .eq. 3) k = real(OME/beta0(N+1)*sin(pXi%gamma))! ·p
-              else!                                                         ·l
-!               if(PW_pol .eq. 1) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·a
-!               if(PW_pol .eq. 2) kx = cOME/alfa(N+1)*sin(pXi%gamma)!       ·n
-                if(Po(iFte)%PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(pXi%gamma))! ·a
-                if(Po(iFte)%PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(pXi%gamma))! ·n
-              end if  !                                                     ·a
+!             if (dir_j .eq. 2) then!                                       ·
+!!               if(PW_pol .eq. 3) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·p
+!               if(Po(iFte)%PW_pol .eq. 3) k = real(OME/beta0(N+1)*sin(pXi%gamma))! ·p
+!             else!                                                         ·l
+!!               if(PW_pol .eq. 1) kx = cOME/beta(N+1)*sin(pXi%gamma)!       ·a
+!!               if(PW_pol .eq. 2) kx = cOME/alfa(N+1)*sin(pXi%gamma)!       ·n
+!               if(Po(iFte)%PW_pol .eq. 1) k = real(OME/beta0(N+1)*sin(pXi%gamma))! ·a
+!               if(Po(iFte)%PW_pol .eq. 2) k = real(OME/alfa0(N+1)*sin(pXi%gamma))! ·n
+!             end if  !                                                     ·a
                 auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
                 exp(-UI*k*(p_x%center%x - xf))            !                 ·
                 CYCLE ! imec                              !                 ·
@@ -3346,11 +3362,11 @@
       end subroutine makeGANU
       
       subroutine makeGANU0
-      use waveNumVars, only : ome, & 
+      use waveNumVars, only : come,ome, & 
          gamma=>gamma_E,nu=>nu_E,eta=>eta_E
-      use soilVars, only : N,alfa0,beta0
+      use soilVars, only : N,alfa0,beta0,alfa,beta
       use sourceVars, only : PoFte=>Po,iFte=>currentiFte!,PW_pol
-      
+      use glovars, only: PWfrecReal
 !     use dislin
       implicit none
       integer :: e,ik
@@ -3358,13 +3374,41 @@
        do e = 1,N+1
        ! de la onda plana
        ik = 0
-       if(PoFte(iFte)%PW_pol .eq. 1) k = real(OME/beta0(e)*sin(PoFte(iFte)%gamma))
-       if(PoFte(iFte)%PW_pol .eq. 2) k = real(OME/alfa0(e)*sin(PoFte(iFte)%gamma))
+       if (PoFte(iFte)%PW_pol .eq. 1) then
+        if (PWfrecReal) then
+        k = real(OME/beta0(e)*sin(PoFte(iFte)%gamma))
+        else
+        k = real(COME/beta(e)*sin(PoFte(iFte)%gamma))
+        end if
+      elseif (PoFte(iFte)%PW_pol .eq. 2) then 
+        if (PWfrecReal) then
+        k = real(OME/alfa0(e)*sin(PoFte(iFte)%gamma))
+        else
+        k = real(cOME/alfa(e)*sin(PoFte(iFte)%gamma))
+        end if
+      end if
+       !
+       if (PWfrecReal) then
        gamma(ik,e) = sqrt(OME**2.0/ALFA0(e)**2.0 - k**2.0)
        nu(ik,e) = sqrt(OME**2.0/BETA0(e)**2.0 - k**2.0)
        if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
+       else
+       gamma(ik,e) = sqrt(cOME**2.0/ALFA(e)**2.0 - k**2.0)
+       nu(ik,e) = sqrt(cOME**2.0/BETA(e)**2.0 - k**2.0)
+       if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
+       if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+       eta(ik,e) = 2.0*gamma(ik,e)**2.0 - cOME**2.0 / BETA(e)**2.0
+       end if
+       
+!      if(PoFte(iFte)%PW_pol .eq. 1) k = real(OME/beta0(e)*sin(PoFte(iFte)%gamma))
+!      if(PoFte(iFte)%PW_pol .eq. 2) k = real(OME/alfa0(e)*sin(PoFte(iFte)%gamma))
+!      gamma(ik,e) = sqrt(OME**2.0/ALFA0(e)**2.0 - k**2.0)
+!      nu(ik,e) = sqrt(OME**2.0/BETA0(e)**2.0 - k**2.0)
+!      if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
+!      if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
+!      eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
        end do
        end subroutine makeGANU0
        
@@ -4064,35 +4108,54 @@
       end subroutine parImpar_gloMat
       
 ! G_stra - term indep
-      subroutine PSVvectorB_ondaplana(this_B,come,gamma)
-      use soilvars, only : n,lambda0,amu0,alfa0,beta0,Z!,beta,alfa
-      use glovars, only:UI,z0
+      subroutine PSVvectorB_ondaplana(this_B,gamma)
+      use soilvars, only : n,lambda0,amu0,lambda,amu,alfa0,beta0,Z,beta,alfa
+      use glovars, only:UI,z0,PWfrecReal
       use sourceVars, only: Po,iFte=>currentiFte! PW_pol
+      use waveNumVars, only : cOME,ome
       use debugStuff
       implicit none
       complex*16, intent(inout), dimension(1:4*N+2) :: this_B
-      complex*16, intent(in)    :: come ! no trae amortiguamiento
+!     complex*16, intent(in)    :: come ! no trae amortiguamiento
       real*8, intent(in) :: gamma
       integer :: i,e
       real*8,dimension(1:2) :: theta
-      complex*16 :: kx,kz,U,W,c
+      complex*16 :: kx,kz,U,W,c,la,am
       real*8 :: z_loc
       !     Colocamos la onda incindente en la interfaz
       !     con el semiespacio de abajo.
       e = N+1 
       z_loc = 0! (Z(N+1)- Z(N+1)) 
+      
       if (Po(iFte)%PW_pol .eq. 1) then
+        if (PWfrecReal) then
         c = beta0(N+1) !SV
+        else
+        c = beta(N+1) !SV
+        end if
         theta(1) = cos(gamma)
         theta(2) = sin(gamma)
       elseif (Po(iFte)%PW_pol .eq. 2) then 
-        c = alfa0(N+1) !P
+        if (PWfrecReal) then
+        c = alfa0(N+1) !SV
+        else
+        c = alfa(N+1) !SV
+        end if
         theta(1) = sin(gamma)
         theta(2) = -cos(gamma)
       end if
-      
+      !
+      if (PWfrecReal) then
+      kx = ome/c * sin(gamma)
+      kz = ome/c * cos(gamma)
+      la = LAMBDA0(N+1)
+      am = AMU0(N+1)
+      else
       kx = come/c * sin(gamma)
       kz = come/c * cos(gamma)
+      la = LAMBDA(N+1)
+      am = AMU(N+1)
+      end if
       U = (theta(1))* exp(UI * kz * (z_loc))
       W = (theta(2))* exp(UI * kz * (z_loc))
       
@@ -4112,9 +4175,9 @@
       
       ! Tracciones en la frontera de la región de la fuente.........
       this_B(1+4*(e-1)   + i) = UI * ( &                           !
-                            ( W * kz * (LAMBDA0(e) + 2.0*AMU0(e))) & !
-                          - ( U * kx * LAMBDA0(e))) ! szz           !
-      this_B(1+4*(e-1)+1 + i) = UI * AMU0(e) &                      !
+                            ( W * kz * (la + 2.0 * am)) & !
+                          - ( U * kx * la)) ! szz           !
+      this_B(1+4*(e-1)+1 + i) = UI * am &                      !
                           * ( kz * U - kx * W ) ! szx              !
       !                   sxx = UI * ( &                           !
       !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
@@ -4963,7 +5026,7 @@
       ! Sanchez-Sesma y Campillo, 1991.  Mismo resultado que:
       ! Kaussel, Fundamental solutions in elastodynamics... pag 38
       use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N,Z
-      use gloVars, only:UI,UR,one,z0
+      use gloVars, only:UI,UR,one,z0,PWfrecReal
       use hank !     use specfun
       use resultvars, only : Punto,FFres
       use sourceVars, only: Po,iFte=>currentiFte!tipofuente, PW_pol
@@ -4990,7 +5053,7 @@
       complex*16 :: omeP,omeS
       complex*16 :: H0s,H1s,H2s,H0p,H1p,H2p !Hankel 
       complex*16 :: szz,szx,sxx
-!     complex*16 :: ome
+      complex*16 :: la,am
       integer :: i,j
       integer, pointer :: e
       real*8 :: nX(2)
@@ -5045,67 +5108,48 @@
         end if
       end if
       !
-      if (shouldI) then
-!     print*,"I should"
-!     if (p_x%layer .eq. pXi%layer) estratosIguales = .true.
-!     if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
-!     j = dir_j ! ***********  dir_j = 3  (vertical)
-!     if(j .eq. 3) j = 2 ! para coincidir con los indicies
-!     
-!     el_tipo_de_fuente = 2 !(fuente segmento)
-!     if (i_zF .eq. 0) el_tipo_de_fuente = tipofuente !(puntual:0 u onda plana:1) 
-!     if (i_zF .eq. -1) then !(campo refractado en inclusion)
-!       estratosIguales = .true.
-!       XinoEstaEnInterfaz = .true.
-!     end if!  
-!     
-!     if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) then
-!       if (p_X%region .eq. pXI%region) estratosIguales = .true.
-!       XinoEstaEnInterfaz = .true.
-!       estrato = N+2
-!       e => estrato
-!       nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
-!     end if
-!     
-!     if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then 
-!       if (p_x%layer   .eq. pXi%layer) estratosIguales = .true.
-!     end if!
-!     
-!     if (estratosIguales .eqv. .true.) then !should I
-!     estrato = p_x%layer
-!     e => p_x%layer
-!     nx(1) = p_X%normal%x; nx(2) = p_X%normal%z 
-!     xf => one; zf => one !para que no chiste el compilador
-!     if (i_zF .eq. -1) then !(en la inclusión)
-!       estrato = N+2
-!       e => estrato
-!       nx(1) = p_X%normal%x; nx(2) = p_X%normal%z !las normales sin voltear
-!     end if!
-        
+      if (shouldI) then        
       if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
        if (Po(iFte)%PW_pol .eq. 1) then                                              !
-        c = beta0(N+1) !SV                                                  !
+        if (PWfrecReal) then
+        c = beta0(N+1) !SV
+        else
+        c = beta(N+1) !SV
+        end if                                                  !
         theta(1) = cos(pxi%gamma)                                           !
         theta(2) = sin(pxi%gamma)                                           !
        elseif (Po(iFte)%PW_pol .eq. 2) then                                          !
-        c = alfa0(N+1) !P                                                   !
+        if (PWfrecReal) then
+        c = alfa0(N+1) !SV
+        else
+        c = alfa(N+1) !SV
+        end if                                                  !
         theta(1) = sin(pxi%gamma)                                           !
         theta(2) = -cos(pxi%gamma)                                          !
        end if                                                               !
-        kx = ome/c * sin(pxi%gamma)                                         !
-        kz = ome/c * cos(pxi%gamma)                                         !
+        if (PWfrecReal) then
+         kx = ome/c * sin(pxi%gamma)
+         kz = ome/c * cos(pxi%gamma)
+         la = LAMBDA0(N+1)
+         am = AMU0(N+1)
+        else
+         kx = come/c * sin(pxi%gamma)
+         kz = come/c * cos(pxi%gamma)
+         la = LAMBDA(N+1)
+         am = AMU(N+1)
+        end if                                         !
         FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
               * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
         FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
               * exp(-UI * kx * (p_x%center%x - pXi%center%x))               !
         szz = UI * ( &                                                      !
-                    ( FF%W * kz * (LAMBDA0(e) + 2.0* AMU0(e))) &            !
-                  - ( FF%U * kx * LAMBDA0(e)))                              !
-        szx = UI * AMU0(e) * ( kz * FF%U - kx * FF%W )                      !
+                    ( FF%W * kz * (la + 2.0* am)) &            !
+                  - ( FF%U * kx * la))                              !
+        szx = UI * am * ( kz * FF%U - kx * FF%W )                      !
         sxx = UI * ( &                                                      !
-                  - ( FF%U * kx * (LAMBDA0(e) + 2.0*AMU0(e))) &             !
-                  + ( FF%W * kz * LAMBDA0(e)))                              !
+                  - ( FF%U * kx * (la + 2.0*am)) &             !
+                  + ( FF%W * kz * la))                              !
         FF%Tx = sxx * nx(1) + szx * nx(2)                                   !
         FF%Tz = szx * nx(1) + szz * nx(2)                                   !
         return                                                              !
