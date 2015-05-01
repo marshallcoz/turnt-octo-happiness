@@ -159,9 +159,10 @@
         ! espectro campo total inquirePoints : 
       !                        ,--- f: 1...nfrec+1
       !                        | ,--- iMec: 1:2 y 3
-!       complex*16, dimension (:,:), allocatable :: W
         type(FFres),dimension (:,:), allocatable :: resp
         complex*16, dimension (:,:,:,:), allocatable :: Wmov
+        
+        complex*16, dimension (:,:), allocatable :: S !(traza,componente)
       
       !                 ,--- xXx (indice punto integracion Gaussiana)
       !                 | ,--- (1,2) -> (x,z)
@@ -176,7 +177,7 @@
       type (Punto), dimension(:), allocatable, save :: moviePoints
       type (Punto), dimension(:), allocatable, save, target :: BouPoints !xi
       
-        logical :: overDeterminedSystem
+        logical :: overDeterminedSystem, punEnlaFront
         integer :: OD_Jini,OD_Jend
         logical :: SabanaPlotIndividual,sabanaBajarAFrontera
         integer, save :: nIpts, nSabanapts, nMpts, nBpts, nPts,&
