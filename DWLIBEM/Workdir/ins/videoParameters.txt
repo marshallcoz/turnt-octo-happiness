@@ -4,6 +4,17 @@
 0.0   35.0     0.0
       Horizontal (start,end)
 -10.0   25.
+1.0	Vector lenght
+KEEP CALM AND THE FILE FORMAT
+
+
+
+      Resolucion (vertical, horizontal) N of axis marks (ver, hor)
+60    60     7     7
+      Vertical (start,end,pixelstart)
+10.0   50.0    10.0
+      Horizontal (start,end)
+-20.0   20.
 1.5	Vector lenght
 KEEP CALM AND THE FILE FORMAT
 

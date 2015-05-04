@@ -1,19 +1,140 @@
+Superficie (x,y)ini - (x,y)fin en metros TUNEL-CIRCULAR 2020
+0     N_topo segmentos :: T^0 + T^d = 0
+20    N_cont segmentos :: T^d = T^0; u^d = u^0
+20    N_vall segmentos :: T^d = 0
+***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
+1.0 1.0  <- escala:x escala:y
+0 0  <- offset:x offset:y
+1.0  <- escala:n
+***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
+5.6 5.6  <- escala:x escala:y
+10 10  <- offset:x offset:y
+1.0  <- escala:n
+0.98769 0.15643 0.89101 0.45399 F
+0.89101 0.45399 0.70711 0.70711 F
+0.70711 0.70711 0.45399 0.89101 F
+0.45399 0.89101 0.15643 0.98769 F
+0.15643 0.98769 -0.15643 0.98769 F
+-0.15643 0.98769 -0.45399 0.89101 F
+-0.45399 0.89101 -0.70711 0.70711 F
+-0.70711 0.70711 -0.89101 0.45399 F
+-0.89101 0.45399 -0.98769 0.15643 F
+-0.98769 0.15643 -0.98769 -0.15643 F
+-0.98769 -0.15643 -0.89101 -0.45399 F
+-0.89101 -0.45399 -0.70711 -0.70711 F
+-0.70711 -0.70711 -0.45399 -0.89101 F
+-0.45399 -0.89101 -0.15643 -0.98769 F
+-0.15643 -0.98769 0.15643 -0.98769 F
+0.15643 -0.98769 0.45399 -0.89101 F
+0.45399 -0.89101 0.70711 -0.70711 F
+0.70711 -0.70711 0.89101 -0.45399 F
+0.89101 -0.45399 0.98769 -0.15643 F
+0.98769 -0.15643 0.98769 0.15643 F
+***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
+5.0 5.0  <- escala:x escala:y
+10 10  <- offset:x offset:y
+-1.0  <- escala:n
+0.95106 0.30902 0.80902 0.58779 F
+0.80902 0.58779 0.58779 0.80902 F
+0.58779 0.80902 0.30902 0.95106 F
+0.30902 0.95106 6.1232e-17 1 F
+6.1232e-17 1 -0.30902 0.95106 F
+-0.30902 0.95106 -0.58779 0.80902 F
+-0.58779 0.80902 -0.80902 0.58779 F
+-0.80902 0.58779 -0.95106 0.30902 F
+-0.95106 0.30902 -1 1.2246e-16 F
+-1 1.2246e-16 -0.95106 -0.30902 F
+-0.95106 -0.30902 -0.80902 -0.58779 F
+-0.80902 -0.58779 -0.58779 -0.80902 F
+-0.58779 -0.80902 -0.30902 -0.95106 F
+-0.30902 -0.95106 -1.837e-16 -1 F
+-1.837e-16 -1 0.30902 -0.95106 F
+0.30902 -0.95106 0.58779 -0.80902 F
+0.58779 -0.80902 0.80902 -0.58779 F
+0.80902 -0.58779 0.95106 -0.30902 F
+0.95106 -0.30902 1 -2.4493e-16 F
+1 -2.4493e-16 0.95106 0.30902 F
+Inclusion properties
+Alfa(m/s) Beta(m/s) Dens(T/m3) 
+5600.   2800.  2.5
+Cualquier receptor dentro de esta superficie está en el aire
+20    N segmentos 
+5.0 5.0  <- escala:x escala:y
+10 10  <- offset:x offset:y
+0.95106 0.30902 0.80902 0.58779 F
+0.80902 0.58779 0.58779 0.80902 F
+0.58779 0.80902 0.30902 0.95106 F
+0.30902 0.95106 6.1232e-17 1 F
+6.1232e-17 1 -0.30902 0.95106 F
+-0.30902 0.95106 -0.58779 0.80902 F
+-0.58779 0.80902 -0.80902 0.58779 F
+-0.80902 0.58779 -0.95106 0.30902 F
+-0.95106 0.30902 -1 1.2246e-16 F
+-1 1.2246e-16 -0.95106 -0.30902 F
+-0.95106 -0.30902 -0.80902 -0.58779 F
+-0.80902 -0.58779 -0.58779 -0.80902 F
+-0.58779 -0.80902 -0.30902 -0.95106 F
+-0.30902 -0.95106 -1.837e-16 -1 F
+-1.837e-16 -1 0.30902 -0.95106 F
+0.30902 -0.95106 0.58779 -0.80902 F
+0.58779 -0.80902 0.80902 -0.58779 F
+0.80902 -0.58779 0.95106 -0.30902 F
+0.95106 -0.30902 1 -2.4493e-16 F
+1 -2.4493e-16 0.95106 0.30902 F
+Cualquier receptor dentro de estas superficies está en la region homogenea
+1  N de regiones
+20  Total de segmentos
+20    N segmentos 
+5.6 5.6  <- escala:x escala:y
+10 10  <- offset:x offset:y
+0.98769 0.15643 0.89101 0.45399 F
+0.89101 0.45399 0.70711 0.70711 F
+0.70711 0.70711 0.45399 0.89101 F
+0.45399 0.89101 0.15643 0.98769 F
+0.15643 0.98769 -0.15643 0.98769 F
+-0.15643 0.98769 -0.45399 0.89101 F
+-0.45399 0.89101 -0.70711 0.70711 F
+-0.70711 0.70711 -0.89101 0.45399 F
+-0.89101 0.45399 -0.98769 0.15643 F
+-0.98769 0.15643 -0.98769 -0.15643 F
+-0.98769 -0.15643 -0.89101 -0.45399 F
+-0.89101 -0.45399 -0.70711 -0.70711 F
+-0.70711 -0.70711 -0.45399 -0.89101 F
+-0.45399 -0.89101 -0.15643 -0.98769 F
+-0.15643 -0.98769 0.15643 -0.98769 F
+0.15643 -0.98769 0.45399 -0.89101 F
+0.45399 -0.89101 0.70711 -0.70711 F
+0.70711 -0.70711 0.89101 -0.45399 F
+0.89101 -0.45399 0.98769 -0.15643 F
+0.98769 -0.15643 0.98769 0.15643 F
+Borde de región homogenea cuando flip12 .true.
+0    N segmentos 
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+
+
 Superficie (x,y)ini - (x,y)fin en metros MINIviga
 0     N_topo segmentos :: T^0 + T^d = 0
-4   N_cont segmentos :: T^d = T^0; u^d = u^0
+10   N_cont segmentos :: T^d = T^0; u^d = u^0
 0    N_vall segmentos :: T^d = 0
 ***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
 1.0 1.0  <- escala:x escala:y
 0 0  <- offset:x offset:y
 1.0  <- escala:n
 ***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
-3.0  10.0  <- escala:x escala:y
-10.0 10.0  <- offset:x offset:y
+2.0  10.0  <- escala:x escala:y
+10.0 30.0  <- offset:x offset:y
 1.0  <- escala:n
-    1.0    1.0    1.0   -1.0   F
-    1.0   -1.0   -1.0   -1.0   F
-   -1.0   -1.0   -1.0    1.0   F
-   -1.0    1.0    1.0    1.0   F
+    1.0    1.0   -1.0    1.0   F
+   -1.0    1.0   -1.0    0.5   F
+   -1.0    0.5   -1.0    0.0   F
+   -1.0    0.0   -1.0   -0.5   F
+   -1.0   -0.5   -1.0   -1.0   F
+   -1.0   -1.0    1.0   -1.0   F
+    1.0   -1.0    1.0   -0.5   F
+    1.0   -0.5    1.0    0.0   F
+    1.0    0.0    1.0    0.5   F
+    1.0    0.5    1.0    1.0   F
 ***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
 1.0 1.0  <- escala:x escala:y
 1 1  <- offset:x offset:y
@@ -29,12 +150,12 @@ Cualquier receptor dentro de estas superficies está en la region homogenea
 1  N de regiones
 4  Total de segmentos
 4    N segmentos 
-3.0  10.0  <- escala:x escala:y
-10.0 10.0  <- offset:x offset:y 
-    1.0    1.0    1.0   -1.0   F
-    1.0   -1.0   -1.0   -1.0   F
-   -1.0   -1.0   -1.0    1.0   F
-   -1.0    1.0    1.0    1.0   F
+2.0  10.0  <- escala:x escala:y
+10.0 30.0  <- offset:x offset:y 
+    1.0    1.0   -1.0    1.0   F
+   -1.0    1.0   -1.0   -1.0   F
+   -1.0   -1.0    1.0   -1.0   F
+    1.0   -1.0    1.0    1.0   F
 Borde de región homogenea cuando flip12 .true.
 0    N segmentos 
 1.0  1.0   <- escala:x escala:y

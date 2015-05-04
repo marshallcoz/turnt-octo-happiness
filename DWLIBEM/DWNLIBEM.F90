@@ -290,7 +290,7 @@
              call loadG_fotogramas
              write(arg,'(a,I0)') 'video',currentiFte
              CALL chdir(trim(arg))
-             if (PSV) call Churubusco(.false.)
+!            if (PSV) call Churubusco(.false.)
              if (SH) call Hollywood(3)
              CALL chdir("..")
            end if
@@ -8091,14 +8091,12 @@
       implicit none
       real, dimension(:,:,:), allocatable :: xvmat,yvmat
       real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep, & 
-      encuadre, tlabel, madmax, escalaFlechas
+      tlabel, madmax, escalaFlechas,centrox,centroz,radio
       real,dimension(nIpts*2,NPTSTIME,2) :: delX,delZ
       integer :: i,ii,iii,j,j2,n_maxtime,iT,k,fai,faf
       character(LEN=100) :: titleN
-!     character(LEN=3) :: extension
       integer*4 :: lentitle
       character(LEN=60) :: CTIT
-!     type (Punto), dimension(:), pointer :: BP
       real*8, dimension(:,:),allocatable :: recIncluonly,recVoidonly
       real, dimension(5,2) :: rec
       real*8 :: rat
@@ -8141,13 +8139,16 @@
       minX = minval(real(Xcoord_ER(1:nXI,1,:),4))
       maxY = maxval(real(Xcoord_ER(1:nXI,2,:),4))
       minY = minval(real(Xcoord_ER(1:nXI,2,:),4))
-      maxX = maxX + (MaxX - MinX)*0.2
-      minX = minX - (MaxX - MinX)*0.2
-      maxY = maxY + (MaxY - MinY)*0.2
-      minY = minY - (MaxY - MinY)*0.2
+      centroX = (maxX+minX)/2
+      centroZ = (maxY+minY)/2
+      radio = max((maxY-minY)/2,(maxX-minX)/2)*1.2
+      maxx = centroX + radio
+      minx = centroX - radio
+      maxy = centroz + radio
+      miny = centroz - radio
+      print*,minX,maxX,minY,maxY
       xstep = real(((maxX-minX) / 0 ))
       zstep = real(((maxY-minY) / 0 ))
-      encuadre = (maxY-minY)/(maxX-minX)
       
       if (allocated(Xcoord_Incluonly)) then
        if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
@@ -8217,7 +8218,7 @@
       CALL TRIPLX()! CALL DISALF() !default font
            !the position of an axis system.
       CALL axspos (int(0,4) ,int(2700,4)) ! Lower left corner
-      call axslen (int(2600,4), int(2600*encuadre,4)) !size of the axis system.
+      call axslen (int(2600,4), int(2600,4)) !size of the axis system.
 !     call name('X [m]','X')
 !     call name('Z [m]','Y')
       call labdig(int(1,4),'X') !number of decimal places for labels
@@ -8391,7 +8392,7 @@
       CALL TRIPLX()! CALL DISALF() !default font
            !the position of an axis system.
       CALL axspos (int(2600,4) ,int(2700,4)) ! Lower left corner
-      call axslen (int(2600,4), int(2600*encuadre,4)) !size of the axis system.
+      call axslen (int(2600,4), int(2600,4)) !size of the axis system.
       call labdig(int(1,4),'X') !number of decimal places for labels
       call labdig(int(2,4),'Y')
       call ticks (int(1,4) ,'XY')
@@ -8645,7 +8646,7 @@
       CALL TRIPLX()! CALL DISALF() !default font
            !the position of an axis system.
       CALL axspos (int(5200,4) ,int(2700,4)) ! Lower left corner
-      call axslen (int(2600,4), int(2600*encuadre,4)) !size of the axis system.
+      call axslen (int(2600,4), int(2600,4)) !size of the axis system.
 !     call name('X [m]','X')
 !     call name('Z [m]','Y')
 !     call labdig(int(1,4),'X') !number of decimal places for labels
@@ -8762,12 +8763,12 @@
       print*,trim(titleN)
       call system(trim(titleN))
       
-      if (encuadre - 0.5 .le. 0.1) then
-      write(titleN,'(a,I0,a,I0,a)') 'ffmpeg -i 0_MecElemvideo.mp4 -filter:v ''''crop=1200:',&
-            int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''''' 0_MecElemvideoCrop.mp4'
-      print*,trim(titleN)
-      call system(trim(titleN))
-      end if
+!     if (encuadre - 0.5 .le. 0.1) then
+!     write(titleN,'(a,I0,a,I0,a)') 'ffmpeg -i 0_MecElemvideo.mp4 -filter:v ''''crop=1200:',&
+!           int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''''' 0_MecElemvideoCrop.mp4'
+!     print*,trim(titleN)
+!     call system(trim(titleN))
+!     end if
       end subroutine CINETECA
       
       function getstt(i,j) 
