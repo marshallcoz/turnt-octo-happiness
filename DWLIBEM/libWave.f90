@@ -98,17 +98,20 @@
             
 
       module resultVars
+     
+       
        type FFres
-         complex*16 :: U,V,W,Tx,Ty,Tz!,s33,s31,s11!,s32,s12
+         complex*16 :: U,V,W,Tx,Ty,Tz,szz,szx,sxx
        end type FFres
       
        type Punto2d
         real*8 :: x,z
        end type Punto2d
        
-       type Punto3d
-        real*8 :: x,y,z
-       end type Punto3d
+!      type Punto3d
+!       real*8 :: x,y,z
+!      end type Punto3d
+       
        
        type MecaElem
         type (Punto2d) :: center
@@ -118,7 +121,7 @@
        
        type Punto              
         type(Punto2d) :: center
-        type(Punto3d) :: normal
+        type(Punto2d) :: normal
         type(Punto2d) :: bord_A,bord_B !1x, 2y (a line on the xz plane)
         real*8  :: length
         logical :: segmentoDeEsquina
@@ -163,7 +166,7 @@
         complex*16, dimension (:,:,:,:), allocatable :: Wmov
         
         complex*16, dimension (:,:), allocatable :: S !(traza,componente)
-      
+                                 !W U sxx szx szz
       !                 ,--- xXx (indice punto integracion Gaussiana)
       !                 | ,--- (1,2) -> (x,z)
       !                 | |
@@ -191,6 +194,33 @@
         integer, allocatable, dimension(:,:), save :: fixedPoTa,pota
         integer :: nZs ! depths at pota
         complex*16, allocatable, dimension(:,:,:) :: XF
+        
+        
+      contains
+       
+!      function magP2d(a)
+!      real*8 :: magP2d
+!      type(Punto2d) :: a
+!      magP2d = sqrt(a%x**2 + a%z**2)
+!      end function magP2d
+       
+       function promP2d(a,b)
+       type(Punto2d) :: val,promP2d,a,b
+       real*8 :: mag
+       val%x = (a%x + b%x) * 0.5
+       val%z = (a%z + b%z) * 0.5
+       ! normalizar
+       mag = sqrt(val%x**2 + val%z**2)
+       promP2d%x = val%x / mag
+       promP2d%z = val%z / mag
+       end function promP2d
+       
+       
+       function negP2d(a)
+       type(Punto2d) :: negP2d,a
+       negP2d%x = -a%x
+       negP2d%z = -a%z
+       end function negP2d
       end module resultVars
       
 
