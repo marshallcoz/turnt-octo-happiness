@@ -355,8 +355,7 @@
                  real(0.25*MeshVecLen,4),&
                  real((MeshMaxZ-MeshMinZ)*0.015,4))
       call PENWID(real(5.0,4))
-      write(CTIT,'(a,ES8.2E2,a)') 'max. |$U_{ij}$| = ',madmax,' '
-      lentitle = NLMESS(CTIT)
+      write(CTIT,'(a,ES8.2E2,a)') 'max. |$u_{i}$| = ',madmax,' '
       CALL HEIGHT (int(80,4))
       CALL MESSAG(CTIT,int((30),4),int(2660,4))
 
@@ -365,7 +364,13 @@
       tlabel = (i)*real(dt,4)
       write(CTIT,'(a,F9.5,a)') '$t= ',tlabel,' seg$'
       lentitle = NLMESS(CTIT)
-      CALL MESSAG(CTIT,int(300,4),int(2850,4))
+      CALL MESSAG(CTIT,int(7800-lentitle-100,4),int(2850,4))
+
+      call height(80) ! de los caracteres
+      write(CTIT,'(a)') '$u_{i}$'
+      lentitle = NLMESS(CTIT)
+      call color ('FORE')
+      CALL MESSAG(CTIT,int(15,4),int(15,4))
       CALL ENDGRF
       !#< r ################################################### ESFUERZOS TANGENCIALES !#>
       CALL DISINI()
@@ -412,6 +417,22 @@
                   real(recVoidonly(:,2),4), &
                   int(2*size(Xcoord_Voidonly(:,1,1)),4))
         end if
+        ! normales
+        fai = nIpts-nXi-nSabanapts
+        faf = nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
+        call color ('CYAN')
+        call PENWID(real(2,4))
+        CALL HSYMBL(int(60,4))
+        do j=fai,faf
+        if (allpoints(j)%atBou) then
+            call RLVEC(real(allpoints(j)%center%x,4),&
+                       real(allpoints(j)%center%z,4),&
+                       real(allpoints(j)%center%x+allpoints(j)%normal%x*MeshVecLen2/3,4),&
+                       real(allpoints(j)%center%z+allpoints(j)%normal%z*MeshVecLen2/3,4),&
+                       int(1111,4))
+        end if
+        end do!j
+
       !#< r ##################   TANGENCIALES     !#>
       call mypat(45,5,3,1)
       call PENWID(real(2.5,4))
@@ -623,7 +644,7 @@
       ! stt = stt/maxstt * MeshVecLen
       call shdpat(int(16,4))
       call PENWID(real(1.0,4))
-      call color ('GREY')
+      call color ('GRAY')
       call rlrec(real(minX+(maxX-minX)*0.045,4),&
                  real(maxY-(maxY-minY)*0.055,4),&
                  real(MeshVecLen2*1.1,4),&
@@ -653,6 +674,12 @@
       lentitle = NLMESS(CTIT)
       CALL HEIGHT (int(80,4))
       CALL MESSAG(CTIT,int((2630),4),int(2660,4))
+
+      call height(80) ! de los caracteres
+      write(CTIT,'(a)') '$\sigma_{\theta \theta}$'
+      lentitle = NLMESS(CTIT)
+      call color ('FORE')
+      CALL MESSAG(CTIT,int(2615,4),int(15,4))
 
       CALL ENDGRF
       !#< r ########################################################### ODOGRAMA !#>
@@ -773,7 +800,7 @@
 
       call PENWID(real(1.0,4))
       call shdpat(int(16,4))
-      call color ('GREY')
+      call color ('GRAY')
       call rlrec(real(minX+(maxX-minX)*0.045,4),&
                  real(maxY-(maxY-minY)*0.055,4),&
                  real(MeshVecLen2*1.1,4),&
@@ -797,12 +824,15 @@
                  real(0.25*MeshVecLen2,4),&
                  real((maxY-minY)*0.015,4))
       call PENWID(real(5.0,4))
-      write(CTIT,'(a,ES8.2E2)') 'max. |$U_{ij}$| = ',madmax
+      write(CTIT,'(a,ES8.2E2)') 'max. |$u_{i}$| = ',madmax
       lentitle = NLMESS(CTIT)
       CALL HEIGHT (int(80,4))
       CALL MESSAG(CTIT,int((5230),4),int(2660,4))
-
-
+      call height(80) ! de los caracteres
+      write(CTIT,'(a)') 'hodogram $u_{i}$'
+      lentitle = NLMESS(CTIT)
+      call color ('FORE')
+      CALL MESSAG(CTIT,int(5215,4),int(15,4))
       CALL ENDGRF
       call disfin
 
