@@ -242,7 +242,7 @@
       !  ,currentiFte  ,iFte   iFte => currentiFte
       module meshVars
         integer, save :: npixX,npixZ,nmarkZ,nmarkX
-        real, save :: MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,MeshVecLen
+        real, save :: MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,MeshVecLen,MeshVecLen2
       end module meshVars
                    
 
