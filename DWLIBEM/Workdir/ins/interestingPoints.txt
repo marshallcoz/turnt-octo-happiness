@@ -8,7 +8,7 @@ ___________________________________________________________
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst
 7.0    7.5          0.0      -1.0       1           F    1  <-primer elemento en medio estr.
 7.0    8.5          0.0      -1.0       1           F    1  
-10.0   9.0          0.0      -1.0       1           T    2  
+10.0   8.99         0.0      -1.0       1           T    2  
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)

@@ -549,14 +549,14 @@
       Ni = ik*l
        
 !#< b
-       call chdir(trim(adjustl(rutaOut))) 
-       open(421,FILE= "outA.m",action="write",status="replace")
-       write(arg,'(a)') "BiSIN"
-       call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-       write(arg,'(a)') "MiSIN"
-       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-       close(421)
-       CALL chdir("..")
+!      call chdir(trim(adjustl(rutaOut))) 
+!      open(421,FILE= "outA.m",action="write",status="replace")
+!      write(arg,'(a)') "BiSIN"
+!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+!      write(arg,'(a)') "MiSIN"
+!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+!      close(421)
+!      CALL chdir("..")
 !      
 !     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
 !     if (verbose .ge. 1) call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6) ;stop
@@ -6511,8 +6511,8 @@
       n_top_sub,n_con_sub,n_val_sub
       use waveNumVars, only : cOME
       use sourceVars, only : iFte => currentiFte
-      use debugStuff
-      use glovars, only : rutaOut,z0
+!     use debugStuff
+      use glovars, only : z0!,rutaOut
       implicit none
       interface
       subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
@@ -6538,13 +6538,13 @@
       type(Punto), pointer :: pXi,p_X
       integer :: iP_x,iPxi,ipxi_I,ipxi_F,dj,dir_j!,iPhi_I,iPhi_F
       type(FFres),target :: FF
-      CHARACTER(len=32) :: arg
+!     CHARACTER(len=32) :: arg
       
 !     print*,"ren=",ren !primer renglon del primer elemento de sobredeterminad
 !     call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
 !     call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6)
-      call chdir(trim(adjustl(rutaOut))) 
-       open(421,FILE= "outA.m",action="write",status="replace")
+!     call chdir(trim(adjustl(rutaOut))) 
+!      open(421,FILE= "outA.m",action="write",status="replace")
 !      write(arg,'(a)') "Bi"
 !      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
 !      write(arg,'(a)') "Mi"
@@ -6658,12 +6658,12 @@
       ren = ren + renStep
       end do !iP_x
       
-       write(arg,'(a)') "BfGx"
-       call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-       write(arg,'(a)') "MfGx"
-       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-       close(421)
-       CALL chdir("..")
+!      write(arg,'(a)') "BfGx"
+!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+!      write(arg,'(a)') "MfGx"
+!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+!      close(421)
+!      CALL chdir("..")
 !     call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
 !     call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6)
 !     stop "overDetermineSystem"
@@ -8227,7 +8227,7 @@
       implicit none
       real, dimension(:,:,:), allocatable :: xvmat,yvmat
       real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep, & 
-      tlabel, madmax, escalaFlechas,centrox,centroz,radio
+      tlabel, escalaFlechas,centrox,centroz,radio!, madmax
       real,dimension(nIpts*2,NPTSTIME,2) :: delX,delZ
       integer :: i,ii,iii,j,j2,n_maxtime,iT,k,fai,faf
       character(LEN=100) :: titleN
@@ -8244,7 +8244,7 @@
        n_maxtime = int(maxtime/dt)
        if(maxtime .lt. dt) n_maxtime = 2*nfrec
        if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-       print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
+       print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," fotogramas"
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
       
@@ -8256,7 +8256,6 @@
         do j=1,npixX
           xvmat(j,i,1:n_maxtime) = real(fotogramas(i,j,1:n_maxtime,2,iFte),4) !U
           yvmat(j,i,1:n_maxtime) = real(fotogramas(i,j,1:n_maxtime,1,iFte),4) !W
-          
           ! para no imprimir lo que se ve muy pequeñito
           do iT = 1,n_maxtime
             if (abs(yvmat(j,i,iT)) .le. mav1*0.0025) yvmat(j,i,iT) = 0.0
@@ -8264,12 +8263,24 @@
           end do
         end do
       end do
-      madmax = max(max(maxval(xvmat),maxval(yvmat)), & 
-               max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-      escalaFlechas = real((MeshVecLen * 3.0) / madmax)
-      else
-      escalaFlechas = MeshVecLen * 3.0
+!     madmax = max(max(maxval(xvmat),maxval(yvmat)), & 
+!              max(maxval(abs(xvmat)),maxval(abs(yvmat))))
+!     escalaFlechas = real((MeshVecLen * 3.0) / madmax)
+!     else
+!     escalaFlechas = MeshVecLen * 3.0
       end if
+      fai = nIpts-nXi-nSabanapts
+      faf = nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
+      mav1 = -100000.0
+      mav2 = -100000.0
+      do j=fai,faf
+        if (allpoints(j)%atBou) then
+          mav1 = max(mav1,maxval(real(allpoints(j)%S(:,1),4)))!y
+          mav2 = max(mav2,maxval(real(allpoints(j)%S(:,2),4)))!x
+        end if
+      end do
+      escalaFlechas = real(MeshVecLen / max(mav1,mav2))
+      print*,"escalaFlechas=",escalaFlechas
       
       maxX = maxval(real(Xcoord_ER(1:nXI,1,:),4))
       minX = minval(real(Xcoord_ER(1:nXI,1,:),4))
