@@ -482,6 +482,8 @@
       end function FFTW
       
       SUBROUTINE FORK(LX,CX,SIGNI,verbose,outpf)
+      ! factor = sqrt(real(NPTSTIME))
+      ! S = S/factor
       implicit none
       integer, intent(in) :: outpf
       integer, intent(in) :: LX,SIGNI,verbose
