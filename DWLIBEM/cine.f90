@@ -55,11 +55,12 @@
           end do
         end do
       end do
-!     madmax = max(max(maxval(xvmat),maxval(yvmat)), &
-!              max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-!     escalaFlechas = real((MeshVecLen * 3.0) / madmax)
+      madmax = max(mav1,mav2)
+      escalaFlechas = real(MeshVecLen / madmax)
+      xvmat = xvmat/madmax
+      yvmat = yvmat/madmax
 !     else
-!     escalaFlechas = MeshVecLen * 3.0
+
       end if
       fai = nIpts-nXi-nSabanapts
       faf = nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
@@ -72,7 +73,7 @@
         end if
       end do
       madmax = max(mav1,mav2)
-      escalaFlechas = real(MeshVecLen / madmax)
+      !escalaFlechas = real(MeshVecLen / madmax)
       escalaFlechas2 = real(MeshVecLen2 / madmax)
       print*,"madmax=",madmax
 

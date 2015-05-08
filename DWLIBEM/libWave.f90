@@ -6,6 +6,7 @@
       !         = 3   ! 2 + matrix values
       integer    :: verbose 
       logical    :: makeVideo
+      logical    :: vivaChurubusco
       logical    :: workBoundary
       logical    :: flip12
       logical    :: PrintEtas

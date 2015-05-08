@@ -290,7 +290,7 @@
              call loadG_fotogramas
              write(arg,'(a,I0)') 'video',currentiFte
              CALL chdir(trim(arg))
-             if (PSV) call Churubusco(.false.)
+             if (PSV .and. vivaChurubusco) call Churubusco(.false.)
              if (SH) call Hollywood(3)
              CALL chdir("..")
            end if
@@ -959,7 +959,7 @@
         write(arg,'(a,I0)') 'video',currentiFte
         CALL chdir(trim(arg))
         call crepa_four_fotogramas
-        if (PSV) call Churubusco(.false.)
+        if (PSV .and. vivaChurubusco) call Churubusco(.false.)
         if (SH) call Hollywood(3)
         call chdir("..")
       end if
@@ -1089,6 +1089,7 @@
       end if
       READ(35,'(I1)') verbose!; print*,"verbose =",verbose 
       READ(35,'(L1)') makevideo!; print*,"make a video =",makevideo
+      READ(35,'(L1)') vivaChurubusco
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
@@ -8386,12 +8387,12 @@
       
       if (zoomGeom) then
       !normales -------------------------------------------------------------
-      call color('ORANGE')                                                  !
+      call color('CYAN')                                                  !
       CALL HSYMBL(int(25,4)) !size of symbols                               ! 
       do j=1,nXI                                                            !
       CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
-              real(midPoint(j,1)+normXI(j,1)* MeshVecLen,4), &                !
-              real(midPoint(j,2)+normXI(j,2)* MeshVecLen,4), int(1001,4))     !
+              real(midPoint(j,1)+normXI(j,1)* xstep*0.4,4), &                !
+              real(midPoint(j,2)+normXI(j,2)* xstep*0.4,4), int(1001,4))     !
       end do                                                                !
       
       ! puntos centrales y gaussianos ------------------------------------
@@ -8486,10 +8487,10 @@
           call color('BLUE') 
           CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))  !
           if (IP(j)%atBou) then
-            call color('ORANGE') 
+            call color('CYAN') 
             CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
-              real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.7,4), &       !
-              real(IP(j)%center%z + IP(j)%normal%z * MeshVecLen*0.7,4), &       !
+              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.4,4), &       !
+              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.4,4), &       !
               int(1001,4))
           end if                                                             !
       end do                                                               !
