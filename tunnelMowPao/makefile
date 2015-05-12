@@ -1,0 +1,1 @@
+/usr/local/dislin/bin/gf95link -c /Users/marshall/Documents/DOC/unit5/tunel-recubrimiento-solAnalitica/tunelRecub -o /Users/marshall/Documents/DOC/unit5/tunel-recubrimiento-solAnalitica/tunelRecub.out -Wall -Wextra specfun.o -I /Users/marshall/Documents/DOC/unit5/tunel-recubrimiento-solAnalitica/ specfun.o -framework Accelerate
