@@ -425,7 +425,7 @@
         A = nearest(A * A,1.0)
         B = nearest(exp(-A),1.0)
         A = nearest((A - 0.5_8) * B ,1.0)
-        if (abs(A) .lt. 0.0001) A = 0
+        if (abs(A) .lt. 0.001) A = 0
         Uo(i) = A * UR
       end do
       end subroutine ricker
