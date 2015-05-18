@@ -1,23 +1,23 @@
-2	verbose [int]
-F	make a video [logical]
+1	verbose [int]
+T	make a videos [logical]
 F       vivaChurubusco [logical]
-T	Solve topography [logical]
+T	Solve IBEM boundary [logical]
 F	The inclusion is the layered media, the rest is homogeneous.
 F	Plot FK de medio sin topografia [logical]
 F       Plot FKCK
 F       Plot displacement at frecuency Eta.
 F       Plot filled sheets
-F		Save the Green funcs. for later use with "-L" argument [logical]
-15		Segments per wavelength [int :: R]
-F	168	Keep the subdivision of at least the Jth frequency [logical] [integer]
-F   1   150	Overdeterminate system
-3.5		K integrand runs up to fmax / (R * beta) [real :: R]
+T	Save the Green funcs. for later use with "-L" argument [logical]
+10	Segments per wavelength [int :: R]
+T   150	Keep the subdivision of at least the Jth frequency [logical] [integer]
+F 1 150	Overdeterminate system
+2.5	K integrand runs up to fmax / (R * beta) [real :: R]
 1.25     K split pos, neg. [1.25] [real]    
-1		Periodic sources damping; omega = (omega , - r*PI/TW i) [float :: r] {1 or 2}
-F		Use Azimi's complex velocity to improve causality of the pulse [logical] 
-0		Developer feature [int]
-T		Reusar directorio de resultados [logical]
-101		logfile 6=pantalla ~=6 archivo [int]
-1.0		Longitud característica a [real]
-4		En segmentos de esquina, dividir dividir la longitud de segmentos por [int]
+1	Periodic sources damping; omega = (omega , - r*PI/TW i) [float :: r] {1 or 2}
+F	Use Azimi's complex velocity to improve causality of the pulse [logical] 
+0	Developer feature [int]
+T	Reusar directorio de resultados [logical]
+101	logfile 6=pantalla ~=6 archivo [int]
+1.0	Longitud característica a [real]
+5	En segmentos de esquina, dividir dividir la longitud de segmentos por [int]
 F       Ondaplana con frec real

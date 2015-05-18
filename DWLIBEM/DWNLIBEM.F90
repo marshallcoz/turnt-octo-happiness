@@ -156,6 +156,7 @@
       call chdir("..")
       end if !#< blue
        call chdir(trim(adjustl(rutaOut)))
+       call system("mkdir matrices")
        do currentiFte = 1,nFuentes 
        write(arg,'(a,I0)') 'mkdir phi',currentiFte
        call system(trim(adjustl(arg)))
@@ -554,15 +555,19 @@
       Ni = ik*l
        
 !#< b
-!      call chdir(trim(adjustl(rutaOut))) ; call chdir('matrices')
-!      write(arg,'(a,I0,a)') "outA",J,".m"
-!      open(421,FILE= trim(arg),action="write",status="replace")
-!      write(arg,'(a)') "BiSIN"
-!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-!      write(arg,'(a,I0)') "Mi",J
-!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-!      close(421)
-!      CALL chdir(".."); CALL chdir("..")
+       call chdir(trim(adjustl(rutaOut)))
+        call chdir('matrices')
+!     print*,n_top_sub,"n_top_sub"
+!     print*,n_con_sub,"n_con_sub"
+!     print*,n_val_sub,"n_val_sub"
+       write(arg,'(a,I0,a)') "outA",J,".m"
+       open(421,FILE= trim(arg),action="write",status="replace")
+       write(arg,'(a)') "BiSIN"
+       call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+       write(arg,'(a,I0)') "Mi",J
+       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+       close(421)
+       CALL chdir(".."); CALL chdir("..")
 !      
 !     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
 !     if (verbose .ge. 1) call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6) ;stop
@@ -1227,7 +1232,7 @@
       real*8 :: sixthofWL,f_frec,resi,deltax,deltaz
       character(LEN=100) :: txt
       character(LEN=3) :: extension
-!     real*8     :: errT = 0.01_8
+      real*8     :: errT = 0.01_8
       type (segemntedcoords), dimension(:), allocatable :: subdiv
       
       f_frec = frec
@@ -1338,21 +1343,21 @@
         else ! es más grande de 2.*sixthofWL
           if(V .ge. 4) print*,"     odd number of segments"
           ! odd number
-!         if (resi .gt. errT) then
-!          nsubdivs = 2*ndivsiguales + 1 + 1
-!          allocate(subdiv(ixi)%x(nsubdivs));allocate(subdiv(ixi)%z(nsubdivs))
-!          subdiv(ixi)%x(ndivsiguales+1) = origGeom(iXI)%bord_A%x + deltaX*ndivsiguales
-!          subdiv(ixi)%z(ndivsiguales+1) = origGeom(iXI)%bord_A%z + deltaZ*ndivsiguales
-!          subdiv(ixi)%x(ndivsiguales+2) = origGeom(iXI)%bord_B%x - deltaX*ndivsiguales
-!          subdiv(ixi)%z(ndivsiguales+2) = origGeom(iXI)%bord_B%z - deltaZ*ndivsiguales 
-!         else !por fin si solo por la mitad
+          if (resi .gt. errT) then
+           nsubdivs = 2*ndivsiguales + 1 + 1
+           allocate(subdiv(ixi)%x(nsubdivs));allocate(subdiv(ixi)%z(nsubdivs))
+           subdiv(ixi)%x(ndivsiguales+1) = origGeom(iXI)%bord_A%x + deltaX*ndivsiguales
+           subdiv(ixi)%z(ndivsiguales+1) = origGeom(iXI)%bord_A%z + deltaZ*ndivsiguales
+           subdiv(ixi)%x(ndivsiguales+2) = origGeom(iXI)%bord_B%x - deltaX*ndivsiguales
+           subdiv(ixi)%z(ndivsiguales+2) = origGeom(iXI)%bord_B%z - deltaZ*ndivsiguales 
+          else !por fin si solo por la mitad
            nsubdivs = 2*ndivsiguales + 1
            allocate(subdiv(ixi)%x(nsubdivs));allocate(subdiv(ixi)%z(nsubdivs))
            subdiv(ixi)%x(ndivsiguales+1) = (origGeom(iXI)%bord_A%x + deltaX*ndivsiguales + & 
                                             origGeom(iXI)%bord_B%x - deltaX*ndivsiguales)/2.
            subdiv(ixi)%z(ndivsiguales+1) = (origGeom(iXI)%bord_A%z + deltaZ*ndivsiguales + &
                                             origGeom(iXI)%bord_B%z - deltaZ*ndivsiguales)/2.
-!         end if
+          end if
         end if ! resi .le. sixthofWL
         nSegmeTotal = nSegmeTotal + nsubdivs -1
         if(V .ge. 4) print*,"     los que son iguales a cada lado"
@@ -3790,6 +3795,9 @@
       integer :: el_tipo_de_fuente
       integer, target :: estrato
       logical :: shouldI,XinoEstaEnInterfaz,usarGreenex!,estratosIguales
+!     print*,"px",p_x%center
+!     print*,"pxi",pXi%center
+!     print*,"dir_j",dir_j
       FF%W=z0;FF%U=z0;FF%Tz=z0;FF%Tx=z0;FF%sxx = 0;FF%szx = 0;FF%szz = 0
 !     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
@@ -3943,6 +3951,7 @@
       end if!mecs1
       
       if (mecE .eq. 5) then
+      nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
       ! tracciones
       Dqr = omeP*H1p
       Dkr = omeS*H1s
@@ -4014,6 +4023,18 @@
 !        end if
       end if ! greenex o gaussiana
       end if !on the interface
+!     print*,"r",r
+!     print*,FF%Tx,"FF%Tx"
+!     print*,FF%Tz,"FF%Tz"
+!     print*,"p_X%isOD",p_X%isOD
+!     print*,"pXi%isBoundary",pXi%isBoundary
+!     print*,omeP,omeS
+!     print*,"pXi%isSourceSegmentForce",pXi%isSourceSegmentForce
+!     print*,"el_tipo_de_fuente",el_tipo_de_fuente
+!     print*,"estrato",estrato
+!     print*,"nGq",nGq,"  usarGreenex",usarGreenex 
+!     print*,"-------------------------------------------"
+!     print*,""
       end if !should I?
       end subroutine FFpsv
        
