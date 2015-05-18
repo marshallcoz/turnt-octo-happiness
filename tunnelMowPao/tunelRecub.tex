@@ -33,90 +33,32 @@ Ejercicio para incidencia de onda plana P y SV.
 \begin{verbatim}
       module datos
       save
-      real*8, dimension(2), parameter :: rho = (/1.45, 1.0/)
-      real*8, dimension(2), parameter :: nu = (/0.25, 0.20/)
-      real*8, dimension(2), parameter :: bet = (/2.405, 1.700/) * 10
+      real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
+      real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
+      real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
       real*8, dimension(2) :: alf
       integer,parameter :: nRes = 60
       real*8, dimension(2) :: radios ! a, b 
-      real, parameter :: Qq = 1000.0, periodicdamper = 1.0, TW = 1.0 ,& 
-                        Tp = 0.3 , Ts = 1.5
-      real*8, parameter :: DFREC = 0.05
-      integer, parameter :: NFREC = 100, nplot = 100, NPTSTIME = 1024
+      real, parameter :: Qq = 10000.0, Ts = 0.15, Tp = 0.06
+      real*8, parameter :: DFREC = 0.33
+      integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
-      integer, parameter :: frameInicial = 50, nframes = 90
+      integer, parameter :: frameInicial = 1, nframes = 150
       real*8, parameter :: Dns = 1.
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
       logical, parameter :: imprimirEspectros = .false.
+      real :: ventana
+      real, parameter :: MeshVecLen = 1.5, giro = 0!-PI/2
       contains
       subroutine set_radios
-      radios(1) = 3.00 ! a            : in the liner
-      radios(2) = radios(1)*1.1 ! b   : in the medium
+      radios(1) = 5.00_8 ! a   : in the liner
+      radios(2) = 5.60_8 ! b   : in the medium
+      ventana = 6.5
       end subroutine set_radios
       end module datos
-\end{verbatim}
-\end{shaded}
-\endgroup
-
-\begingroup
-\fontsize{10pt}{12pt}
-\selectfont
-\definecolor{shadecolor}{rgb}{0.925,0.925,0.925}
-\begin{shaded}
-\begin{verbatim}
-!       Rw(1)%r = radios(2) !r=b in the medium at the boundary of the liner
-!       Rw(1)%th = pi!/2.
-!       Rw(1)%reg = 1 ! in the medium
-!      
-!       Rw(2)%r = radios(1) !r=a at the inner side of the cylinder
-!       Rw(2)%th = pi!/2.
-!       Rw(2)%reg = 2 ! in the liner
-!       
-!               do i = 1,nRes
-!        radios(2+i) = Rw(i)%r
-!       ! reg = 1
-!         Rw(i)%s_rr_1 = z0
-!         Rw(i)%s_tt_1 = z0
-!         Rw(i)%s_rt_1 = z0
-!         Rw(i)%u_r_1 = z0
-!         Rw(i)%u_t_1 = z0
-!        ! reg = 2
-!         Rw(i)%s_rr_2 = z0
-!         Rw(i)%s_tt_2 = z0
-!         Rw(i)%s_rt_2 = z0
-!         Rw(i)%u_r_2 = z0
-!         Rw(i)%u_t_2 = z0
-!       end do
-!     end subroutine setup_resu
-!     
-!     subroutine initRW(i)
-!     use datos, only : z0
-!     implicit none 
-!     integer :: i
-!         Rw(i)%s_rr = z0
-!         Rw(i)%s_tt = z0
-!         Rw(i)%s_rt = z0
-!         Rw(i)%u_r = z0
-!         Rw(i)%u_t = z0
-!     end subroutine initRW
-!     end module RES
-!     
-!     subroutine setup_resu_sabana
-!     use datos, only : pi
-!       integer :: i
-!       real*8,parameter :: r_ini = 0.1
-!       real*8,parameter :: r_delta = 0.2
-!       real*8,parameter :: th_ini = pi/2.
-!       real*8,parameter :: th_delta = 0.0
-!       do i = 1,nRes
-!         Rw(i)%r = r_ini + (i-1)* r_delta
-!         Rw(i)%th = th_ini + (i-1)* th_delta
-!       end do
-!     end subroutine setup_resu_sabana
-!     end module RES
 \end{verbatim}
 \end{shaded}
 \endgroup
@@ -131,9 +73,9 @@ Ejercicio para incidencia de onda plana P y SV.
 ! Solución analítica de la difración de una onda P incidente 
 ! en una cavidad cilíndrica circular con recubrimiento
       use datos; use vars_func_of_w; use Hank
-      use debug; use RES; use plotter
+      use debug; use RES; use plotter; use fft
       implicit none
-      integer :: J,n,et,info,i,ir
+      integer :: J,n,et,info,i,ii,ir
       real*8, pointer :: r,th
       integer, pointer :: reg
       complex*16, dimension(6,6) :: M
@@ -143,10 +85,12 @@ Ejercicio para incidencia de onda plana P y SV.
       ! terms defined in the appendix (functions)
       complex*16 :: e11,e12,e21,e22,e41,e42,e71,e72,e81,e82,sig0
       real*8,dimension(2) :: BEALF
+      character(LEN=4)          :: nom(5)
+      character(LEN=9)          :: logflag
+      character(LEN=100)        :: titleN,xAx,yAx,CTIT
       call set_radios !a,b
       call setup_resu !puntos receptores
       Dt = (1.0) / (real(NPTSTIME) * DFREC)
-!     OMEI = - periodicdamper*PI/TW
       eta = radios(2)/radios(1) !b/a
       BEALF(1:2)=SQRT((0.5-NU(1:2))/(1.0-NU(1:2))) !IF POISSON RATIO IS GIVEN
       alf(1:2) = bet(1:2)/BEALF(1:2)
@@ -486,7 +430,107 @@ y en $\eta=1.1$, $r=a$,
 en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
 
 \includegraphics[scale=0.4]{RES_2s_tt2abspi2.pdf}
-\includegraphics[scale=0.4]{RES_2s_tt2abspi.pdf}\includegraphics[scale=0.5]{e11}
+\includegraphics[scale=0.4]{RES_2s_tt2abspi.pdf}
+\begingroup
+\fontsize{10pt}{12pt}
+\selectfont
+\definecolor{shadecolor}{rgb}{0.925,0.925,0.925}
+\begin{shaded}
+\begin{verbatim}
+      !#< b func. amplitud !#>
+      call ricker(Uo)
+      write(titleN,'(a)') 'WaveAmplitude-ricker_time.pdf'
+      write(CTIT,'(a)') 'WaveAmplitude of Ricker wavelet'
+      xAx = 'time[sec]'
+      write(yAx,'(a)') 'amplitude'
+      call plotXYcomp(Uo(1:nframes),real(Dt,4), & 
+                 nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      
+      call fork(size(Uo),Uo,-1) !forward
+      Uo = Uo * sqrt(real(size(Uo))) * dt ! factor de escala
+      
+!     call fork(size(Uo),Uo,+1) !backward
+!     Uo = Uo / sqrt(real(size(Uo))) / dt ! factor de escala
+      
+      
+      write(titleN,'(a)') 'WaveAmplitude-ricker_frec.pdf'
+      xAx = 'frec[Hz] '
+      write(yAx,'(a)') 'amplitude'      
+      logflag = 'logx     '      
+!     logflag = 'none     '
+      call plotSpectrum(Uo(:),real(DFREC,4), size(Uo(:)),int(size(Uo(:))/2), & 
+            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+
+\end{verbatim}
+\end{shaded}
+\endgroup
+
+\begingroup
+\fontsize{10pt}{12pt}
+\selectfont
+\definecolor{shadecolor}{rgb}{0.925,0.925,0.925}
+\begin{shaded}
+\begin{verbatim}
+      !snapshots 
+      call system('mkdir outTraces')
+      CALL chdir("outTraces")  
+      nom(1) = 's_tt'
+      nom(2) = 'u__r'
+      nom(3) = 'u__t'
+      nom(4) = 'u__x'
+      nom(5) = 'u__z'
+      write(xAx,'(a)') 'time[sec]'
+      write(yAx,'(a)') 'amplitude'
+      do i=1,nRes
+        write(CTIT,'(a,F7.2,a,F7.2,a)')'(', Rw(i)%x,' , ',Rw(i)%z,')'
+        Rw(i)%S = 0
+        !s_tt
+        Rw(i)%S(1:nfrec,1) = Rw(i)%s_tt(1:nfrec)
+        Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,1) = conjg(Rw(i)%s_tt(nfrec:2:-1)) 
+        
+        !u_r
+        Rw(i)%S(1:nfrec,2) = Rw(i)%u_r(1:nfrec)
+        Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,2) = conjg(Rw(i)%u_r(nfrec:2:-1)) 
+        
+        !u_t
+        Rw(i)%S(1:nfrec,3) = Rw(i)%u_t(1:nfrec)
+        Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,3) = conjg(Rw(i)%u_t(nfrec:2:-1)) 
+        
+        ! Coordenadas cartesianas
+        Rw(i)%th = Rw(i)%th + giro
+        
+        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
+        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
+        Rw(i)%n(1) = cos(Rw(i)%th)
+        Rw(i)%n(2) = sin(Rw(i)%th)
+        
+        !u_x
+        Rw(i)%S(:,4) = cos(Rw(i)%th) * Rw(i)%S(:,2) - &
+                       sin(Rw(i)%th) * Rw(i)%S(:,3)
+        
+        !u_z
+        Rw(i)%S(:,5) = sin(Rw(i)%th) * Rw(i)%S(:,2) + &
+                       cos(Rw(i)%th) * Rw(i)%S(:,3)
+        
+          do ii = 1,5  !#< g     al tiempo       !#>
+      Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
+      call fork(NPTSTIME,Rw(i)%S(:,ii),+1) !backward
+      Rw(i)%S(:,ii) = Rw(i)%S(:,ii) / sqrt(1.0*NPTSTIME) / dt ! factor de escala
+      write(titleN,'(a,I0,a)') nom(ii),i,'.pdf'
+      call plotXYcomp(Rw(i)%S(1:nframes,ii),real(Dt,4), & 
+                 nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
+        end do
+      end do ! i:nRes
+      CALL chdir("..")
+      call system('mkdir outSnapshots')
+      CALL chdir("outSnapshots")
+      call cineteca
+      
+      end program tunelRecub
+\end{verbatim}
+\end{shaded}
+\endgroup
+\includegraphics[scale=0.5]{e11}
 \begingroup
 \fontsize{10pt}{12pt}
 \selectfont

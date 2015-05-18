@@ -613,7 +613,7 @@
         real :: Escala
         real :: Ts
         real :: Tp
-        integer :: ampfunction ! 0 dirac; 1 ricker
+        integer :: ampfunction
         real :: sigGaus
         integer :: PW_pol
         integer :: tipofuente
@@ -1218,8 +1218,8 @@
           end if
         end do
        end do
-      if (verbose .ge. 3) then
-      print*,""
+      if (verbose .ge. 2) then
+      print*,"";print*,"fotogramas_Region"
       call showMNmatrixI(npixZ,npixX,fotogramas_Region,"fotRe",PrintNum)
       end if
 
@@ -1274,9 +1274,6 @@
         end if
       end do!;stop "setInqPointsRegions"
       end subroutine setInqPointsRegions
-
-
-
       end module setupmodel
 
       function thelayeris(zi)
@@ -1310,46 +1307,7 @@
       end do
       end function tellisoninterface
 
-      function crossingNumber(x,y,nXI,Xcoord_ER)
-       implicit none
-       logical :: crossingNumber
-       real*4,intent(in) :: x,y
-       real*16 :: vt
-       integer :: cn,k,nXI
-       real*8, dimension(nXI,2,2) :: Xcoord_ER
 
-         cn = 0
-          do k=1,nXI
-            if (Xcoord_ER(k,2,1) .le. y) then
-            if (Xcoord_ER(k,2,2) .gt. y) then
-            vt = ( y -  Xcoord_ER(k,2,1)) / &
-                 ( Xcoord_ER(k,2,2) - Xcoord_ER(k,2,1))
-            if (x .lt. Xcoord_ER(k,1,1) + vt * (Xcoord_ER(k,1,2) -  Xcoord_ER(k,1,1))) then
-              cn = cn + 1
-              cycle
-            end if
-            end if
-            end if
-            !
-            if (Xcoord_ER(k,2,1) .gt. y) then
-            if (Xcoord_ER(k,2,2) .le. y) then
-            vt = ( y -  Xcoord_ER(k,2,1)) / &
-                 ( Xcoord_ER(k,2,2) - Xcoord_ER(k,2,1))
-            if (x .lt. Xcoord_ER(k,1,1) + vt * (Xcoord_ER(k,1,2) -  Xcoord_ER(k,1,1))) then
-              cn = cn + 1
-              cycle
-            end if
-            end if
-            end if
-
-            ! crossing number:
-            !  http://geomalgorithms.com/a03-_inclusion.html
-          end do !k
-          if (cn .eq. 1 .or. cn .eq. 3 .or. cn .eq. 5 .or. cn .eq. 7) then
-            crossingNumber = .true. !el punto pertenece a la ragion de adentro
-          end if
-
-      end function crossingNumber
 
       function adentroOafuera(x,y,region)
        use geometryvars, only : Xcoord_Voidonly,Xcoord_Incluonly, &
@@ -1366,7 +1324,7 @@
        real*8 :: XcooBox_maxX,XcooBox_minX,XcooBox_maxY,XcooBox_minY
        real*8, dimension(:,:,:), pointer :: Xcoord_ER
        nullify(Xcoord_ER)
-
+       !print*,x,y,region
        adentroOafuera = .false.
        if (region .eq. 'void') then
        XcooBox_maxX = boxVoid_maxX
@@ -1430,3 +1388,43 @@
 !      print*,XcooBox_maxX,XcooBox_maxY,XcooBox_minX,XcooBox_minY
       end function adentroOafuera
 
+       function crossingNumber(x,y,nXI,Xcoord_ER)
+       implicit none
+       logical :: crossingNumber
+       real*4,intent(in) :: x,y
+       real*16 :: vt
+       integer :: cn,k,nXI
+       real*8, dimension(nXI,2,2) :: Xcoord_ER
+       crossingNumber = .false.
+         cn = 0
+          do k=1,nXI
+            if (Xcoord_ER(k,2,1) .le. y) then
+            if (Xcoord_ER(k,2,2) .gt. y) then
+            vt = ( y -  Xcoord_ER(k,2,1)) / &
+                 ( Xcoord_ER(k,2,2) - Xcoord_ER(k,2,1))
+            if (x .lt. Xcoord_ER(k,1,1) + vt * (Xcoord_ER(k,1,2) -  Xcoord_ER(k,1,1))) then
+              cn = cn + 1
+              cycle
+            end if
+            end if
+            end if
+            !
+            if (Xcoord_ER(k,2,1) .gt. y) then
+            if (Xcoord_ER(k,2,2) .le. y) then
+            vt = ( y -  Xcoord_ER(k,2,1)) / &
+                 ( Xcoord_ER(k,2,2) - Xcoord_ER(k,2,1))
+            if (x .lt. Xcoord_ER(k,1,1) + vt * (Xcoord_ER(k,1,2) -  Xcoord_ER(k,1,1))) then
+              cn = cn + 1
+              cycle
+            end if
+            end if
+            end if
+
+            ! crossing number:
+            !  http://geomalgorithms.com/a03-_inclusion.html
+          end do !k
+          if (cn .eq. 1 .or. cn .eq. 3 .or. cn .eq. 5 .or. cn .eq. 7) then
+            crossingNumber = .true. !el punto pertenece a la ragion de adentro
+          end if
+
+      end function crossingNumber

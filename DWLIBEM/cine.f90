@@ -57,9 +57,7 @@
       end do
       madmax = max(mav1,mav2)
       escalaFlechas = real(MeshVecLen / madmax)
-      xvmat = xvmat/madmax
-      yvmat = yvmat/madmax
-!     else
+      print*,"Escalaflechas = ",escalaFlechas
 
       end if
       fai = nIpts-nXi-nSabanapts
@@ -68,13 +66,14 @@
       mav2 = -100000.0
       do j=fai,faf
         if (allpoints(j)%atBou) then
-          mav1 = max(mav1,maxval(real(allpoints(j)%S(:,1),4)))!y
-          mav2 = max(mav2,maxval(real(allpoints(j)%S(:,2),4)))!x
+          mav1 = max(mav1,maxval(real(allpoints(j)%S(1:n_maxtime,1),4)))!y
+          mav2 = max(mav2,maxval(real(allpoints(j)%S(1:n_maxtime,2),4)))!x
         end if
       end do
       madmax = max(mav1,mav2)
       !escalaFlechas = real(MeshVecLen / madmax)
       escalaFlechas2 = real(MeshVecLen2 / madmax)
+      print*,"Escalaflechas2 = ",escalaFlechas2
       print*,"madmax=",madmax
 
       maxX = maxval(real(Xcoord_ER(1:nXI,1,:),4))
@@ -329,7 +328,7 @@
       CALL VECOPT(real(10.0,4),'ANGLE')                              !
       CALL VECOPT(real(0.9,4),'LENGTH')                              !
       call vecmat(xvmat(:,:,i), &
-                  yvmat(:,:,i), &
+                  yvmat(:,:,i), & ! porque los desplazamientos negativos van para arriba
                   npixX, npixZ,xpray,ypray,int(1201))
       end if ! workboundary
 

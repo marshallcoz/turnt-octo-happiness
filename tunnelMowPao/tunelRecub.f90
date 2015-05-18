@@ -1,27 +1,29 @@
       module datos
       save
-      real*8, dimension(2), parameter :: rho = (/1.45, 1.0/)
-      real*8, dimension(2), parameter :: nu = (/0.25, 0.20/)
-      real*8, dimension(2), parameter :: bet = (/2.405, 1.700/) * 10
+      real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
+      real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
+      real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
       real*8, dimension(2) :: alf
       integer,parameter :: nRes = 60
       real*8, dimension(2) :: radios ! a, b 
-      real, parameter :: Qq = 1000.0, periodicdamper = 1.0, TW = 1.0 ,& 
-                        Tp = 0.3 , Ts = 1.5
-      real*8, parameter :: DFREC = 0.05
-      integer, parameter :: NFREC = 100, nplot = 100, NPTSTIME = 1024
+      real, parameter :: Qq = 10000.0, Ts = 0.15, Tp = 0.06
+      real*8, parameter :: DFREC = 0.33
+      integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
-      integer, parameter :: frameInicial = 50, nframes = 90
+      integer, parameter :: frameInicial = 1, nframes = 150
       real*8, parameter :: Dns = 1.
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
       logical, parameter :: imprimirEspectros = .false.
+      real :: ventana
+      real, parameter :: MeshVecLen = 1.5, giro = 0!-PI/2
       contains
       subroutine set_radios
-      radios(1) = 3.00 ! a            : in the liner
-      radios(2) = radios(1)*1.1 ! b   : in the medium
+      radios(1) = 5.00_8 ! a   : in the liner
+      radios(2) = 5.60_8 ! b   : in the medium
+      ventana = 6.5
       end subroutine set_radios
       end module datos
       module vars_func_of_w
@@ -59,8 +61,6 @@
       integer :: reg ! 1: region de afuera
                      ! 2: inclusion
       complex*16,dimension(NFREC) :: & 
-!       s_rr_1,s_tt_1,s_rt_1,u_r_1,u_t_1, &
-!       s_rr_2,s_tt_2,s_rt_2,u_r_2,u_t_2
         s_rr,s_tt,s_rt,u_r,u_t
         
       complex*16,dimension(nptstime,5) :: S !s_tt,u_r,u_t,u_x,u_z
@@ -85,11 +85,7 @@
         Rw(i)%r = radios(thisradio(iside))
         RW(i)%ir = thisradio(iside)
         Rw(i)%th = delth * ir ; ir = ir + 1
-        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
-        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
         Rw(i)%reg = iside
-        Rw(i)%n(1) = cos(Rw(i)%th)
-        Rw(i)%n(2) = sin(Rw(i)%th)
         print*,i,RW(i)%r,RW(i)%th,RW(i)%x,RW(i)%z,RW(i)%reg
         call initRW(i)
       end do
@@ -116,99 +112,6 @@
       end subroutine initRW
       end module RES
       
-!     subroutine setup_resu_sabana
-!     use datos, only : pi
-!       integer :: i
-!       real*8,parameter :: r_ini = 0.1
-!       real*8,parameter :: r_delta = 0.2
-!       real*8,parameter :: th_ini = pi/2.
-!       real*8,parameter :: th_delta = 0.0
-!       do i = 1,nRes
-!         Rw(i)%r = r_ini + (i-1)* r_delta
-!         Rw(i)%th = th_ini + (i-1)* th_delta
-!       end do
-!     end subroutine setup_resu_sabana
-!     end module RES
-!       Rw(1)%r = radios(2) !r=b in the medium at the boundary of the liner
-!       Rw(1)%th = pi!/2.
-!       Rw(1)%reg = 1 ! in the medium
-!      
-!       Rw(2)%r = radios(1) !r=a at the inner side of the cylinder
-!       Rw(2)%th = pi!/2.
-!       Rw(2)%reg = 2 ! in the liner
-!       
-!               do i = 1,nRes
-!        radios(2+i) = Rw(i)%r
-!       ! reg = 1
-!         Rw(i)%s_rr_1 = z0
-!         Rw(i)%s_tt_1 = z0
-!         Rw(i)%s_rt_1 = z0
-!         Rw(i)%u_r_1 = z0
-!         Rw(i)%u_t_1 = z0
-!        ! reg = 2
-!         Rw(i)%s_rr_2 = z0
-!         Rw(i)%s_tt_2 = z0
-!         Rw(i)%s_rt_2 = z0
-!         Rw(i)%u_r_2 = z0
-!         Rw(i)%u_t_2 = z0
-!       end do
-!     end subroutine setup_resu
-!     
-!     subroutine initRW(i)
-!     use datos, only : z0
-!     implicit none 
-!     integer :: i
-!         Rw(i)%s_rr = z0
-!         Rw(i)%s_tt = z0
-!         Rw(i)%s_rt = z0
-!         Rw(i)%u_r = z0
-!         Rw(i)%u_t = z0
-!     end subroutine initRW
-!     end module RES
-!     
-!     subroutine setup_resu_sabana
-!     use datos, only : pi
-!       integer :: i
-!       real*8,parameter :: r_ini = 0.1
-!       real*8,parameter :: r_delta = 0.2
-!       real*8,parameter :: th_ini = pi/2.
-!       real*8,parameter :: th_delta = 0.0
-!       do i = 1,nRes
-!         Rw(i)%r = r_ini + (i-1)* r_delta
-!         Rw(i)%th = th_ini + (i-1)* th_delta
-!       end do
-!     end subroutine setup_resu_sabana
-!     end module RES
-!       do i = 1,nRes
-!        radios(2+i) = Rw(i)%r
-!       ! reg = 1
-!         Rw(i)%s_rr_1 = z0
-!         Rw(i)%s_tt_1 = z0
-!         Rw(i)%s_rt_1 = z0
-!         Rw(i)%u_r_1 = z0
-!         Rw(i)%u_t_1 = z0
-!        ! reg = 2
-!         Rw(i)%s_rr_2 = z0
-!         Rw(i)%s_tt_2 = z0
-!         Rw(i)%s_rt_2 = z0
-!         Rw(i)%u_r_2 = z0
-!         Rw(i)%u_t_2 = z0
-!       end do
-!     end subroutine setup_resu
-!     
-!     subroutine setup_resu_sabana
-!     use datos, only : pi
-!       integer :: i
-!       real*8,parameter :: r_ini = 0.1
-!       real*8,parameter :: r_delta = 0.2
-!       real*8,parameter :: th_ini = pi/2.
-!       real*8,parameter :: th_delta = 0.0
-!       do i = 1,nRes
-!         Rw(i)%r = r_ini + (i-1)* r_delta
-!         Rw(i)%th = th_ini + (i-1)* th_delta
-!       end do
-!     end subroutine setup_resu_sabana
-!     end module RES
       module debug
       contains
       subroutine showMNmatrixZ(m,n,MAT,name,outpf)
@@ -221,7 +124,7 @@
       do i = 1,m
         do j = 1,n
           write(outpf,'(A,E9.2,A)',advance='no') "(",REAL(MAT(i,j)),","
-          write(outpf,'(E9.2,A)',advance='no') AIMAG(MAT(i,j)),"i) "
+          write(outpf,'(E9.2,A)',advance='no')      AIMAG(MAT(i,j)),"i) "
         end do
         write(outpf,'(A)',advance='yes')''
       end do
@@ -263,6 +166,349 @@
       call qplot(real(abscisa,4), & 
                  real(abs(pt_RES),4), nplot)
       end subroutine plot
+      
+      subroutine plotSpectrum(y_in,Df,full_n,n,titleN,xAx,yAx,logflag,W,H,maxfrec)
+      ! (Uo,DFREC,size(Uo),size(Uo)/2.0,titleN,xAx,yAx,logflag,1200,800,maxfrec)
+      use DISLIN
+      implicit none
+      real, intent(in)                              :: Df,maxfrec
+      integer, intent(in)                           :: full_n,n,H,W
+      character(LEN=100), intent(in)                 :: xAx
+      character(LEN=100), intent(in)                 :: yAx
+      character(LEN=9)                             :: logflag
+      character(LEN=100)                            :: titleN
+      COMPLEX*16, DIMENSION(full_n), intent(in) :: y_in
+      complex,    dimension(:), allocatable :: y
+      real,       dimension(:), allocatable :: x
+      real maxY,minY,maxYc,minYc,xstep,ystep
+      integer :: i
+      character(LEN=100) :: dumb
+      CHARACTER(LEN=6)  :: CBUF
+!     character(LEN=100),parameter :: f1='(F50.16,2x,F50.16)'
+      allocate(x(n))
+      allocate(y(n))
+      DO i = 1,n
+        x(i) = Df*(i-1)
+        y(i) = cmplx(real(y_in(i)),aimag(y_in(i)),4) 
+!       !write(6,*) x(i), y(i)
+      END DO
+      
+!     
+      minY=MINVAL(real(y(:)),1)
+!     !write(6,*)"MinReal Val= ",minY
+      maxY=MAXVAL(real(y(:)),1)
+!     !write(6,*)"MaxReal Val= ",maxY
+      minYc=MINVAL(aimag(y(:)),1)
+!     !write(6,*)"MinComplex Val= ",minYc
+      maxYc=MAXVAL(aimag(y(:)),1)
+!     !write(6,*)"MaxComplex Val= ",maxYc
+      minY =MIN(minY,minYc)
+      maxY =MAX(maxY,maxYc)
+!     !write(6,*)"MinY Val= ",minY
+!     !write(6,*)"MaxY Val= ",maxY
+      
+      logflag = trim(adjustl(logflag))
+      if (trim(logflag) == 'logx') then
+       logflag = 'X'
+       ! los ceros no son muy populares:
+       x(1)=x(2)/2.
+      elseif (trim(logflag) == 'logy') then
+       logflag = 'Y'
+!     ! minY =MIN(minY,minYc,-0.1)
+!     ! maxY =MAX(maxY,maxYc, 0.1)
+      elseif (trim(logflag) == 'loglog') then
+       logflag = 'XY'
+       ! los ceros no son muy populares:
+       x(1)=x(2)/2.
+!     ! minY =MIN(minY,minYc,-0.1)
+!     ! maxY =MAX(maxY,maxYc, 0.1)
+      else
+       logflag = 'none'
+      end if
+      
+      
+      
+      ! Dislin plotting routines 
+      CALL METAFL('PDF') !define intended display  XWIN,PS,EPS,PDF
+!     !write(titleN,'(a,a)') trim(titleN),'.eps' 
+!     !titleN = trim(titleN)
+!     !titleN = trim(titleN)
+      CALL SETFIL(trim(adjustl(titleN)))
+      call filmod('DELETE') ! para sobreescribir el archivo
+      CALL SETPAG('DA4P')
+      CALL PAGE(int(W+1200,4),int(H+350,4))
+      CALL PAGMOD('NONE')
+      CALL DISINI() ! dislin initialize 
+      call errmod ("all", "off")
+!     !CALL PAGERA() ! plots a page border
+      CALL COMPLX ! sets a complex font
+      CALL TEXMOD ('ON') ! latex!!
+      CALL HWFONT()
+      CALL axspos (int(370,4) ,int(H+100,4)) !Axis system pos. Lower left corner
+      call axslen (int(W,4) ,int(H,4)) !size of the axis system.
+      call name(trim(xAx),'X') 
+      call name(trim(yAx),'Y') 
+      call labels('EXP','Y')
+      call labdig(int(1,4),'X') !number of decimal places for labels
+      call labdig(int(1,4),'Y')
+      call ticks (int(5,4) ,'XY') 
+!     !call titlin ( titleN , 1 )
+      xstep = x(n) /6. ! increment for labels 
+      ystep = (maxY-minY)/6.0
+      if (maxY * minY < 0.0) then
+       maxY = max(abs(minY),abs(maxY))
+       minY = -1.0 * maxY
+       ystep = (maxY-minY)/2.0
+       maxY = maxY - mod(maxY,ystep)
+       minY = -1.0 * maxY
+       ystep = (maxY-minY)/6.0
+       maxY = maxY + ystep
+       minY = -1.0 * maxY
+      end if
+      
+      !
+      if (logflag == 'Y') then
+        CALL AXSSCL('LOG',trim(logflag))
+!       !print*,x(n)
+!       !print*,log10(x(n))
+        call graf(real(x(1),4),real(x(n),4) &
+             ,real(x(1),4) ,real(xstep,4) &
+             ,real(-7.0,4),real(log10(maxY),4) &
+             ,real(-7.0,4),real(1.0,4))  
+             
+      elseif (logflag == 'X' .or. logflag == 'XY') then
+        CALL AXSSCL('LOG',trim(logflag))
+        call graf(real(-2.0,4),real(log10(x(n)),4) &
+             ,real(-2.0,4) ,real(1.0,4) &
+             ,real(minY,4),real(maxY,4) &
+             ,real(minY,4),real(ystep,4))
+      else
+        call graf(real(0.0,4),real(x(n),4), & 
+                  real(0.0,4),real(max(1.0,xstep),4), &
+                  real(minY,4),real(maxY,4), & 
+                  real(minY,4),real(ystep,4))
+      end if
+      
+      
+      call color ('RED')
+      call curve(real(abs(x),4) ,real(y,4) ,int(n,4))
+      call color('BLUE')
+      call curve(real(abs(x),4), real(aimag(y),4), int(n,4))
+      call color ('FORE') 
+      call curve(real(abs(x),4), & 
+                    real(sqrt(real(y)**2.0 +aimag(y)**2.0),4), int(n,4))
+!     
+!     maxfrec
+      call color ('FORE') 
+      call rline(real(maxfrec,4),real(minY,4), & 
+                 real(maxfrec,4),real(maxY,4))
+!     
+      call dash() !sets a dashed line style
+      call xaxgit() !plots the line Y=0
+      
+!     
+!     
+      call legini(CBUF,int(3,4),int(20,4))
+!     !nx = nxposn(x(n) + x(n) / 20.)
+!     !ny = nyposn(minY + (maxY-minY)*0.7)
+!     !print*,nx
+!     !print*,ny
+      call legpos(int(1600,4),int(320,4))
+      write(dumb,'(a)') 'Re(z) '
+!     !print*,dumb
+      call leglin(CBUF,dumb,int(1,4))
+      write(dumb,'(a)') 'Im(z) '
+!     !print*,dumb
+      call leglin(CBUF,dumb,int(2,4))
+      write(dumb,'(a)') 'Abs(z)'
+!     !print*,dumb
+      call leglin(CBUF,dumb,int(3,4))
+      
+      call legtit('') ! or '' for nothing
+      call legend(CBUF,int(3,4))
+!     
+      call disfin()
+      
+!     print*,'plotted ',trim(titleN)
+!     !print*,''
+      deallocate(x,y)
+      end subroutine plotSpectrum
+      
+                            
+      subroutine plotXYcomp(y_in,Dt,n,titleN,xAx,yAx,CTIT,W,H,ma)
+      ! (Uo,Dt,size(Uo),'FIGURE_NAME.pdf','time[sec]','amplitude',1200,800) 
+      USE DISLIN
+!     use glovars, only : pi
+      implicit none
+      real, intent(in)                              :: Dt,ma
+      integer, intent(in)                           :: n,H,W
+      character(LEN=9), intent(in)                  :: xAx
+      character(LEN=100), intent(in)                :: yAx
+      character(LEN=100)                            :: titleN
+      COMPLEX*16, DIMENSION(n), intent(in) :: y_in
+      complex,    dimension(n)             :: y
+      real             :: yr,yi
+      character(LEN=50) :: tx
+      
+      real, dimension(n) :: x
+      real maxY,minY,xstep,ystep,maxYc,minYc,val
+      integer :: i,nPow10x,nPow10y,signo
+!     integer :: Modo,nx,ny
+      character(LEN=100) :: dumb
+      CHARACTER(LEN=30) :: CBUF
+      character(LEN=100) :: CTIT
+!     integer*4 :: lentitle
+!     character(LEN=100),parameter :: f1='(F50.16,2x,F50.16)'
+      
+      
+!     allocate(x(n))
+!     print*,size(y)
+      
+      ! para que se vea el texto en los ejes si es muy pequeño en formato F3.1
+      nPow10x = 0
+      if (Dt *(n-1) < 0.6) then
+        do i = 1,10
+          if (Dt *(n-1)*(10.0**i) > 1.0) then
+            exit
+          end if 
+        end do 
+        nPow10x = i
+        
+      elseif (Dt * (n-1) > 6000.) then  
+        do i = 1,10
+          if (Dt *(n-1)*(10.0**(-i)) < 1000.0) then
+            exit
+          end if
+        end do
+        nPow10x = -i
+      end if
+      DO i = 1,n
+        x(i) = Dt*(i-1)*(10.0**(nPow10x))
+        write(tx,'(EN18.2,2x,EN18.2)') real(y_in(i)),aimag(y_in(i))
+        read(tx,*) yr,yi
+        y(i) = cmplx(yr,yi)
+      END DO
+      if (abs(ma) .lt. 0.001_4) then
+      minY=minval(real(y(:)),1)
+!     write(6,*)"MinReal Val= ",minY
+      maxY=MAXVAL(real(y(:)),1)
+!     write(6,*)"MaxReal Val= ",maxY
+      minYc=MINVAL(aimag(y(:)),1)
+!     write(6,*)"MinComplex Val= ",minYc
+      maxYc=MAXVAL(aimag(y(:)),1)
+!     write(6,*)"MaxComplex Val= ",maxYc
+      minY =MIN(minY,minYc)
+      maxY =MAX(maxY,maxYc)
+      else
+      maxy = ma
+      miny = -ma
+      end if
+      val = max(abs(miny),abs(maxy))
+      signo = 1
+      if (miny*maxy < 0) then
+        if (val - maxy > 0.0001) signo = -1
+      else
+        if (maxy < 0.0)  signo = -1
+      end if
+      nPow10y = 0
+      do i = 1,10
+!       if (
+      end do
+!     print*,"plotting"
+! Dislin plotting routines ...
+      CALL METAFL('PDF') !define intended display XWIN,PS,EPS,PDF
+!     write(titleN,'(a,a)') trim(titleN),'.eps' 
+!     titleN = trim(titleN)
+!     titleN = trim(titleN)
+      CALL SETFIL(trim(adjustl(titleN)))
+!     print*,"file: ",trim(adjustl(titleN))
+      call filmod('DELETE') ! para sobreescribir el archivo
+      CALL SETPAG('DA4P')
+      CALL PAGE(int(W+1200,4),int(H+350,4))
+      CALL PAGMOD('NONE')
+      CALL DISINI() ! dislin initialize
+      call errmod ("all", "off") 
+!     CALL PAGERA() ! plots a page border
+      CALL COMPLX ! sets a complex font
+      CALL TEXMOD ('ON') ! latex!!
+      CALL HWFONT()
+      CALL axspos (int(380,4) ,int(H+100,4)) !the position of an axis system. Lower left corner
+      call axslen (int(W+650,4) ,int(H,4)) !size of the axis system.
+      if (nPow10x .ne. 0) then
+       write(dumb,'(a,a,I0)') trim(xAx),'x10^',(nPow10x *(-1))
+       call name(trim(dumb),'X')
+      else
+       call name(trim(xAx),'X') 
+      end if
+      call name(trim(yAx),'Y') 
+      call labels('EXP','Y')
+      call labdig(int(2,4),'X') !number of decimal places for labels
+      call labdig(int(1,4),'Y')
+      call ticks (int(10,4) ,'X') 
+      call ticks (int(5,4) ,'Y') 
+!     call titlin ( titleN , 1 )
+      xstep = x(n)/6.0 ! incremen for labels
+      ystep = (maxY-minY)/6.0
+      
+      if (maxY * minY < 0.0) then
+       maxY = max(abs(minY),abs(maxY))
+       minY = -1.0 * maxY
+       ystep = (maxY-minY)/2.0 !solo 3 etiquetas
+       maxY = maxY - mod(maxY,ystep)
+       minY = -1.0 * maxY
+       ystep = (maxY-minY)/6.0
+       maxY = maxY + ystep
+       minY = -1.0 * maxY
+      end if
+      
+      
+      
+      
+!     print*,"maxmin= ",maxy,miny
+      call graf(real(x(1),4), & 
+                real(x(n)+x(2),4), & 
+                real(x(1),4), & 
+                real(xstep,4), & 
+                real(minY,4), & 
+                real(maxY,4), & 
+                real(minY,4), & 
+                real(ystep,4)) 
+      
+!     call title 
+      call color ('RED') 
+      call curve(real(x,4) ,real(y,4) ,int(n,4))
+      call color('BLUE')
+      call curve(real(x,4), real(aimag(y),4), int(n,4))
+      call color ('FORE') 
+      call dash() !sets a dashed line style
+      call xaxgit() !plots the line Y=0
+      
+      call legini(CBUF,int(2,4),int(20,4))
+ !     nx = nxposn(x(n)*n + x(n)*n / 20.)
+ !     ny = nyposn(minY + (maxY-minY)*0.7)
+ !     print*,nx
+ !     print*,ny
+      if (maxval(abs(aimag(y))) .gt. 0.05*maxval(abs(real(y)))) then
+      call legpos(int(1840,4),int(720,4))
+      write(dumb,'(a)') 'Re(z)'
+ !     print*,dumb
+      call leglin(CBUF,dumb,int(1,4))
+      write(dumb,'(a)') 'Im(z)'
+ !     print*,dumb
+      call leglin(CBUF,dumb,int(2,4))
+      call legtit('') ! or '' for nothing
+      call legend(CBUF,int(2,4))
+      end if
+      
+!     write(CTIT,'(a,ES11.4E2,a)') 'dt=',Dt,' seg'
+!     lentitle = NLMESS(CTIT)
+!     CALL MESSAG(CTIT,int((1700),4),int(200,4))
+      CALL MESSAG (CTIT, int(900,4), int(110,4))
+!     call errmod ("protocol", "off") !suppress dislin info
+      call disfin()      
+      
+!     print*,'plotted ',trim(titleN)
+      end subroutine plotXYcomp
       end module plotter
       module Hank
       use datos, only : nmax, nfracs
@@ -739,9 +985,9 @@
 ! Solución analítica de la difración de una onda P incidente 
 ! en una cavidad cilíndrica circular con recubrimiento
       use datos; use vars_func_of_w; use Hank
-      use debug; use RES; use plotter
+      use debug; use RES; use plotter; use fft
       implicit none
-      integer :: J,n,et,info,i,ir
+      integer :: J,n,et,info,i,ii,ir
       real*8, pointer :: r,th
       integer, pointer :: reg
       complex*16, dimension(6,6) :: M
@@ -751,17 +997,21 @@
       ! terms defined in the appendix (functions)
       complex*16 :: e11,e12,e21,e22,e41,e42,e71,e72,e81,e82,sig0
       real*8,dimension(2) :: BEALF
+      character(LEN=4)          :: nom(5)
+      character(LEN=9)          :: logflag
+      character(LEN=100)        :: titleN,xAx,yAx,CTIT
       call set_radios !a,b
       call setup_resu !puntos receptores
       Dt = (1.0) / (real(NPTSTIME) * DFREC)
-!     OMEI = - periodicdamper*PI/TW
       eta = radios(2)/radios(1) !b/a
       BEALF(1:2)=SQRT((0.5-NU(1:2))/(1.0-NU(1:2))) !IF POISSON RATIO IS GIVEN
       alf(1:2) = bet(1:2)/BEALF(1:2)
       print*,"alf", alf(1),alf(2)
       print*,"bet", bet(1),bet(2)
+      print*,"mu1=",(RHO(1) * bet(1)**2.)
+      print*,"mu2=",(RHO(2) * bet(2)**2.)
       print*,"muR=",(RHO(1) * bet(1)**2.)/(RHO(2) * bet(2)**2.)
-      print*,"gamm=",alf(1) / alf(2)
+      print*,"gamm=alf1/alf2=",alf(1) / alf(2)
       print*,"nu1=",NU(1)
       print*,"nu2=",NU(2)
       print*,"eta= b/a =",eta 
@@ -1023,26 +1273,63 @@
       CALL chdir("..")  
       end if
       
-      call system('mkdir outSnapshots')
-      CALL chdir("outSnapshots")  
+
+      !#< b func. amplitud !#>
       call ricker(Uo)
-      ! crepa
+      write(titleN,'(a)') 'WaveAmplitude-ricker_time.pdf'
+      write(CTIT,'(a)') 'WaveAmplitude of Ricker wavelet'
+      xAx = 'time[sec]'
+      write(yAx,'(a)') 'amplitude'
+      call plotXYcomp(Uo(1:nframes),real(Dt,4), & 
+                 nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      
+      call fork(size(Uo),Uo,-1) !forward
+      Uo = Uo * sqrt(real(size(Uo))) * dt ! factor de escala
+      
+!     call fork(size(Uo),Uo,+1) !backward
+!     Uo = Uo / sqrt(real(size(Uo))) / dt ! factor de escala
+      
+      
+      write(titleN,'(a)') 'WaveAmplitude-ricker_frec.pdf'
+      xAx = 'frec[Hz] '
+      write(yAx,'(a)') 'amplitude'      
+      logflag = 'logx     '      
+!     logflag = 'none     '
+      call plotSpectrum(Uo(:),real(DFREC,4), size(Uo(:)),int(size(Uo(:))/2), & 
+            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+
+      !snapshots 
+      call system('mkdir outTraces')
+      CALL chdir("outTraces")  
+      nom(1) = 's_tt'
+      nom(2) = 'u__r'
+      nom(3) = 'u__t'
+      nom(4) = 'u__x'
+      nom(5) = 'u__z'
+      write(xAx,'(a)') 'time[sec]'
+      write(yAx,'(a)') 'amplitude'
       do i=1,nRes
+        write(CTIT,'(a,F7.2,a,F7.2,a)')'(', Rw(i)%x,' , ',Rw(i)%z,')'
         Rw(i)%S = 0
         !s_tt
         Rw(i)%S(1:nfrec,1) = Rw(i)%s_tt(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,1) = conjg(Rw(i)%s_tt(nfrec:2:-1)) 
-        Rw(i)%S(:,1) = Rw(i)%S(:,1) * Uo
         
         !u_r
         Rw(i)%S(1:nfrec,2) = Rw(i)%u_r(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,2) = conjg(Rw(i)%u_r(nfrec:2:-1)) 
-        Rw(i)%S(:,2) = Rw(i)%S(:,2) * Uo
         
         !u_t
         Rw(i)%S(1:nfrec,3) = Rw(i)%u_t(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,3) = conjg(Rw(i)%u_t(nfrec:2:-1)) 
-        Rw(i)%S(:,3) = Rw(i)%S(:,3) * Uo
+        
+        ! Coordenadas cartesianas
+        Rw(i)%th = Rw(i)%th + giro
+        
+        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
+        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
+        Rw(i)%n(1) = cos(Rw(i)%th)
+        Rw(i)%n(2) = sin(Rw(i)%th)
         
         !u_x
         Rw(i)%S(:,4) = cos(Rw(i)%th) * Rw(i)%S(:,2) - &
@@ -1052,8 +1339,18 @@
         Rw(i)%S(:,5) = sin(Rw(i)%th) * Rw(i)%S(:,2) + &
                        cos(Rw(i)%th) * Rw(i)%S(:,3)
         
+          do ii = 1,5  !#< g     al tiempo       !#>
+      Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
+      call fork(NPTSTIME,Rw(i)%S(:,ii),+1) !backward
+      Rw(i)%S(:,ii) = Rw(i)%S(:,ii) / sqrt(1.0*NPTSTIME) / dt ! factor de escala
+      write(titleN,'(a,I0,a)') nom(ii),i,'.pdf'
+      call plotXYcomp(Rw(i)%S(1:nframes,ii),real(Dt,4), & 
+                 nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
+        end do
       end do ! i:nRes
-      
+      CALL chdir("..")
+      call system('mkdir outSnapshots')
+      CALL chdir("outSnapshots")
       call cineteca
       
       end program tunelRecub
@@ -1202,7 +1499,7 @@
         A = nearest(A * A,1.0)
         B = nearest(exp(-A),1.0)
         A = nearest((A - 0.5_8) * B ,1.0)
-        if (abs(A) .lt. 0.0001) A = 0
+        if (abs(A) .lt. 0.001) A = 0
         Uo(i) = A * UR
       end do
       end subroutine ricker
@@ -1212,38 +1509,14 @@
       use datos
       use RES
       use vars_func_of_w, only : dt
-!     use peli, only : ypray => coords_Z, xpray => coords_X,fotogramas
-!     use meshVars, only : npixX,npixZ, MeshVecLen,MeshVecLen2, &
-!                          MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ
-!     use waveVars, only : dt,maxtime
-!     use waveNumVars, only : NFREC, NPTSTIME
-!     use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
-!     use geometryvars, only : nXI,Xcoord_ER, &
-!                              Xcoord_Voidonly, Xcoord_Incluonly,&
-!                              n_topo,n_cont,n_vall
-!     use resultvars, only : Punto,allpoints,nIpts,nSabanapts
-!     use ploteo10pesos
-!     use sourceVars, only : iFte => currentiFte
       implicit none
-!     real, dimension(:,:,:), allocatable :: xvmat,yvmat
-      real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep, & 
-      EsC,madmax!,radio! &
-!     tlabel ,centrox,centroz,, 
-!     real,dimension(nIpts*2,NPTSTIME,2) :: delX,delZ
-!     integer :: i,ii,iii,j,j2,n_maxtime,iT,k,fai,faf
+      real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep,EsC,madmax
       character(LEN=100) :: titleN
       integer*4 :: lentitle
       character(LEN=60) :: CTIT
-!     real*8, dimension(:,:),allocatable :: recIncluonly,recVoidonly
       real, dimension(5,2) :: rec
       real*8 :: rat
-!     real*8 :: getstt,maxstt
-!     real*8, dimension(:,:), allocatable :: stt
-!     integer :: nframes
-!     real*8 :: si,co,szz,szx,sxx
-      integer :: i,j,j2
-      integer :: iside,iini(2),ifin(2)
-      real, parameter :: MeshVecLen = 0.5
+      integer :: i,iii,j,j2,iside,iini(2),ifin(2)
       
       ! area de la gráfica --------------------
       mav1 = -10000.
@@ -1264,10 +1537,10 @@
       madmax = max(mav1,mav2)
       EsC = real(MeshVecLen / madmax)
       do j=1,nRes
-      RW(j)%S(frameInicial:nframes,4) = RW(j)%S(frameInicial:nframes,4) * Esc
-      RW(j)%S(frameInicial:nframes,5) = RW(j)%S(frameInicial:nframes,5) * Esc
+      RW(j)%S(frameInicial:nframes,4) = RW(j)%S(frameInicial:nframes,4) * EsC
+      RW(j)%S(frameInicial:nframes,5) = RW(j)%S(frameInicial:nframes,5) * EsC
       end do
-      maxx = 4.0
+      maxx = ventana
       minx = -maxx
       maxy = maxx
       miny = minx
@@ -1307,6 +1580,22 @@
       call height(40) ! de los caracteres
       call graf(real(minX,4),real(MaxX,4),real(MinX,4),real(xstep,4), &
                  real(MaxY,4),real(MinY,4),real(MaxY,4),real(-zstep,4))
+      
+      do iside = 1,2
+      do j = iini(iside),ifin(iside)
+      j2 = j+1
+      if (j .eq. ifin(iside)) j2 = iini(iside)
+      
+      call PENWID(real(20.0,4))
+      call color ('FORE')
+      call rline(real(Rw(j)%x,4), real(Rw(j)%z,4), &
+                 real(Rw(j2)%x,4),real(Rw(j2)%z,4))
+      call PENWID(real(16.0,4))
+      call color ('ORANGE')
+      call rline(real(Rw(j)%x+Rw(j)%S(i,4),4), real(Rw(j)%z+Rw(j)%S(i,5),4), &
+                 real(Rw(j2)%x+Rw(j2)%S(i,4),4),real(Rw(j2)%z+Rw(j2)%S(i,5),4))
+      end do !j
+      end do !iside
                  
       call color ('FORE')
       call height(80) ! de los caracteres
@@ -1416,135 +1705,27 @@
       call setgrf("NAME", "NAME", "LINE", "LINE")
       call graf(real(minX,4),real(maxX,4),real(minX,4),real(xstep,4), &
                  real(maxY,4),real(minY,4),real(maxY,4),real(-zstep,4))
-!     call marker(int(-1,4))
-!     CALL HSYMBL(int(25,4)) !size of symbols
-!     !#< r ##################                    topografia original    !#>
-!     ii = 1
-!     if (Z(0) .lt. 0.0) ii = 0
-!     call color ('FORE')                                       !
-!     do J=ii,N                                                 !
-!        call rline(real(minX,4),real(max(Z(J),minY),4), &      !
-!                real(maxX,4),real(max(Z(J),minY),4))           !
-!     end do                                                    !
-!     J = N+1                                                   !
-!     call rline(real(minX,4),real(Z(J),4), &                   !
-!                real(maxX,4),real(Z(J),4))                     !
- !       if (allocated(recIncluonly)) then
-!       call SETRGB(0.8, 0.8, 0.8)     !
-!       call shdpat(int(16,4))
-!       CALL RLAREA(real(recIncluonly(:,1),4), &
-!                 real(recIncluonly(:,2),4), &
-!                 int(2*size(Xcoord_Incluonly(:,1,1)),4))
-!       end if!
-!       if (allocated(recVoidonly)) then
-!       call color ('BACK')                                             !
-!       call shdpat(int(16,4))                                          !
-!       CALL RLAREA(real(recVoidonly(:,1),4), &
-!                 real(recVoidonly(:,2),4), &                !
-!                 int(2*size(Xcoord_Voidonly(:,1,1)),4))              !
-!       end if
-!     call color ('FORE')                                           !
-!     call PENWID(real(5.0,4))
-!     do j=1,nXI                                                      !
-!     call rline(real(Xcoord_ER(j,1,1),4),real(Xcoord_ER(j,2,1),4), & !
-!                real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
-!     end do
-!     !#< r ##################       ODOGRAMA    ###################################### !#>
-!     call PENWID(real(4.0,4))
-!     ii = 1
-!     if (n_topo .gt. 0) then !#< r ######  topografía medio estratificado !#>
-!     fai = nIpts-nXi-nSabanapts
-!     faf = nIpts-nXi-nSabanapts+n_topo
-!     do j=fai,faf
-!       if (allpoints(j)%atBou) then
-!         ii = ii + 1
-!       end if
-!     end do!
-!     do j = 1,ii-1 ! para cada elementocall
-!     call color ('FORE')
-!     do iii = 1,i-1 ! de un tiempo a otro
-!       call rline(delX(j,iii,2),delZ(j,iii,2),delX(j,iii+1,2),delZ(j,iii+1,2))
-!     end do!             circulitos negros
-!     call color ('ORANGE')
-!     CALL RLSYMB (17, delX(j,iii+1,2), delZ(j,iii+1,2))   !
-!     end do
-!     ii = ii + 1
-!     end if!
-!     if (n_cont .gt. 0) then !#< r ##############  frontera de continuidad !#>
-!     fai = nIpts-nXi-nSabanapts+n_topo+1
-!     faf = nIpts-nXi-nSabanapts+n_topo+n_cont
-!     k = 10000
-!     do j=fai,faf
-!       if (allpoints(j)%atBou) then
-!         k = min(ii,k)
-!         ii = ii + 1
-!       end if
-!     end do!
-!     do j = 1,ii-1 ! para cada elemento
-!     call color ('FORE')
-!     do iii = 1,i-1 ! de un tiempo a otro
-!       call rline(delX(j,iii,2),delZ(j,iii,2),delX(j,iii+1,2),delZ(j,iii+1,2))
-!     end do
-!     call color ('ORANGE')
-!     CALL RLSYMB (17, delX(j,iii+1,2), delZ(j,iii+1,2))   !
-!     end do
-!     ii = ii + 1
-!     end if!
-!     if (n_vall .gt. 0) then !#< r ########  frontera libre en incusión !#>
-!     fai = nIpts-nXi-nSabanapts+n_topo+n_cont+1
-!     faf = nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
-!     k = 10000
-!     do j=fai,faf
-!       if (allpoints(j)%atBou) then
-!         k = min(ii,k)
-!         ii = ii + 1
-!       end if
-!     end do!
-!     do j = 1,ii-1 ! para cada elemento
-!     call color ('FORE')
-!     do iii = 1,i-1 ! de un tiempo a otro
-!       call rline(delX(j,iii,2),delZ(j,iii,2),delX(j,iii+1,2),delZ(j,iii+1,2))
-!     end do
-!     call color ('ORANGE')
-!     CALL RLSYMB (17, delX(j,iii+1,2), delZ(j,iii+1,2))   !
-!     end do
-!     ii = ii + 1
-!     end if!
- !     call PENWID(real(1.0,4))
-!     call shdpat(int(16,4))
-!     call color ('GRAY')
-!     call rlrec(real(minX+(maxX-minX)*0.045,4),&
-!                real(maxY-(maxY-minY)*0.055,4),&
-!                real(MeshVecLen2*1.1,4),&
-!                real((maxY-minY)*0.03*1.3,4))
-!     call color ('BACK')
-!     call rlrec(real(minX+(maxX-minX)*0.05,4),&
-!                real(maxY-(maxY-minY)*0.05,4),&
-!                real(MeshVecLen2,4),&
-!                real((maxY-minY)*0.03,4))
-!     call color ('FORE')
-!     call rlrec(real(minX+(maxX-minX)*0.05 + 0.5*MeshVecLen2,4),&
-!                real(maxY-(maxY-minY)*0.035 ,4),&
-!                real(0.5*MeshVecLen2,4),&
-!                real((maxY-minY)*0.015,4))
-!     call rlrec(real(minX+(maxX-minX)*0.05 + 0.25*MeshVecLen2,4),&
-!                real(maxY-(maxY-minY)*0.05 ,4),&
-!                real(0.25*MeshVecLen2,4),&
-!                real((maxY-minY)*0.015,4))
-!     call rlrec(real(minX+(maxX-minX)*0.05,4),&
-!                real(maxY-(maxY-minY)*0.035 ,4),&
-!                real(0.25*MeshVecLen2,4),&
-!                real((maxY-minY)*0.015,4))
-!     call PENWID(real(5.0,4))
-!     write(CTIT,'(a,ES8.2E2)') 'max. |$u_{i}$| = ',madmax
-!     lentitle = NLMESS(CTIT)
-!     CALL HEIGHT (int(80,4))
-!     CALL MESSAG(CTIT,int((5230),4),int(2660,4))
-!     call height(80) ! de los caracteres
-!     write(CTIT,'(a)') 'hodogram $u_{i}$'
-!     lentitle = NLMESS(CTIT)
-!     call color ('FORE')
-!     CALL MESSAG(CTIT,int(5215,4),int(15,4))
+      
+      do iside = 1,2
+      do j = iini(iside),ifin(iside)
+      j2 = j+1
+      if (j .eq. ifin(iside)) j2 = iini(iside)
+      
+      call PENWID(real(2.5,4))
+      call color ('FORE')
+      call rline(real(Rw(j)%x,4), real(Rw(j)%z,4), &
+                 real(Rw(j2)%x,4),real(Rw(j2)%z,4))
+      call PENWID(real(3.0,4))
+      call color ('FORE')
+      do iii = 1,i-1 ! de un tiempo a otro
+      call rline(real(Rw(j)%x+Rw(j)%S(iii,4),4),   real(Rw(j)%z+Rw(j)%S(iii,5),4), &
+                 real(Rw(j)%x+Rw(j)%S(iii+1,4),4), real(Rw(j)%z+Rw(j)%S(iii+1,5),4))
+      end do
+      call color ('ORANGE')
+      CALL RLSYMB (5, real(Rw(j)%x+Rw(j)%S(iii,4),4),   real(Rw(j)%z+Rw(j)%S(iii,5),4))   !
+      
+      end do !j
+      end do !iside
       CALL ENDGRF
       call disfin
       end do ! i=1,n_maxtime

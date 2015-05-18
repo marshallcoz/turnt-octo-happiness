@@ -482,20 +482,24 @@
       FFTW = FFTW * escala
       end function FFTW
       
-      SUBROUTINE FORK(LX,CX,SIGNI,verbose,outpf)
-      ! factor = sqrt(real(NPTSTIME))
-      ! S = S/factor
+      SUBROUTINE FORK(LX,CX,SIGNI)
+      ! factores de escala
+      
+      ! pasar a la frecuencia 
+      !call fork(size(Uo),Uo,-1)
+      !Uo = Uo * sqrt(real(size(Uo))) * dt ! factor de escala
+      
+      ! pasar al tiempo
+      !call fork(size(Uo),Uo,+1)
+      !Uo = Uo / sqrt(real(size(Uo))) / dt ! factor de escala
+      
       implicit none
-      integer, intent(in) :: outpf
-      integer, intent(in) :: LX,SIGNI,verbose
+      integer, intent(in) :: LX,SIGNI
       COMPLEX*16 :: CARG,CW,CTEMP 
       complex*16,intent(inout) :: CX(LX)
       real*8, parameter :: pi = 4.*ATAN(1.)
       real*8 :: SC
       integer :: i,j,m,istep,l
-      if (verbose >= 4) then
-        write(outpf,'(a,I4,a)')'FFT on ',LX,' length vector'
-      end if
       J=1
       SC=DSQRT(real(1.0,8)/real(LX,8))
       DO 30 I=1,LX

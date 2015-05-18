@@ -141,6 +141,13 @@
         allpoints(mPtini:mPtfin) = moviePoints; deallocate(moviePoints); end if
         
       call setInqPointsRegions
+      do iP_x = 1,nIpts
+       if (allpoints(iP_x)%isOD) then 
+       if (allpoints(iP_x)%tipoFrontera .eq. 0) allpoints(iP_x)%region = 1
+       if (allpoints(iP_x)%tipoFrontera .eq. 1) allpoints(iP_x)%region = 1
+       if (allpoints(iP_x)%tipoFrontera .eq. 2) allpoints(iP_x)%region = 2
+       end if
+      end do
       
       if (makeVideo) then
       call setVideoPointsRegions
@@ -413,7 +420,8 @@
             (OD_Jini .le. J) .and. &
             (J .le. OD_Jend)) then
          allocate(ibemMat(ik * (l+n_OD),ik * l));allocate(trac0vec  (ik * (l+n_OD)))
-         allocate(IPIVbem(1));                   allocate(auxGvector(ik * (l+n_OD)))
+         !allocate(IPIVbem(1));                   allocate(auxGvector(ik * (l+n_OD)))
+         allocate(IPIVbem(ik * l)); allocate(auxGvector(ik * l))
          allocate(ibemMatS(ik * (l+n_OD),ik * l))
         else
          allocate(ibemMat(ik * l,ik * l));allocate(trac0vec  (ik * l))
@@ -435,8 +443,8 @@
          
        do ik = 1,min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
-         pt_k => k_vec(ik)
-!        print*,ik, 2*nmax - (ik-2)
+         pt_k => k_vec(ik)            
+!        print*,ik, 2*nmax - (ik-2)   
          call gloMat_PSV(pointAp,pt_k,ik)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
        end do ! ik
@@ -546,15 +554,15 @@
       Ni = ik*l
        
 !#< b
-       call chdir(trim(adjustl(rutaOut))) ; call chdir('matrices')
-       write(arg,'(a,I0,a)') "outA",J,".m"
-       open(421,FILE= trim(arg),action="write",status="replace")
+!      call chdir(trim(adjustl(rutaOut))) ; call chdir('matrices')
+!      write(arg,'(a,I0,a)') "outA",J,".m"
+!      open(421,FILE= trim(arg),action="write",status="replace")
 !      write(arg,'(a)') "BiSIN"
 !      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-       write(arg,'(a,I0)') "Mi",J
-       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-       close(421)
-       CALL chdir(".."); CALL chdir("..")
+!      write(arg,'(a,I0)') "Mi",J
+!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+!      close(421)
+!      CALL chdir(".."); CALL chdir("..")
 !      
 !     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
 !     if (verbose .ge. 1) call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6) ;stop
@@ -989,12 +997,6 @@
       Write(6,'(a)') ' done '
       close(PrintNum)
       
-!     if (borrarDirectorio .eqv. .false.) then
-!     call date_and_time(TIME=time); write(PrintNum,'(a,a)') "hhmmss.sss = ",time
-!     call chdir("..")
-!     write(path,'(a,a)') "mv outs outs_",time
-!     call system(trim(adjustl(path)))
-!     end if
       END program
       
       
@@ -1030,7 +1032,10 @@
        ! agregamos los demás sin repetir
        if (nPts>=2) then
        do iP = 2,nPts
-         if (allpoints(ip)%region .ne. 1) cycle !nada mas agregar receptores en medio estratificado
+         if (allpoints(ip)%region .ne. 1) then 
+          if (.not. allpoints(ip)%isOD) &
+           cycle !nada mas agregar receptores en medio estratificado
+         end if
          esnueva = .true.
          do i = 1,nZs
            if (nearby(allpoints(iP)%center%z, & 
@@ -1564,7 +1569,7 @@
       end function thereisavirtualsourceat
       
       subroutine sourceAmplitudeFunction
-      use wavelets !las funciones: ricker, fork
+      use wavelets !las funciones: ricke
       use waveVars, only : Dt,Uo,dt,maxtime!, ampfunction,Escala
       use waveNumVars, only : DFREC,nfrec, NPTSTIME
       use gloVars, only : ve => verbose,Ur,z0,Printnum!,rutaOut
@@ -1619,17 +1624,6 @@
             titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
 !           CALL chdir("..")
           end if
-          
-     !*************************** test *********************************************
-!         Uo = Uo * (sqrt(1.0*NPTSTIME) * dfrec) !backward
-!         call fork(size(Uo),Uo,+1,verbose,outpf)
-!           CALL chdir("outs")
-!           write(titleN,'(a)') 'WaveAmplitude-ricker_time_BACK.pdf'
-!           xAx = 'time[sec]'
-!           write(yAx,'(a)') 'amplitude'      
-!           call plotXYcomp(Uo,real(Dt,4),size(Uo),titleN,xAx,yAx,CTIT,1200,800,0.0)
-!           CALL chdir("..")
-!           stop 3903
      !********************************************************************************
       elseif(Po(iFte)%ampfunction .eq. 2) then ! Gaussian
         call gaussian(Po(iFte)%sigGaus)
@@ -1661,7 +1655,7 @@
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
       use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
-      use wavelets !fork 
+      use wavelets 
       use dislin
       use sourceVars, only: Po,iFte=>currentiFte!nFuentes,tipofuente, , PW_pol
       use soilvars, only:N,Z,alfa0,beta0,alfa,beta
@@ -3903,7 +3897,7 @@
         ! si fuente real y cilindrica entonces no
         if (el_tipo_de_fuente .eq. 0) usarGreenex = .false. 
         
-!       if (p_X%isOD) usarGreenex = .false.
+        if (p_X%isOD) usarGreenex = .false.
         
 !       print*,"usarGreenex",usarGreenex
       if (usarGreenex .eqv. .false.) then
@@ -4681,9 +4675,7 @@
             exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x), 8))
            end do!  ik
            !K->X
-            !auxKmo(:,imec) = auxKmo(:,imec) * (sqrt(2.0*nmax) * dk) !backward
-            !call fork(2*nmax, auxKmo(:,iMec),+1,0,6)
-!           auxKmo(:,imec) = FFTW(2*nmax,auxKmo(:,iMec),+1,dk)
+           !           auxKmo(:,imec) = FFTW(2*nmax,auxKmo(:,iMec),+1,dk)
             auxKmo(1,imec) = sum(auxKmo(1:po,imec)) + sum(auxKmo(ne:2*nmax,imec))
             auxKmo(1,imec) = auxKmo(1,imec) *dk
          end do! imec
@@ -5158,14 +5150,16 @@
             !  |  Txx Txz  |
             !  |  Tzx Tzz  |
             col = pXi%boundaryIndex *2 -(2 - dj)
+!           print*,"ibemMat",pXi%G(p_X%pointIndex,5,dir_j),pXi%G(p_X%pointIndex,4,dir_j)
               ibemMat(ren,   col) = pXi%G(p_X%pointIndex,5,dir_j) !Tx
               ibemMat(ren+1, col) = pXi%G(p_X%pointIndex,4,dir_j) !Tz
             end do !dj
           end do !iPxi
             !  | Tx |
             !  | Tz |
-              trac0vec(ren  ) = p_x%resp(J,iFte)%Tx
-              trac0vec(ren+1) = p_x%resp(J,iFte)%Tz
+!           print*,"tra0",p_x%resp(J,iFte)%Tx,p_x%resp(J,iFte)%Tz
+              trac0vec(ren  ) = p_x%resp(J,iFte)%Tx  !0
+              trac0vec(ren+1) = p_x%resp(J,iFte)%Tz  !0
           renStep = 2
        else if (p_X%tipoFrontera .eq.1) then !#< r  frontera tipo continuidad !#>
           ipxi_I = 1
@@ -5341,11 +5335,10 @@
       use glovars, only : saveG,verbose
       use peli, only : fotogramas 
       use sourceVars, only : SH,PSV,ifTe => currentiFte
-      use waveNumVars, only : t_vec,omei, nF => NFREC, nT => NPTSTIME!,dfrec
+      use waveNumVars, only : t_vec,omei, nF => NFREC, nT => NPTSTIME
       use meshVars, only : npixX,npixZ
       use waveVars, only : Uo,Dt
-!     use soilVars, only : Qq
-      use wavelets ! FORK
+      use wavelets
       use dislin
       implicit none
       integer :: i,ix,iz,imec,mecS,mecE
@@ -5377,8 +5370,6 @@
           end if
           p_fot = p_fot * Uo(:,iFte)
         ! al tiempo:
-          !p_fot = p_fot * (sqrt(1.0*nT) * dfrec) !backward
-          !call fork(nT,p_fot,+1,1,6)
           p_fot = FFTW(nT,p_fot,+1,1/(nT*dt))
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
@@ -5407,13 +5398,12 @@
       use meshVars, only : npixX,npixZ
       use waveVars, only : Uo,Dt
 !     use soilVars, only : Qq
-      use wavelets ! FORK
+      use wavelets
       use sourceVars, only : nFuentes!iFte=>currentiFte
       use dislin
       implicit none
       integer :: i,ix,iz,imec,mecS,mecE,iFte
       complex*16, dimension(:), pointer :: p_fot
-!     real*8 :: factor
       character(LEN=100) :: titleN,nam
       call chdir(trim(adjustl(rutaOut)))
       do iFte = 1,nFuentes
@@ -5426,7 +5416,6 @@
        read(6375) npixZ
        read(6375) npixX
        read(6375) nT
-!     factor = sqrt(1.0*nT)
       do imec = mecS,mecE
       do iz=1,npixZ
       do ix=1,npixX
@@ -5436,8 +5425,6 @@
           p_fot => fotogramas(iz,ix,1:nT,imec,iFte)
           p_fot = p_fot * Uo(:,iFte)
         ! al tiempo:
-          !p_fot = p_fot * (sqrt(1.0*nT) * dfrec) !backward
-          !call fork(nT,p_fot,+1,1,6)
           p_fot = FFTW(nT,p_fot,+1,1/(nT*dt))
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
@@ -5769,8 +5756,6 @@
       end if!
       
       !  (1) pasar al tiempo
-!527     S = S * (sqrt(1.0*NPTSTIME) * dfrec) !backward
-!        call fork(NPTSTIME,S,+1,verbose,outpf)
  527     S = FFTW(NPTSTIME,S,+1,1/(NPTSTIME*dt)) !backward
          
       !  (2.1) remover efecto de la frecuencia imaginaria
@@ -5810,12 +5795,12 @@
       end if
       ! guardar componentes en el borde
       if (allpoints(iP)%atBou .and. icomp .ne. 0) then
-         !allocate(allpoints(iP)%S(NPTSTIME,5)) !W U sxx szx szz
-         allpoints(iP)%S(1:NPTSTIME,icomp) = S
+!        !allocate(allpoints(iP)%S(NPTSTIME,5)) !W U sxx szx szz
+!        allpoints(iP)%S(1:NPTSTIME,icomp) = S
          write(name,'(a,I0,a,I0,a)') 'atBou_IP',iP,'_icomp',icomp,'.m'
-         OPEN(3211,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
-         call scripToMatlabMNmatrixZ(NPTSTIME,1,S,name,3211)
-         close (3211)
+!        OPEN(3211,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
+!        call scripToMatlabMNmatrixZ(NPTSTIME,1,S,name,3211)
+!        close (3211)
       end if
 !        if (plotmaxy .lt. maxval(real(S))) plotmaxy = maxval(real(S,4))
          write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
@@ -6054,11 +6039,16 @@
       XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
       XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
       !escala
-      XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * (sqrt(1.0*nSabanapts) * dx)
-      XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * (sqrt(1.0*nSabanapts) * dx)
+!     XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * (sqrt(1.0*nSabanapts) * dx)
+!     XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * (sqrt(1.0*nSabanapts) * dx)
       
-      call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1,0,6) 
-      call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1,0,6) 
+      call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1) 
+      XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * sqrt(1.0*nSabanapts) * dx ! factor de escala
+
+      call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1) 
+      XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * sqrt(1.0*nSabanapts) * dx ! factor de escala
+
+      
       XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
       XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
       
@@ -7066,10 +7056,10 @@
           if (overDeterminedSystem) then                                   !
             call color('RED') 
             CALL RLSYMB (0, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
-!           CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
-!             real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.5,4), &  !
-!             real(IP(j)%center%z + IP(j)%normal%z * MeshVecLen*0.5,4), &  !
-!             int(1001,4))                                                 !
+            CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
+               real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.5,4), &  !
+              real(IP(j)%center%z + IP(j)%normal%z * MeshVecLen*0.5,4), &  !
+              int(1001,4))                                                 !
           end if                                                           !
         end if                                                             !
           call color('BLUE') 
