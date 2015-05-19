@@ -6,7 +6,7 @@
       real*8, dimension(2) :: alf
       integer,parameter :: nRes = 60
       real*8, dimension(2) :: radios ! a, b 
-      real, parameter :: Qq = 10000.0, Ts = 0.15, Tp = 0.06
+      real, parameter :: Qq = 10000.0, Ts = 0.17, Tp = 0.06
       real*8, parameter :: DFREC = 0.33
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
@@ -18,7 +18,7 @@
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
       logical, parameter :: imprimirEspectros = .false.
       real :: ventana
-      real, parameter :: MeshVecLen = 1.5, giro = 0!-PI/2
+      real, parameter :: MeshVecLen = 1.5, giro = -PI/2
       contains
       subroutine set_radios
       radios(1) = 5.00_8 ! a   : in the liner
@@ -1730,8 +1730,8 @@
       call disfin
       end do ! i=1,n_maxtime
  !     !  -framerate #   antes de -i para hacerlo más lento. Donde # es menor a 25 (default)
-!     write(titleN,'(a)')'ffmpeg -i mecElem_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p 0_MecElemvideo.mp4'
-!     print*,trim(titleN)
-!     call system(trim(titleN))
+      write(titleN,'(a)')'ffmpeg -i mecElem_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p 0_MecElemvideo.mp4'
+      print*,trim(titleN)
+      call system(trim(titleN))
       end subroutine CINETECA
 

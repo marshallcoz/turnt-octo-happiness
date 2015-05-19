@@ -1,5 +1,5 @@
 Points of interest test pocos puntos
-3  <- Por lo menos (1)
+1  <- Por lo menos (1)
 0  128  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 T  Puntos en la frontera
 ___________________________________________________________
@@ -7,8 +7,6 @@ ___________________________________________________________
 0.0  0.0  <- offset:x offset:y
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst
 0.0  100.5         0.0       1.0       1           F   1  <-primer elemento en medio estr.
-0.0   89.5         0.0       1.0       1           F   1
-0.0   90.5         0.0       1.0       1           F   1
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)

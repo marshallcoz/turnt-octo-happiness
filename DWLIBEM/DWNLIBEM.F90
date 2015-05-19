@@ -1708,7 +1708,6 @@
       real :: result,lastresult
       real, dimension(2) :: tarray
 #endif
-      character(LEN=32) :: arg
       allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
       isPW = .false.
       if (i_zF .eq. 0) then
@@ -1979,13 +1978,13 @@
 #endif
       ! K -> X  .........................................................   !
          if (p_x%guardarMovieSiblings .eqv. .false.) then
-!#ifdef ver         
+#ifdef ver         
         write(arg,'(a,I0,I0,a)') "k_at",p_x%pointIndex,imec,".m"
         OPEN(739,FILE=trim(arg),FORM="FORMATTED",ACTION='WRITE')
         write(arg,'(a,I0,a,I0)') "kat",p_x%pointIndex,"_",imec
         CALL scripToMatlabMNmatrixZ(2*nmax,1,auxK(:,imec),arg,739)
         close(739)
-!#endif 
+#endif 
              
              
 !            auxK(:,iMec) = FFTW(2*nmax,auxK(:,iMec),+1,dk) !backward       !
@@ -1996,7 +1995,7 @@
 !            print*, 'n=',sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = sum(auxK(1:pos+1,iMec))+sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = auxK(1,iMec)*dk
-             print*,auxK(1,iMec)
+!            print*,auxK(1,iMec)
              
 #ifdef ver
        call ETIME(tarray, result)                                           !
@@ -4618,7 +4617,7 @@
       use meshvars, only: npixX,MeshMaxX,MeshMinX 
       use wavelets !fork
       use soilvars, only:alfa0,beta0,alfa,beta,N
-      use sourceVars, only: PoFte =>  Po,iFte => currentiFte!tipofuente, PW_pol
+      use sourceVars, only: PoFte =>  Po, iFte => currentiFte!tipofuente, PW_pol
       use glovars, only : UR,UI,PWfrecReal
       use peli, only : fotogramas_Region
       implicit none
@@ -4651,6 +4650,7 @@
       complex*16, intent(in)  :: cOME
       type(FFres),target :: FF
       real*8 :: nf(3)
+      logical :: PW
       nf(1) = pXi%normal%x
       nf(2) = 0!pXi%normal%y
       nf(3) = pXi%normal%z
@@ -4680,35 +4680,41 @@
           end if
          
          ! agregar fase horizontal
-       if ((i_zF .eq. 0) .and. (PoFte(iFte)%tipofuente .eq. 1)) then ! onda plana !
+      PW = .false.
+      if (i_zF .eq. 0) then
+       if (PoFte(iFte)%tipofuente .eq. 1) then ! onda plana !
+         PW = .true.
+       end if
+      end if!
+!      if ((i_zF .eq. 0) .and. (PoFte(iFte)%tipofuente .eq. 1)) then ! onda plana !
+      if (PW) then
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
        if ((PoFte(iFte)%PW_pol .eq. 1) .or. (PoFte(iFte)%PW_pol .eq. 3)) then
-        if (PWfrecReal) then
-        c = UR*beta0(N+1) !SV
-        else
-        c = beta(N+1) !SV
-        end if
+         if (PWfrecReal) then
+           c = UR*beta0(N+1) !SV
+         else
+           c = beta(N+1) !SV
+         end if
        elseif (PoFte(iFte)%PW_pol .eq. 2) then
-        if (PWfrecReal) then
-        c = UR*alfa0(N+1) !SV
-        else
-        c = alfa(N+1) !SV
-        end if
-       end if                                                               !
-        if (PWfrecReal) then
+         if (PWfrecReal) then
+           c = UR*alfa0(N+1) !SV
+         else
+           c = alfa(N+1) !SV
+         end if
+       end if!
+       if (PWfrecReal) then
          kx = UR*real(ome/c * sin(PoFte(iFte)%gamma))
-        else
+       else
          kx = UR*real(come/c * sin(PoFte(iFte)%gamma))
-        end if 
+       end if 
         
         ! aplicar la fase
         do imec = 1,mecaElemEnd
           auxkmo(1,imec) = auxk(1,imec) * & 
              exp(-UI*kx*(p_Xmov%center%x - PoFte(iFte)%center%x))
-        end do
-        else !fuente cilndrica
-         kx = k_vec(ik)
-         
+        end do !imec
+      else !fuente cilndrica
+        do imec = 1,mecaElemEnd
            do ik = 1,po+1!2*Nmax
             auxKmo(ik,imec) = auxk(ik,imec) * &
             exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x-pXi%center%x), 8))
@@ -4722,7 +4728,8 @@
            !           auxKmo(:,imec) = FFTW(2*nmax,auxKmo(:,iMec),+1,dk)
             auxKmo(1,imec) = sum(auxKmo(1:po+1,imec)) + sum(auxKmo(ne:2*nmax,imec))
             auxKmo(1,imec) = auxKmo(1,imec) * dk
-        end if
+        end do !imec
+      end if
       
       
       ! almacenar
