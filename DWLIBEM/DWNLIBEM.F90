@@ -555,19 +555,19 @@
       Ni = ik*l
        
 !#< b
-       call chdir(trim(adjustl(rutaOut)))
-        call chdir('matrices')
+!      call chdir(trim(adjustl(rutaOut)))
+!       call chdir('matrices')
 !     print*,n_top_sub,"n_top_sub"
 !     print*,n_con_sub,"n_con_sub"
 !     print*,n_val_sub,"n_val_sub"
-       write(arg,'(a,I0,a)') "outA",J,".m"
-       open(421,FILE= trim(arg),action="write",status="replace")
-       write(arg,'(a)') "BiSIN"
-       call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-       write(arg,'(a,I0)') "Mi",J
-       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-       close(421)
-       CALL chdir(".."); CALL chdir("..")
+!      write(arg,'(a,I0,a)') "outA",J,".m"
+!      open(421,FILE= trim(arg),action="write",status="replace")
+!      write(arg,'(a)') "BiSIN"
+!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+!      write(arg,'(a,I0)') "Mi",J
+!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+!      close(421)
+!      CALL chdir(".."); CALL chdir("..")
 !      
 !     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
 !     if (verbose .ge. 1) call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6) ;stop
@@ -5677,166 +5677,35 @@
       complex*16, dimension(Nfrec+1), intent(in) :: W !espectro
       real*8, intent(in) :: x_i,z_i
       character(LEN=3)   :: nombre
-      character(LEN=100) :: titleN,xAx,yAx, CTIT
+      character(LEN=100) :: titleN,yAx, CTIT
       character(LEN=32)  :: name
       complex*16, dimension(NPTSTIME) :: S
       
-      character(LEN=9)   :: logflag
+!     character(LEN=9)   :: logflag
       integer :: i,n_maxtime
-      real*8 :: this_maxtime
+!     real*8 :: this_maxtime
       
-!     if (developerfeature .eq. 1) then
-!      if (nombre(1:1) .eq. "T") then
-!       write(xAx,'(a)') "$a \omega c_p^{-1}$"
-!       S = z0
-!       S(1:nfrec)= W(1:nfrec:+1)
-!       write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-!              'f_',nombre,iP,'[', &
-!              int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-!              int(z_i),'.',abs(int((z_i-int(z_i))*10)),']_sin.pdf'
-!       logflag = 'none     '
-!       call plotSpectrum(S(1:100),real(developerAUXvec(2,2),4),& 
-!            100,100,titleN,xAx,yAx,logflag,1200,800,real(developerAUXvec(2,2)*100,4))
-!       !guardar en texto
-!        write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-!              'f_',nombre,iP,'[', &
-!              int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-!              int(z_i),'.',abs(int((z_i-int(z_i))*10)),']_sin.txt'
-!        
-!        OPEN(3211,FILE=titleN,FORM="FORMATTED",ACTION='WRITE')
-!        write(3211,'(I0,A)') 1," espectro antes de convolución con funcion de amplitud"
-!        write(3211,'(a)') "dfrec="
-!        write(3211,'(F15.8)') DFREC
-!        do i = 1, nfrec
-!         write(3211,'(I0,2x,ES14.5E2,2x,ES14.5E2,2x,ES14.5E2,2x,ES14.5E2)') & 
-!         i,real(developerAUXvec(i,2),4),real(aimag(developerAUXvec(i,2)),4),real(S(i)),aimag(S(i))
-!        end do
-!        close (3211)
-!      
-!       return
-!      
-!       S(1:nfrec) = S(1:nfrec) / developerAUXvec(1:nfrec,1)
-!       write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-!              'f_',nombre,iP,'[', &
-!              int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-!              int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
-!        logflag = 'none     '
-!       call plotSpectrum(S(1:100),real(developerAUXvec(2,2),4),& 
-!            100,100,titleN,xAx,yAx,logflag,1200,800,real(developerAUXvec(2,2)*100,4))
-!       !guardar en texto
-!        write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-!              'f_',nombre,iP,'[', &
-!              int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-!              int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].txt'
-!        
-!        OPEN(3211,FILE=titleN,FORM="FORMATTED",ACTION='WRITE')
-!        write(3211,'(I0,A)') 1," espectro antes de convolución con funcion de amplitud"
-!        write(3211,'(a)') "dfrec="
-!        write(3211,'(F15.8)') DFREC
-!        do i = 1, nfrec
-!         write(3211,'(ES14.5E2,2x,ES14.5E2,2x,ES14.5E2,2x,ES14.5E2)') & 
-!         real(developerAUXvec(i,2),4),real(aimag(developerAUXvec(i,2)),4),real(S(i)),aimag(S(i))
-!        end do
-!        close (3211) 
-!         return
-!      end if!
-!      if (nombre(1:1) .eq. "r") then
-!         write(xAx,'(a)') "$a \omega c_p^{-1}$"
-!         S = z0
-!         S(1:nfrec)= developerAUXvec(1:nfrec,1)
-!         write(titleN,'(a)') 'denominador.pdf'
-!         logflag = 'none     '
-!         call plotSpectrum(S(1:100),real(developerAUXvec(2,2),4),& 
-!            100,100,titleN,xAx,yAx,logflag,1200,800,real(developerAUXvec(2,2)*100,4))
-!         !guardar en texto
-!        write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-!              'f_',nombre,iP,'[', &
-!              int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-!              int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].txt'
-!        
-!        OPEN(3211,FILE=titleN,FORM="FORMATTED",ACTION='WRITE')
-!        write(3211,'(I0,A)') 1," denominador"
-!        write(3211,'(a)') "dfrec="
-!        write(3211,'(F15.8)') DFREC
-!        do i = 1, nfrec
-!         write(3211,'(ES14.5E2,2x,ES14.5E2,2x,ES14.5E2,2x,ES14.5E2)') & 
-!         real(developerAUXvec(i,2),4),real(aimag(developerAUXvec(i,2)),4),real(S(i)),aimag(S(i))
-!        end do
-!        close (3211) 
-!         return
-!       end if
-!     end if
+      write(CTIT,'(a,F7.2,a,F7.2,a)')'(', x_i,' , ',z_i,')'
+      
       S = z0
       S(1:nfrec+1)= W(1:nfrec+1:+1)
-!     S(1) = 0
       S(NPTSTIME-NFREC+2:NPTSTIME) = conjg(W(nfrec:2:-1)) 
-      S = S * t_vec 
+      S = S * t_vec ! t0 tiempo inicial
+      S = S * Uo(:,iFte)  ! conv con fucion de amplitud
       
-      ! conv con fucion de amplitud
-      S = S * Uo(:,iFte)
-!     CALL SETFIL("SUr.pdf")
-!     call qplot(real((/((i-1)*dfrec,i=1,nptstime)/),4),real(S,4),nptstime)
-!     CALL SETFIL("SUi.pdf")
-!     call qplot(real((/((i-1)*dfrec,i=1,nptstime)/),4),real(aimag(S),4),nptstime)
-!     stop
       if (Verbose .ge. 4) call showMNmatrixZ(nptstime,1, S,"  S  ",6)
-!     print*,"6751"
-      write(CTIT,'(a,F7.2,a,F7.2,a)')'(', x_i,' , ',z_i,')'
-      if (verbose .ge. 1) then
-       if ((SabanaPlotIndividual .eqv. .false.) .and. & 
-           (allpoints(iP)%isSabana .eqv. .true.)) go to 527
-      ! grafica simple:
-         write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               'f_',nombre,iP,'[', &
-               int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-               int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
-        ! plotXYcomp(y_in,Dt,n,titleN,xAx,yAx,CTIT,W,H,ma)
-         call plotXYcomp(S(1: NFREC),real(DFREC,4), NFREC,titleN, & 
-         'frec[hz] ',yAx, CTIT ,1200,800,0.0)
-      end if!
-      if (Verbose .ge. 2) then
-      ! grafica logaritmica
-            write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               'fL_',nombre,iP,'[', &
-               int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-               int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
-            logflag = 'logx     '
-            write(xAx,'(a)') "frec[Hz]"
-            call plotSpectrum(S(1: NPTSTIME/2),real(DFREC,4), NPTSTIME/2, NPTSTIME/2, & 
-                titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
-      end if!
       
       !  (1) pasar al tiempo
- 527     S = FFTW(NPTSTIME,S,+1,1/(NPTSTIME*dt)) !backward
+         S = FFTW(NPTSTIME,S,+1,1/(NPTSTIME*dt)) !backward
          
-      !  (2.1) remover efecto de la frecuencia imaginaria
+      !  (2) remover efecto de la frecuencia imaginaria
          S = S * exp(- OMEI * Dt*((/(i,i=0, NPTSTIME-1)/)))
-      !  (2.2) remover efecto de la velocidad imaginaria  ?
-!        S = S * exp((2./2./Qq) * Dt*((/(i,i=0, NPTSTIME-1)/)))
          
          !tiempo maximo para graficar
          n_maxtime = int(maxtime/dt)
          if(maxtime .lt. dt) n_maxtime = 2*nfrec
          if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
          
-      if (verbose .ge. 4) print*,"maxtime = ", this_maxtime," segs :: @",dt, & 
-                                  " : ",n_maxtime," puntos"
-      !  (3) plot the damn thing
-      if (verbose .ge. 3) then
-      !guardar en texto
-         write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               'S_',nombre,iP,'[', &
-               int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
-               int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].txt'
-!        print*,titleN
-         OPEN(3211,FILE=titleN,FORM="FORMATTED",ACTION='WRITE')
-         write(3211,'(F15.8)') DT
-         do i = 1,size(S)
-          write(3211,'(ES14.5E2,2x,ES14.5E2)') real(S(i)),aimag(S(i))
-         end do
-         close (3211) 
-      end if
-      
       ! guardar para hacer sabana o plotear
       if (allpoints(iP)%isSabana) then
          ! guardamos la sabana actual
@@ -5844,24 +5713,60 @@
          Sabana(iP-(nIpts - nSabanapts),1:NPTSTIME) = S
          if (SabanaPlotIndividual .eqv. .false.) return
       end if
+      
       ! guardar componentes en el borde
       if (allpoints(iP)%atBou .and. icomp .ne. 0) then
          !allocate(allpoints(iP)%S(NPTSTIME,5)) !W U sxx szx szz
          allpoints(iP)%S(1:NPTSTIME,icomp) = S
-         write(name,'(a,I0,a,I0,a)') 'atBou_IP',iP,'_icomp',icomp,'.m'
+         write(name,'(a,I0,a,I0,a)') 'S_IP',iP,'_icomp',icomp,'.m'
          OPEN(3211,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
          call scripToMatlabMNmatrixZ(NPTSTIME,1,S,name,3211)
          close (3211)
       end if
-!        if (plotmaxy .lt. maxval(real(S))) plotmaxy = maxval(real(S,4))
+      
+      !  (3) plot the damn thing
+!#< g   imprimir sismograma  !#>
          write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
                '2_S_',nombre,iP,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
          call plotXYcomp(S(1:n_maxtime) ,real(dt,4),n_maxtime,titleN, & 
          'time[sec]',yAx, CTIT ,1200,800, 0.)
-      
-!     end do !imec
+         
+      !  (4) espectro correcto 
+        S = FFTW(NPTSTIME,S,-1,dt) !forward
+        
+!#< g   imprimir espectro  !#>
+      if (verbose .ge. 1) then
+       if ((SabanaPlotIndividual .eqv. .false.) .and. & 
+           (allpoints(iP)%isSabana .eqv. .true.)) then
+       else
+      ! grafica simple:
+         write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
+               'f_',nombre,iP,'[', &
+               int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
+               int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
+         call plotXYcomp(S(1:int(NPTSTIME/2)),real((DFREC*NFREC)/(NPTSTIME/2),4), & 
+         int(NPTSTIME/2),titleN, 'frec[hz] ',yAx, CTIT ,1200,800,0.0)
+         
+        if (allpoints(iP)%atBou .and. icomp .ne. 0) then
+         write(name,'(a,I0,a,I0,a)') 'f_IP',iP,'_icomp',icomp,'.m'
+         OPEN(3212,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
+         call scripToMatlabMNmatrixZ(int(NPTSTIME/2),1,S(1:int(NPTSTIME/2)),name,3212)
+         close (3212)
+        end if  
+       end if
+!     ! grafica logaritmica
+!           write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
+!              'fL_',nombre,iP,'[', &
+!              int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
+!              int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
+!           logflag = 'logx     '
+!           write(xAx,'(a)') "frec[Hz]"
+!           call plotSpectrum(S(1: NPTSTIME/2),real(DFREC,4), NPTSTIME/2, NPTSTIME/2, & 
+!               titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+      end if
+         
       end subroutine W_to_t
       
       subroutine makeSabana(nombre,filled)

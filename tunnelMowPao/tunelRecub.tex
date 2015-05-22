@@ -35,23 +35,24 @@ Ejercicio para incidencia de onda plana P y SV.
       save
       real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
       real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
-      real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
+!     real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
+      real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
       real*8, dimension(2) :: alf
-      integer,parameter :: nRes = 60
+      integer,parameter :: nRes = 120
       real*8, dimension(2) :: radios ! a, b 
-      real, parameter :: Qq = 10000.0, Ts = 0.17, Tp = 0.06
+      real, parameter :: Qq = 10000.0, Ts = 0.19, Tp = 0.06
       real*8, parameter :: DFREC = 0.33
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
-      integer, parameter :: frameInicial = 1, nframes = 150
+      integer, parameter :: frameInicial = 1, nframes = 168
       real*8, parameter :: Dns = 1.
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
-      logical, parameter :: imprimirEspectros = .false.
+      logical, parameter :: imprimirEspectros = .true.
       real :: ventana
-      real, parameter :: MeshVecLen = 1.5, giro = -PI/2
+      real, parameter :: MeshVecLen = 1.0, giro = -PI/2
       contains
       subroutine set_radios
       radios(1) = 5.00_8 ! a   : in the liner
@@ -266,7 +267,7 @@ Ejercicio para incidencia de onda plana P y SV.
         exit
       else if (abs(B(1,1)) .lt. 0.00000001) then  !NaN
        write(6,'(A,I0,a)', ADVANCE = "NO") &
-      "se corta la suma en ",n, " por chiquito"
+      "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
        exit
       end if
 !     call showMNmatrixZ(6,1,B,"  A  ",6)
@@ -472,18 +473,26 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
 \begin{shaded}
 \begin{verbatim}
       !snapshots 
+      if (imprimirEspectros) &
+      call system('mkdir outEspectros')
       call system('mkdir outTraces')
-      CALL chdir("outTraces")  
+        
       nom(1) = 's_tt'
       nom(2) = 'u__r'
       nom(3) = 'u__t'
       nom(4) = 'u__x'
       nom(5) = 'u__z'
-      write(xAx,'(a)') 'time[sec]'
       write(yAx,'(a)') 'amplitude'
       do i=1,nRes
+        ! Coordenadas cartesianas
+        Rw(i)%th = Rw(i)%th + giro
+        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
+        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
+        Rw(i)%n(1) = cos(Rw(i)%th)
+        Rw(i)%n(2) = sin(Rw(i)%th)
         write(CTIT,'(a,F7.2,a,F7.2,a)')'(', Rw(i)%x,' , ',Rw(i)%z,')'
         Rw(i)%S = 0
+        
         !s_tt
         Rw(i)%S(1:nfrec,1) = Rw(i)%s_tt(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,1) = conjg(Rw(i)%s_tt(nfrec:2:-1)) 
@@ -496,14 +505,6 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
         Rw(i)%S(1:nfrec,3) = Rw(i)%u_t(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,3) = conjg(Rw(i)%u_t(nfrec:2:-1)) 
         
-        ! Coordenadas cartesianas
-        Rw(i)%th = Rw(i)%th + giro
-        
-        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
-        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
-        Rw(i)%n(1) = cos(Rw(i)%th)
-        Rw(i)%n(2) = sin(Rw(i)%th)
-        
         !u_x
         Rw(i)%S(:,4) = cos(Rw(i)%th) * Rw(i)%S(:,2) - &
                        sin(Rw(i)%th) * Rw(i)%S(:,3)
@@ -514,14 +515,26 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
         
           do ii = 1,5  !#< g     al tiempo       !#>
       Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
+      if (imprimirEspectros) then
+      write(titleN,'(a,a,I0,a)') 'f_',nom(ii),i,'.pdf'
+      write(xAx,'(a)') 'Hz[sec]'
+      CALL chdir("outEspectros")
+      call plotXYcomp(Rw(i)%S(1:nfrec,ii),real(DFREC,4), & 
+                 nfrec,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      CALL chdir("..")
+      end if
+      
       call fork(NPTSTIME,Rw(i)%S(:,ii),+1) !backward
       Rw(i)%S(:,ii) = Rw(i)%S(:,ii) / sqrt(1.0*NPTSTIME) / dt ! factor de escala
+     
       write(titleN,'(a,I0,a)') nom(ii),i,'.pdf'
+      write(xAx,'(a)') 'time[sec]'
+      CALL chdir("outTraces")
       call plotXYcomp(Rw(i)%S(1:nframes,ii),real(Dt,4), & 
                  nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      CALL chdir("..")
         end do
       end do ! i:nRes
-      CALL chdir("..")
       call system('mkdir outSnapshots')
       CALL chdir("outSnapshots")
       call cineteca

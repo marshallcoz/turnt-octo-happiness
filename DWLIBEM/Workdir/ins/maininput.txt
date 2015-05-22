@@ -8,7 +8,7 @@ F       Plot FKCK
 F       Plot displacement at frecuency Eta.
 F       Plot filled sheets
 T	Save the Green funcs. for later use with "-L" argument [logical]
-10	Segments per wavelength [int :: R]
+15	Segments per wavelength [int :: R]
 T   150	Keep the subdivision of at least the Jth frequency [logical] [integer]
 F 1 150	Overdeterminate system
 2.5	K integrand runs up to fmax / (R * beta) [real :: R]

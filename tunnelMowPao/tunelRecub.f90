@@ -2,23 +2,24 @@
       save
       real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
       real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
-      real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
+!     real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
+      real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
       real*8, dimension(2) :: alf
-      integer,parameter :: nRes = 60
+      integer,parameter :: nRes = 120
       real*8, dimension(2) :: radios ! a, b 
-      real, parameter :: Qq = 10000.0, Ts = 0.17, Tp = 0.06
+      real, parameter :: Qq = 10000.0, Ts = 0.19, Tp = 0.06
       real*8, parameter :: DFREC = 0.33
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
-      integer, parameter :: frameInicial = 1, nframes = 150
+      integer, parameter :: frameInicial = 1, nframes = 168
       real*8, parameter :: Dns = 1.
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
-      logical, parameter :: imprimirEspectros = .false.
+      logical, parameter :: imprimirEspectros = .true.
       real :: ventana
-      real, parameter :: MeshVecLen = 1.5, giro = -PI/2
+      real, parameter :: MeshVecLen = 1.0, giro = -PI/2
       contains
       subroutine set_radios
       radios(1) = 5.00_8 ! a   : in the liner
@@ -77,7 +78,8 @@
       real*8 :: delth
       iini(1) = 1             ; ifin(1) = int(nRes/2) ; thisradio(1) = 2!b  !reg 1 in the medium
       iini(2) = 1+int(nRes/2) ; ifin(2) = nRes        ; thisradio(2) = 1!a  !reg 2 in the lining
-      print*,"putnos receptroes ------------------i,r,th,x,z,reg"
+      print*,"putnos receptroes ------------------"
+      print*,"      r      th      x      z      region"
       delth = (2.0_8*pi) / int(nRes/2)
       do iside = 1,2
       ir = 0
@@ -86,7 +88,8 @@
         RW(i)%ir = thisradio(iside)
         Rw(i)%th = delth * ir ; ir = ir + 1
         Rw(i)%reg = iside
-        print*,i,RW(i)%r,RW(i)%th,RW(i)%x,RW(i)%z,RW(i)%reg
+        write(6,'(I0,F8.2,F8.2,3x,I0)') & 
+        i,RW(i)%r,RW(i)%th,RW(i)%reg
         call initRW(i)
       end do
       end do
@@ -475,7 +478,7 @@
                 real(ystep,4)) 
       
 !     call title 
-      call color ('RED') 
+      call color ('GREEN') 
       call curve(real(x,4) ,real(y,4) ,int(n,4))
       call color('BLUE')
       call curve(real(x,4), real(aimag(y),4), int(n,4))
@@ -1107,7 +1110,7 @@
         exit
       else if (abs(B(1,1)) .lt. 0.00000001) then  !NaN
        write(6,'(A,I0,a)', ADVANCE = "NO") &
-      "se corta la suma en ",n, " por chiquito"
+      "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
        exit
       end if
 !     call showMNmatrixZ(6,1,B,"  A  ",6)
@@ -1241,11 +1244,10 @@
       
       !#< r print results !#>
       if (imprimirEspectros) then
-      call system('mkdir outTraces')
-      CALL chdir("outTraces")
+      call system('mkdir outEspectrosOriginales')
+      CALL chdir("outEspectrosOriginales")
       do i = 1,nRes
         reg => Rw(i)%reg 
-!       if (reg .eq. 1) then
 !         pt_RES = Rw(i)%s_rr(1:nplot)
 !         call plot(i,1,reg, abscisa ,pt_RES,nplot)
           pt_RES = Rw(i)%s_tt(1:nplot)
@@ -1257,18 +1259,6 @@
 !         pt_RES = Rw(i)% u_t(1:nplot)
 !         call plot(i,5,reg, abscisa ,pt_RES,nplot)
 
-!       else if (reg .eq. 2) then
-!         pt_RES = Rw(i)%s_rr_2(1:nplot)
-!         call plot(i,1,reg, abscisa ,pt_RES,nplot)
-!         pt_RES = Rw(i)%s_tt(1:nplot)
-!         call plot(i,2,reg, abscisa ,pt_RES,nplot)
-!         pt_RES = Rw(i)%s_rt_2(1:nplot)
-!         call plot(i,3,reg, abscisa ,pt_RES,nplot)
-!         pt_RES = Rw(i)% u_r_2(1:nplot)
-!         call plot(i,4,reg, abscisa ,pt_RES,nplot)
-!         pt_RES = Rw(i)% u_t_2(1:nplot)
-!         call plot(i,5,reg, abscisa ,pt_RES,nplot)
-!       end if
       end do! i:nRes  
       CALL chdir("..")  
       end if
@@ -1299,18 +1289,26 @@
             titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
 
       !snapshots 
+      if (imprimirEspectros) &
+      call system('mkdir outEspectros')
       call system('mkdir outTraces')
-      CALL chdir("outTraces")  
+        
       nom(1) = 's_tt'
       nom(2) = 'u__r'
       nom(3) = 'u__t'
       nom(4) = 'u__x'
       nom(5) = 'u__z'
-      write(xAx,'(a)') 'time[sec]'
       write(yAx,'(a)') 'amplitude'
       do i=1,nRes
+        ! Coordenadas cartesianas
+        Rw(i)%th = Rw(i)%th + giro
+        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
+        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
+        Rw(i)%n(1) = cos(Rw(i)%th)
+        Rw(i)%n(2) = sin(Rw(i)%th)
         write(CTIT,'(a,F7.2,a,F7.2,a)')'(', Rw(i)%x,' , ',Rw(i)%z,')'
         Rw(i)%S = 0
+        
         !s_tt
         Rw(i)%S(1:nfrec,1) = Rw(i)%s_tt(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,1) = conjg(Rw(i)%s_tt(nfrec:2:-1)) 
@@ -1323,14 +1321,6 @@
         Rw(i)%S(1:nfrec,3) = Rw(i)%u_t(1:nfrec)
         Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,3) = conjg(Rw(i)%u_t(nfrec:2:-1)) 
         
-        ! Coordenadas cartesianas
-        Rw(i)%th = Rw(i)%th + giro
-        
-        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
-        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
-        Rw(i)%n(1) = cos(Rw(i)%th)
-        Rw(i)%n(2) = sin(Rw(i)%th)
-        
         !u_x
         Rw(i)%S(:,4) = cos(Rw(i)%th) * Rw(i)%S(:,2) - &
                        sin(Rw(i)%th) * Rw(i)%S(:,3)
@@ -1341,14 +1331,26 @@
         
           do ii = 1,5  !#< g     al tiempo       !#>
       Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
+      if (imprimirEspectros) then
+      write(titleN,'(a,a,I0,a)') 'f_',nom(ii),i,'.pdf'
+      write(xAx,'(a)') 'Hz[sec]'
+      CALL chdir("outEspectros")
+      call plotXYcomp(Rw(i)%S(1:nfrec,ii),real(DFREC,4), & 
+                 nfrec,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      CALL chdir("..")
+      end if
+      
       call fork(NPTSTIME,Rw(i)%S(:,ii),+1) !backward
       Rw(i)%S(:,ii) = Rw(i)%S(:,ii) / sqrt(1.0*NPTSTIME) / dt ! factor de escala
+     
       write(titleN,'(a,I0,a)') nom(ii),i,'.pdf'
+      write(xAx,'(a)') 'time[sec]'
+      CALL chdir("outTraces")
       call plotXYcomp(Rw(i)%S(1:nframes,ii),real(Dt,4), & 
                  nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      CALL chdir("..")
         end do
       end do ! i:nRes
-      CALL chdir("..")
       call system('mkdir outSnapshots')
       CALL chdir("outSnapshots")
       call cineteca
