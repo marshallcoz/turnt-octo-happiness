@@ -33,15 +33,17 @@ Ejercicio para incidencia de onda plana P y SV.
 \begin{verbatim}
       module datos
       save
-      real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
-      real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
-!     real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
-      real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
+!     real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
+!     real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
+!     real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
+      real*8, dimension(2), parameter :: rho = (/2700.0, 7850.0/)
+      real*8, dimension(2), parameter :: nu = (/0.25, 0.3/)
+      real*8, dimension(2), parameter :: bet = (/3333.333, 3397.23/) !1 medio, 2 liner
       real*8, dimension(2) :: alf
       integer,parameter :: nRes = 120
       real*8, dimension(2) :: radios ! a, b 
       real, parameter :: Qq = 10000.0, Ts = 0.19, Tp = 0.06
-      real*8, parameter :: DFREC = 0.33
+      real*8, parameter :: DFREC = 0.66666!0.33
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
       integer, parameter :: frameInicial = 1, nframes = 168
@@ -51,12 +53,15 @@ Ejercicio para incidencia de onda plana P y SV.
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
       logical, parameter :: imprimirEspectros = .true.
+      logical, parameter :: hacerSnapshots = .false.
       real :: ventana
-      real, parameter :: MeshVecLen = 1.0, giro = -PI/2
+      real, parameter :: MeshVecLen = 1.0, giro = 0!-PI/2
       contains
       subroutine set_radios
-      radios(1) = 5.00_8 ! a   : in the liner
-      radios(2) = 5.60_8 ! b   : in the medium
+!     radios(1) = 5.00_8 ! a   : in the liner
+!     radios(2) = 5.60_8 ! b   : in the medium
+      radios(1) = 5.45_8 ! a   : in the liner
+      radios(2) = 5.50_8 ! b   : in the medium
       ventana = 6.5
       end subroutine set_radios
       end module datos
@@ -76,7 +81,7 @@ Ejercicio para incidencia de onda plana P y SV.
       use datos; use vars_func_of_w; use Hank
       use debug; use RES; use plotter; use fft
       implicit none
-      integer :: J,n,et,info,i,ii,ir
+      integer :: J,n,et,info,i,ii,ir,minNS
       real*8, pointer :: r,th
       integer, pointer :: reg
       complex*16, dimension(6,6) :: M
@@ -108,7 +113,6 @@ Ejercicio para incidencia de onda plana P y SV.
       do J=1,NFREC !*********************************************
       FREC=DFREC*real(J); if (J .eq. 1)  FREC = 0.5_8 * DFREC ! Hz
       OME=2.0*PI*FREC !rad/s
-!     COME = CMPLX(OME, OMEI,8)
 !     VEL(1,1:2) = cmplx(alf(1:2)*& 
 !                  (1.+1./pi/Qq*log(ome/2./pi)),-1./2./Qq,8)
 !     VEL(2,1:2) = cmplx(bet(1:2)*& 
@@ -118,7 +122,7 @@ Ejercicio para incidencia de onda plana P y SV.
       VEL(2,1:2) = cmplx(bet(1:2),(/0.,0./),8)
       cp(1:2) => VEL(1,1:2) ! dilatación
       cs(1:2) => VEL(2,1:2) ! corte
-      w_c(1:2,1:2) = cOME / VEL(1:2,1:2) 
+      w_c(1:2,1:2) = cOME / VEL(1:2,1:2) !(alfa:beta,reg1:reg2)
       beta(1:2) => w_c(2,1:2) !shear wave number
       alfa(1:2) => w_c(1,1:2) !compressional wave number
       p2(1:2) = (alfa(1:2))**2.0 !compressional wave number (square)
@@ -128,8 +132,8 @@ Ejercicio para incidencia de onda plana P y SV.
       muR = amu(1)/amu(2) !shear moduli ratio
       gammaP = z0! spacing variable  2.5D
       gammaS = z0! spacing variable
-      call makeBessels(.false.) ! n = -1,0,1,2,...,nmax+1 (imprimir)
-      do n=0,nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
+      call makeBessels(minNS,.false.) ! n = -1,0,1,2,...,vm (imprimir)
+      do n=0,3!minNS!nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
       M = z0; B = z0; iPIV = 6
 \end{verbatim}
 \end{shaded}
@@ -261,14 +265,16 @@ Ejercicio para incidencia de onda plana P y SV.
 \begin{shaded}
 \begin{verbatim}
       call zgesv(6,1,M(1:6,1:6),6,IPIV,B(:,1),6,info)
+      
       if(info .ne. 0) then
         write(6,'(A,I0,a,I0)', ADVANCE = "NO") &
         "se corta la suma en ",n, "system info = ",info
+!       stop 1120
         exit
       else if (abs(B(1,1)) .lt. 0.00000001) then  !NaN
-       write(6,'(A,I0,a)', ADVANCE = "NO") &
-      "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
-       exit
+!      write(6,'(A,I0,a)', ADVANCE = "NO") &
+!     "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
+!      exit
       end if
 !     call showMNmatrixZ(6,1,B,"  A  ",6)
 \end{verbatim}
@@ -344,19 +350,11 @@ Ejercicio para incidencia de onda plana P y SV.
 !      th => Rw(i)%th
        reg => Rw(i)%reg
        sig0 = amu(1) * beta(1)**2. !eq 3.15   para hacerlo factor de amplificación
-!       if (reg .eq. 1) then
           Rw(i)%s_rr(J) = Rw(i)%s_rr(J) * 2. *amu(reg) / r**2. 
           Rw(i)%s_tt(J) = Rw(i)%s_tt(J) * 2. *amu(reg) / r**2. !/ sig0
           Rw(i)%s_rt(J) = Rw(i)%s_rt(J) * 2. *amu(reg) / r**2. 
           Rw(i)%u_r(J) = Rw(i)%u_r(J) / r 
           Rw(i)%u_t(J) = Rw(i)%u_t(J) / r 
-!       else if (reg .eq. 2) then
-!         Rw(i)%s_rr_2(J) = Rw(i)%s_rr_2(J) * 2. *amu(2) / r**2. 
-!         Rw(i)%s_tt_2(J) = Rw(i)%s_tt_2(J) * 2. *amu(2) / r**2. / sig0
-!         Rw(i)%s_rt_2(J) = Rw(i)%s_rt_2(J) * 2. *amu(2) / r**2. 
-!         Rw(i)%u_r_2(J) = Rw(i)%u_r_2(J) / r 
-!         Rw(i)%u_t_2(J) = Rw(i)%u_t_2(J) / r 
-!       end if
       end do! i:nRes
 
 \end{verbatim}
@@ -431,119 +429,7 @@ y en $\eta=1.1$, $r=a$,
 en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
 
 \includegraphics[scale=0.4]{RES_2s_tt2abspi2.pdf}
-\includegraphics[scale=0.4]{RES_2s_tt2abspi.pdf}
-\begingroup
-\fontsize{10pt}{12pt}
-\selectfont
-\definecolor{shadecolor}{rgb}{0.925,0.925,0.925}
-\begin{shaded}
-\begin{verbatim}
-      !#< b func. amplitud !#>
-      call ricker(Uo)
-      write(titleN,'(a)') 'WaveAmplitude-ricker_time.pdf'
-      write(CTIT,'(a)') 'WaveAmplitude of Ricker wavelet'
-      xAx = 'time[sec]'
-      write(yAx,'(a)') 'amplitude'
-      call plotXYcomp(Uo(1:nframes),real(Dt,4), & 
-                 nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
-      
-      call fork(size(Uo),Uo,-1) !forward
-      Uo = Uo * sqrt(real(size(Uo))) * dt ! factor de escala
-      
-!     call fork(size(Uo),Uo,+1) !backward
-!     Uo = Uo / sqrt(real(size(Uo))) / dt ! factor de escala
-      
-      
-      write(titleN,'(a)') 'WaveAmplitude-ricker_frec.pdf'
-      xAx = 'frec[Hz] '
-      write(yAx,'(a)') 'amplitude'      
-      logflag = 'logx     '      
-!     logflag = 'none     '
-      call plotSpectrum(Uo(:),real(DFREC,4), size(Uo(:)),int(size(Uo(:))/2), & 
-            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
-
-\end{verbatim}
-\end{shaded}
-\endgroup
-
-\begingroup
-\fontsize{10pt}{12pt}
-\selectfont
-\definecolor{shadecolor}{rgb}{0.925,0.925,0.925}
-\begin{shaded}
-\begin{verbatim}
-      !snapshots 
-      if (imprimirEspectros) &
-      call system('mkdir outEspectros')
-      call system('mkdir outTraces')
-        
-      nom(1) = 's_tt'
-      nom(2) = 'u__r'
-      nom(3) = 'u__t'
-      nom(4) = 'u__x'
-      nom(5) = 'u__z'
-      write(yAx,'(a)') 'amplitude'
-      do i=1,nRes
-        ! Coordenadas cartesianas
-        Rw(i)%th = Rw(i)%th + giro
-        Rw(i)%x = Rw(i)%r * cos(Rw(i)%th)
-        Rw(i)%z = Rw(i)%r * sin(Rw(i)%th)
-        Rw(i)%n(1) = cos(Rw(i)%th)
-        Rw(i)%n(2) = sin(Rw(i)%th)
-        write(CTIT,'(a,F7.2,a,F7.2,a)')'(', Rw(i)%x,' , ',Rw(i)%z,')'
-        Rw(i)%S = 0
-        
-        !s_tt
-        Rw(i)%S(1:nfrec,1) = Rw(i)%s_tt(1:nfrec)
-        Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,1) = conjg(Rw(i)%s_tt(nfrec:2:-1)) 
-        
-        !u_r
-        Rw(i)%S(1:nfrec,2) = Rw(i)%u_r(1:nfrec)
-        Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,2) = conjg(Rw(i)%u_r(nfrec:2:-1)) 
-        
-        !u_t
-        Rw(i)%S(1:nfrec,3) = Rw(i)%u_t(1:nfrec)
-        Rw(i)%S(NPTSTIME-NFREC+2:NPTSTIME,3) = conjg(Rw(i)%u_t(nfrec:2:-1)) 
-        
-        !u_x
-        Rw(i)%S(:,4) = cos(Rw(i)%th) * Rw(i)%S(:,2) - &
-                       sin(Rw(i)%th) * Rw(i)%S(:,3)
-        
-        !u_z
-        Rw(i)%S(:,5) = sin(Rw(i)%th) * Rw(i)%S(:,2) + &
-                       cos(Rw(i)%th) * Rw(i)%S(:,3)
-        
-          do ii = 1,5  !#< g     al tiempo       !#>
-      Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
-      if (imprimirEspectros) then
-      write(titleN,'(a,a,I0,a)') 'f_',nom(ii),i,'.pdf'
-      write(xAx,'(a)') 'Hz[sec]'
-      CALL chdir("outEspectros")
-      call plotXYcomp(Rw(i)%S(1:nfrec,ii),real(DFREC,4), & 
-                 nfrec,titleN,xAx,yAx,CTIT,1200,800,0.0)
-      CALL chdir("..")
-      end if
-      
-      call fork(NPTSTIME,Rw(i)%S(:,ii),+1) !backward
-      Rw(i)%S(:,ii) = Rw(i)%S(:,ii) / sqrt(1.0*NPTSTIME) / dt ! factor de escala
-     
-      write(titleN,'(a,I0,a)') nom(ii),i,'.pdf'
-      write(xAx,'(a)') 'time[sec]'
-      CALL chdir("outTraces")
-      call plotXYcomp(Rw(i)%S(1:nframes,ii),real(Dt,4), & 
-                 nframes,titleN,xAx,yAx,CTIT,1200,800,0.0)
-      CALL chdir("..")
-        end do
-      end do ! i:nRes
-      call system('mkdir outSnapshots')
-      CALL chdir("outSnapshots")
-      call cineteca
-      
-      end program tunelRecub
-\end{verbatim}
-\end{shaded}
-\endgroup
-\includegraphics[scale=0.5]{e11}
+\includegraphics[scale=0.4]{RES_2s_tt2abspi.pdf}\includegraphics[scale=0.5]{e11}
 \begingroup
 \fontsize{10pt}{12pt}
 \selectfont
@@ -558,8 +444,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e11
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e11 = (n**2 + n - s2(reg) * radios(r)**2 / 2. + & 
       gammaP**2 * radios(r)**2) * Bess_n - alfa(reg)* radios(r) * Bess_n_1
       end function e11
@@ -581,8 +468,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e12
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e12 = n * (-(n+1)* Bess_n + beta(reg) * radios(r) * Bess_n_1)
       end function e12
 \end{verbatim}
@@ -605,8 +493,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e21
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e21 = - (n**2 + n + s2(reg)*radios(r)**2 / 2. - p2(reg)*radios(r)**2) * &
              Bess_n + alfa(reg) * radios(r) * Bess_n_1
       end function e21
@@ -628,8 +517,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e22
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e22 = n * ((n+1)*Bess_n - beta(reg)*radios(r)*Bess_n_1)
       end function e22
 \end{verbatim}
@@ -650,8 +540,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e41
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e41 = - n * (-(n+1) * Bess_n + alfa(reg)*radios(r)*Bess_n_1)
       end function e41
 \end{verbatim}
@@ -672,8 +563,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e42
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e42 = - (n**2 + n - beta(reg)**2 * radios(r)**2 / 2.) * Bess_n + &
             beta(reg) * radios(r) * Bess_n_1
       end function e42
@@ -695,8 +587,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e71
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e71 = alfa(reg) * radios(r) * Bess_n_1 - n * Bess_n
       end function e71
 \end{verbatim}
@@ -715,7 +608,8 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e72
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
       e72 = n * Bess_n
       end function e72
 \end{verbatim}
@@ -734,7 +628,8 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e81
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
       e81 = - n * Bess_n
       end function e81
 \end{verbatim}
@@ -755,8 +650,9 @@ en $\theta=\pi/2$ y en $\theta=\pi$ respectivamente,
       complex*16 :: e82
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e82 = - (beta(reg) * radios(r) * Bess_n_1 & 
               - n * Bess_n)
       end function e82

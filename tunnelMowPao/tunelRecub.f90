@@ -1,14 +1,16 @@
       module datos
       save
-      real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
-      real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
-!     real*8, dimension(2), parameter :: bet = (/750.0, 500.0/)
-      real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
+!     real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
+!     real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
+!     real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
+      real*8, dimension(2), parameter :: rho = (/2700.0, 7850.0/)
+      real*8, dimension(2), parameter :: nu = (/0.25, 0.3/)
+      real*8, dimension(2), parameter :: bet = (/3333.333, 3397.23/) !1 medio, 2 liner
       real*8, dimension(2) :: alf
       integer,parameter :: nRes = 120
       real*8, dimension(2) :: radios ! a, b 
       real, parameter :: Qq = 10000.0, Ts = 0.19, Tp = 0.06
-      real*8, parameter :: DFREC = 0.33
+      real*8, parameter :: DFREC = 0.66666!0.33
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 500, nfracs = 1
       integer, parameter :: frameInicial = 1, nframes = 168
@@ -18,12 +20,15 @@
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
       logical, parameter :: imprimirEspectros = .true.
+      logical, parameter :: hacerSnapshots = .false.
       real :: ventana
-      real, parameter :: MeshVecLen = 1.0, giro = -PI/2
+      real, parameter :: MeshVecLen = 1.0, giro = 0!-PI/2
       contains
       subroutine set_radios
-      radios(1) = 5.00_8 ! a   : in the liner
-      radios(2) = 5.60_8 ! b   : in the medium
+!     radios(1) = 5.00_8 ! a   : in the liner
+!     radios(2) = 5.60_8 ! b   : in the medium
+      radios(1) = 5.45_8 ! a   : in the liner
+      radios(2) = 5.50_8 ! b   : in the medium
       ventana = 6.5
       end subroutine set_radios
       end module datos
@@ -38,8 +43,8 @@
       !    cs(2)  cs(2)
       complex*16, dimension(:), pointer :: cp,cs 
       
-      ! compressional and shear wave numbers:
-      complex*16, dimension(2,2),target :: w_c  ! w/c ( velocidad, region)
+      ! compressional and shear wave numbers: 
+      complex*16, dimension(2,2),target :: w_c  ! w/c ( velocidad, region) !(alfa:beta,reg1:reg2)
       !    w/cp(1)  w/cp(2) 
       !    w/cs(2)  w/cs(2)
       complex*16, dimension(:), pointer :: alfa,beta 
@@ -81,7 +86,7 @@
       print*,"putnos receptroes ------------------"
       print*,"      r      th      x      z      region"
       delth = (2.0_8*pi) / int(nRes/2)
-      do iside = 1,2
+      do iside = 1,2 ! medio,cilindro
       ir = 0
       do i = iini(iside),ifin(iside)
         Rw(i)%r = radios(thisradio(iside))
@@ -114,7 +119,7 @@
           Rw(i)%u_t = z0
       end subroutine initRW
       end module RES
-      
+       
       module debug
       contains
       subroutine showMNmatrixZ(m,n,MAT,name,outpf)
@@ -170,7 +175,7 @@
                  real(abs(pt_RES),4), nplot)
       end subroutine plot
       
-      subroutine plotSpectrum(y_in,Df,full_n,n,titleN,xAx,yAx,logflag,W,H,maxfrec)
+      subroutine plotSpectrum(y_in,Df,full_n,n,titleN,xAx,yAx,logflag,CTIT,W,H,maxfrec)
       ! (Uo,DFREC,size(Uo),size(Uo)/2.0,titleN,xAx,yAx,logflag,1200,800,maxfrec)
       use DISLIN
       implicit none
@@ -179,7 +184,7 @@
       character(LEN=100), intent(in)                 :: xAx
       character(LEN=100), intent(in)                 :: yAx
       character(LEN=9)                             :: logflag
-      character(LEN=100)                            :: titleN
+      character(LEN=100)                            :: titleN,CTIT
       COMPLEX*16, DIMENSION(full_n), intent(in) :: y_in
       complex,    dimension(:), allocatable :: y
       real,       dimension(:), allocatable :: x
@@ -329,7 +334,7 @@
       
       call legtit('') ! or '' for nothing
       call legend(CBUF,int(3,4))
-!     
+      CALL MESSAG (CTIT, int(1600,4), int(100,4))
       call disfin()
       
 !     print*,'plotted ',trim(titleN)
@@ -535,7 +540,7 @@
       type(Bessel), dimension(2),target :: Bess ! 1 para afuera; 2 para recubrimiento
       
       contains
-      subroutine makeBessels(imprimo)
+      subroutine makeBessels(minNS,imprimo)
       USE SPECFUN
       use vars_func_of_w, only : w_c !( velocidad, region)
       use datos, only : nmax,nfracs,Dns,radios,ui,z0
@@ -545,7 +550,7 @@
       use plotter
       implicit none
       logical :: imprimo
-      integer :: reg,c,r,imec,i,ns
+      integer :: reg,c,r,imec,i,ns,minNS
       complex*16 :: z!,H20,H21,H22
       real*8 :: v,vm
       complex*16, dimension(0:nmax) :: CBJ,CDJ,CBY,CDY
@@ -556,20 +561,21 @@
       nom(2) = "__Y"
       nom(3) = "_H1"
       nom(4) = "_H2"
-      
-      do reg=1,2  ! afuera 1 y adentro 2
-      do r=1,2!+nRes !a,b
+      minNS = 100000
+      do reg=1,2  ! afuera 1 (medio) y adentro 2 (lining)
+      do r=1,2 !a,b
 !     if (r .ge. 3) then
 !       if (Rw(r-2)%reg .ne. reg) cycle
 !     end if
       do c=1,2 !alfa y beta 
-      Z = w_c(c,reg) * radios(r) 
+      Z = w_c(c,reg) * radios(r)  !(alfa:beta,reg1:reg2)
       do i = 1,nfracs
       V = Dns * real(i-1,8) + real(nmax,8)
 !     print*,V,Z
       Bess(reg)%JYH1H2(1,i-1:(nmax*nfracs)+(i-1):nfracs)%r(r)%c(c) = z0
       call CJYVB(V,Z,VM,CBJ,CDJ,CBY,CDY)
       ns = int(vm)
+      minNS = min(minNS,ns)
       ! J
       Bess(reg)%JYH1H2(1,i-1:(ns*nfracs)+(i-1):nfracs)%r(r)%c(c) = CBJ(0:ns)
       ! Y
@@ -581,10 +587,14 @@
       end do ! i
       Bess(reg)%JYH1H2(1:4,-1)%r(r)%c(c) = - Bess(reg)%JYH1H2(1:4,1)%r(r)%c(c)
       
-!     do i = 0,nmax* nfracs
-!     print*,i,Bess(reg)%JYH1H2(3,i)%r(r)%c(c)
+!     print*,"z=",Z
+!     do i = 0,ns
+!     print*,i,",J=",Bess(reg)%JYH1H2(1,i)%r(r)%c(c), & 
+!              ",Y=",Bess(reg)%JYH1H2(2,i)%r(r)%c(c)
 !     end do ! i
-!     stop 199
+!     stop 588
+      
+      
       
 !     ! Hankel of the second kind 
 !     ! n = 0,1,2
@@ -990,7 +1000,7 @@
       use datos; use vars_func_of_w; use Hank
       use debug; use RES; use plotter; use fft
       implicit none
-      integer :: J,n,et,info,i,ii,ir
+      integer :: J,n,et,info,i,ii,ir,minNS
       real*8, pointer :: r,th
       integer, pointer :: reg
       complex*16, dimension(6,6) :: M
@@ -1030,7 +1040,6 @@
       do J=1,NFREC !*********************************************
       FREC=DFREC*real(J); if (J .eq. 1)  FREC = 0.5_8 * DFREC ! Hz
       OME=2.0*PI*FREC !rad/s
-!     COME = CMPLX(OME, OMEI,8)
 !     VEL(1,1:2) = cmplx(alf(1:2)*& 
 !                  (1.+1./pi/Qq*log(ome/2./pi)),-1./2./Qq,8)
 !     VEL(2,1:2) = cmplx(bet(1:2)*& 
@@ -1040,7 +1049,7 @@
       VEL(2,1:2) = cmplx(bet(1:2),(/0.,0./),8)
       cp(1:2) => VEL(1,1:2) ! dilatación
       cs(1:2) => VEL(2,1:2) ! corte
-      w_c(1:2,1:2) = cOME / VEL(1:2,1:2) 
+      w_c(1:2,1:2) = cOME / VEL(1:2,1:2) !(alfa:beta,reg1:reg2)
       beta(1:2) => w_c(2,1:2) !shear wave number
       alfa(1:2) => w_c(1,1:2) !compressional wave number
       p2(1:2) = (alfa(1:2))**2.0 !compressional wave number (square)
@@ -1050,8 +1059,8 @@
       muR = amu(1)/amu(2) !shear moduli ratio
       gammaP = z0! spacing variable  2.5D
       gammaS = z0! spacing variable
-      call makeBessels(.false.) ! n = -1,0,1,2,...,nmax+1 (imprimir)
-      do n=0,nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
+      call makeBessels(minNS,.false.) ! n = -1,0,1,2,...,vm (imprimir)
+      do n=0,3!minNS!nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
       M = z0; B = z0; iPIV = 6
       ! sigma_{rr}1 = sigma_{rr}2   @ r = b
       M(1,1) = - muR * e11(3,1,1,2,n)
@@ -1104,14 +1113,16 @@
       B(6,1) = z0
 
       call zgesv(6,1,M(1:6,1:6),6,IPIV,B(:,1),6,info)
+      
       if(info .ne. 0) then
         write(6,'(A,I0,a,I0)', ADVANCE = "NO") &
         "se corta la suma en ",n, "system info = ",info
+!       stop 1120
         exit
       else if (abs(B(1,1)) .lt. 0.00000001) then  !NaN
-       write(6,'(A,I0,a)', ADVANCE = "NO") &
-      "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
-       exit
+!      write(6,'(A,I0,a)', ADVANCE = "NO") &
+!     "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
+!      exit
       end if
 !     call showMNmatrixZ(6,1,B,"  A  ",6)
       !#< r elementos mecanicos !#>
@@ -1177,19 +1188,11 @@
 !      th => Rw(i)%th
        reg => Rw(i)%reg
        sig0 = amu(1) * beta(1)**2. !eq 3.15   para hacerlo factor de amplificación
-!       if (reg .eq. 1) then
           Rw(i)%s_rr(J) = Rw(i)%s_rr(J) * 2. *amu(reg) / r**2. 
           Rw(i)%s_tt(J) = Rw(i)%s_tt(J) * 2. *amu(reg) / r**2. !/ sig0
           Rw(i)%s_rt(J) = Rw(i)%s_rt(J) * 2. *amu(reg) / r**2. 
           Rw(i)%u_r(J) = Rw(i)%u_r(J) / r 
           Rw(i)%u_t(J) = Rw(i)%u_t(J) / r 
-!       else if (reg .eq. 2) then
-!         Rw(i)%s_rr_2(J) = Rw(i)%s_rr_2(J) * 2. *amu(2) / r**2. 
-!         Rw(i)%s_tt_2(J) = Rw(i)%s_tt_2(J) * 2. *amu(2) / r**2. / sig0
-!         Rw(i)%s_rt_2(J) = Rw(i)%s_rt_2(J) * 2. *amu(2) / r**2. 
-!         Rw(i)%u_r_2(J) = Rw(i)%u_r_2(J) / r 
-!         Rw(i)%u_t_2(J) = Rw(i)%u_t_2(J) / r 
-!       end if
       end do! i:nRes
 
 !       write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
@@ -1198,7 +1201,7 @@
         write(6,'(A,A)', ADVANCE = "NO") & 
         repeat("X",58-int((58.0/NFREC)*(NFREC+1-J))), &
         repeat("_",int((58.0/NFREC)*(NFREC+1-J)))
-        write(6,'(A)', ADVANCE = "NO") "]"
+        write(6,'(A,I0)', ADVANCE = "NO") "]",minNS
       abscisa(J) = dfrec * 2 * pi * J * radios(1) / cp(1)
       end do !J   
       ! plot curves
@@ -1286,7 +1289,7 @@
       logflag = 'logx     '      
 !     logflag = 'none     '
       call plotSpectrum(Uo(:),real(DFREC,4), size(Uo(:)),int(size(Uo(:))/2), & 
-            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+            titleN,xAx,yAx,logflag,CTIT,1200,800,real(DFREC*(NFREC+1),4))
 
       !snapshots 
       if (imprimirEspectros) &
@@ -1328,15 +1331,22 @@
         !u_z
         Rw(i)%S(:,5) = sin(Rw(i)%th) * Rw(i)%S(:,2) + &
                        cos(Rw(i)%th) * Rw(i)%S(:,3)
+      
+      
+      print*,Rw(i)%r,Rw(i)%th,abs(Rw(i)%S(NFREC,1))
+       
         
-          do ii = 1,5  !#< g     al tiempo       !#>
+      do ii = 1,5  !#< g     al tiempo       !#>
       Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
       if (imprimirEspectros) then
       write(titleN,'(a,a,I0,a)') 'f_',nom(ii),i,'.pdf'
+      
       write(xAx,'(a)') 'Hz[sec]'
       CALL chdir("outEspectros")
-      call plotXYcomp(Rw(i)%S(1:nfrec,ii),real(DFREC,4), & 
-                 nfrec,titleN,xAx,yAx,CTIT,1200,800,0.0)
+!     call plotXYcomp(Rw(i)%S(1:nfrec,ii),real(DFREC,4), & 
+!                nfrec,titleN,xAx,yAx,CTIT,1200,800,0.0)
+      call plotSpectrum(Rw(i)%S(:,ii),real(DFREC,4), NPTSTIME, nfrec, & 
+            titleN,xAx,yAx,logflag,CTIT,1200,800,real(DFREC*(NFREC+1),4))
       CALL chdir("..")
       end if
       
@@ -1351,10 +1361,11 @@
       CALL chdir("..")
         end do
       end do ! i:nRes
+      if (hacerSnapshots) then
       call system('mkdir outSnapshots')
       CALL chdir("outSnapshots")
       call cineteca
-      
+      end if
       end program tunelRecub
       function et(n)
       integer,intent(in) :: n
@@ -1371,8 +1382,9 @@
       complex*16 :: e11
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e11 = (n**2 + n - s2(reg) * radios(r)**2 / 2. + & 
       gammaP**2 * radios(r)**2) * Bess_n - alfa(reg)* radios(r) * Bess_n_1
       end function e11
@@ -1384,8 +1396,9 @@
       complex*16 :: e12
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e12 = n * (-(n+1)* Bess_n + beta(reg) * radios(r) * Bess_n_1)
       end function e12
       function e21(i,c,reg,r,n)
@@ -1396,8 +1409,9 @@
       complex*16 :: e21
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e21 = - (n**2 + n + s2(reg)*radios(r)**2 / 2. - p2(reg)*radios(r)**2) * &
              Bess_n + alfa(reg) * radios(r) * Bess_n_1
       end function e21
@@ -1409,8 +1423,9 @@
       complex*16 :: e22
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e22 = n * ((n+1)*Bess_n - beta(reg)*radios(r)*Bess_n_1)
       end function e22
       function e41(i,c,reg,r,n)
@@ -1421,8 +1436,9 @@
       complex*16 :: e41
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e41 = - n * (-(n+1) * Bess_n + alfa(reg)*radios(r)*Bess_n_1)
       end function e41
       function e42(i,c,reg,r,n)
@@ -1433,8 +1449,9 @@
       complex*16 :: e42
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e42 = - (n**2 + n - beta(reg)**2 * radios(r)**2 / 2.) * Bess_n + &
             beta(reg) * radios(r) * Bess_n_1
       end function e42
@@ -1446,8 +1463,9 @@
       complex*16 :: e71
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e71 = alfa(reg) * radios(r) * Bess_n_1 - n * Bess_n
       end function e71
       function e72(i,c,reg,r,n)
@@ -1456,7 +1474,8 @@
       complex*16 :: e72
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
       e72 = n * Bess_n
       end function e72
       function e81(i,c,reg,r,n)
@@ -1465,7 +1484,8 @@
       complex*16 :: e81
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
+!     c = 1 !alfa
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(1)
       e81 = - n * Bess_n
       end function e81
       function e82(i,c,reg,r,n)
@@ -1476,8 +1496,9 @@
       complex*16 :: e82
       integer :: i,c,reg,r,n
       complex*16, pointer :: Bess_n,Bess_n_1
-      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(c)
-      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(c)
+!     c = 2 !beta
+      Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
+      Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e82 = - (beta(reg) * radios(r) * Bess_n_1 & 
               - n * Bess_n)
       end function e82
@@ -1732,8 +1753,9 @@
       call disfin
       end do ! i=1,n_maxtime
  !     !  -framerate #   antes de -i para hacerlo más lento. Donde # es menor a 25 (default)
-      write(titleN,'(a)')'ffmpeg -i mecElem_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p 0_MecElemvideo.mp4'
+      write(titleN,'(a)')'ffmpeg -y -i mecElem_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p 0_MecElemvideo.mp4'
       print*,trim(titleN)
       call system(trim(titleN))
       end subroutine CINETECA
+
 
