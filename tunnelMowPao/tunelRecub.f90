@@ -12,14 +12,14 @@
       real, parameter :: Qq = 10000.0, Ts = 0.19, Tp = 0.06
       real*8, parameter :: DFREC = 0.66666!0.33
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
-      integer, parameter :: nmax = 500, nfracs = 1
+      integer, parameter :: nmax = 51, nfracs = 1
       integer, parameter :: frameInicial = 1, nframes = 168
       real*8, parameter :: Dns = 1.
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
-      logical, parameter :: imprimirEspectros = .true.
+      logical, parameter :: imprimirEspectros = .false.
       logical, parameter :: hacerSnapshots = .false.
       real :: ventana
       real, parameter :: MeshVecLen = 1.0, giro = 0!-PI/2
@@ -137,6 +137,45 @@
         write(outpf,'(A)',advance='yes')''
       end do
       end subroutine
+      !
+      subroutine scripToMatlabMNmatrixZ(m,n,MAT,name,outpf)
+      integer, intent(in) :: m,n, outpf
+      complex*16, dimension(m,n), intent(in) :: MAT
+      integer :: i,j 
+      character(LEN=32), intent(in) :: name
+      
+      write(outpf,'(A,A)') trim(name), " = ["
+      do i = 1,m
+        write(outpf,'(a)',advance='no') "["
+        do j = 1,n
+          write(outpf,'(a,EN26.9,a)',advance='no') "(",REAL(MAT(i,j)),")+("
+          write(outpf,'(EN26.9,a,2X)',advance='no') AIMAG(MAT(i,j)),")*1i"
+        end do
+        write(outpf,'(A)',advance='yes')'];'
+      end do
+      write(outpf,'(a)') "];"
+      
+      end subroutine scripToMatlabMNmatrixZ
+      
+      
+      subroutine scripToMatlabMNmatrixR(m,n,MAT,name,outpf)
+      integer, intent(in) :: m,n, outpf
+      real*8, dimension(m,n), intent(in) :: MAT
+      integer :: i,j 
+      character(LEN=32), intent(in) :: name
+      
+      write(outpf,'(A,A)') trim(name), " = ["
+      do i = 1,m
+        write(outpf,'(a)',advance='no') "["
+        do j = 1,n
+          write(outpf,'(EN26.9,2x)',advance='no') REAL(MAT(i,j))
+        end do
+        write(outpf,'(A)',advance='yes')'];'
+      end do
+      write(outpf,'(a)') "];"
+      
+      end subroutine scripToMatlabMNmatrixR
+      
       end module debug
       module plotter 
       contains
@@ -542,6 +581,7 @@
       contains
       subroutine makeBessels(minNS,imprimo)
       USE SPECFUN
+      use Friedrich
       use vars_func_of_w, only : w_c !( velocidad, region)
       use datos, only : nmax,nfracs,Dns,radios,ui,z0
       use RES, only : nRes,Rw
@@ -551,9 +591,11 @@
       implicit none
       logical :: imprimo
       integer :: reg,c,r,imec,i,ns,minNS
-      complex*16 :: z!,H20,H21,H22
+      complex*16 :: z,H0,H1!,H20,H21,H22
+      complex :: z8
       real*8 :: v,vm
       complex*16, dimension(0:nmax) :: CBJ,CDJ,CBY,CDY
+      complex, dimension(0:nmax) :: CBJ8,CDJ8,CBY8,CDY8
       character(Len=3), dimension(4) :: nom
       character(len=100) :: tx
       real*4,dimension(nmax) :: x, pt_RES 
@@ -571,26 +613,37 @@
       Z = w_c(c,reg) * radios(r)  !(alfa:beta,reg1:reg2)
       do i = 1,nfracs
       V = Dns * real(i-1,8) + real(nmax,8)
-!     print*,V,Z
+!     print*,Z
       Bess(reg)%JYH1H2(1,i-1:(nmax*nfracs)+(i-1):nfracs)%r(r)%c(c) = z0
       call CJYVB(V,Z,VM,CBJ,CDJ,CBY,CDY)
       ns = int(vm)
       minNS = min(minNS,ns)
+!     z8 = cmplx(real(z),aimag(z),4)
+!     print*,z8
+!     call BESJC(z8,nmax,CBJ8)
+!     call BESYC(z8,nmax,CBY8)
+!     call HANKELS(Z,H0,H1)
       ! J
       Bess(reg)%JYH1H2(1,i-1:(ns*nfracs)+(i-1):nfracs)%r(r)%c(c) = CBJ(0:ns)
+!     Bess(reg)%JYH1H2(1,0:nmax)%r(r)%c(c) = CBJ8(0:nmax)
       ! Y
       Bess(reg)%JYH1H2(2,i-1:(ns*nfracs)+(i-1):nfracs)%r(r)%c(c) = CBY(0:ns)
+!     Bess(reg)%JYH1H2(2,0:nmax)%r(r)%c(c) = CBY8(0:nmax)
       ! H1
       Bess(reg)%JYH1H2(3,i-1:(ns*nfracs)+(i-1):nfracs)%r(r)%c(c) = CBJ(0:ns) + UI*CBY(0:ns)
+!     Bess(reg)%JYH1H2(3,0:nmax)%r(r)%c(c) = CBJ8(0:nmax) + UI*CBY8(0:nmax)
       ! H2
       Bess(reg)%JYH1H2(4,i-1:(ns*nfracs)+(i-1):nfracs)%r(r)%c(c) = CBJ(0:ns) - UI*CBY(0:ns)
+!     Bess(reg)%JYH1H2(4,0:nmax)%r(r)%c(c) = CBJ8(0:nmax) - UI*CBY8(0:nmax)
       end do ! i
       Bess(reg)%JYH1H2(1:4,-1)%r(r)%c(c) = - Bess(reg)%JYH1H2(1:4,1)%r(r)%c(c)
-      
+!     minNS = nmax
 !     print*,"z=",Z
-!     do i = 0,ns
+!     do i = 0,nmax!ns
 !     print*,i,",J=",Bess(reg)%JYH1H2(1,i)%r(r)%c(c), & 
 !              ",Y=",Bess(reg)%JYH1H2(2,i)%r(r)%c(c)
+!     print*,i,",H1=",Bess(reg)%JYH1H2(4,i)%r(r)%c(c), & 
+!              ",H1=",H1
 !     end do ! i
 !     stop 588
       
@@ -636,6 +689,7 @@
 !     call BESYC(z,nmax,Bess(reg)%JYH1H2(2,0:nmax+1)%r(r)%c(c))
 !     Bess(reg)%JYH1H2(2,-1)%r(r)%c(c) = - Bess(reg)%JYH1H2(2,1)%r(r)%c(c) 
 !     
+      
       if (imprimo .eqv. .true.) then
       do imec = 1,4
         write(tx,'(a,a,i0,a,i0,a,i0,a)') nom(imec),"_",reg,"_",r,"_",c,".pdf"
@@ -994,6 +1048,244 @@
         RETURN
         END
         end module specfun
+      module Friedrich
+      contains
+      
+      SUBROUTINE BESJC(V,NMAX,U)
+      COMPLEX Z,R,S,SUM,U(51),UI(51),RR(51),LAMDA,I,C,V
+      INTEGER D
+      REAL L
+      LOGICAL LL
+!
+!     JN(V), N=0,1,...,NMAX
+!
+!     V=ARGUMENTO COMPLEJO
+!     NMAX=ORDEN MAXIMO
+!     D=CIFRAS SIGNIFICATIVAS REQUERIDAS
+!     U(N)=FUNCIONES DE BESSEL DE PRIMERA ESPECIE
+!
+      D=10
+!
+      EPS=0.5*10.0**(-D)
+      NMA=NMAX+1
+      X=REAL(V)
+      Y=AIMAG(V)
+      I=(0.0,1.0)
+!      IF(((X.LE.0.0).AND.(Y.EQ.0.0)).OR.(NMAX.LT.0).OR.(NMAX.GT.100))
+!     .GO TO 200
+      DO 10 K=1,NMA
+   10 UI(K)=(0.0,0.0)
+
+      IF((X.LE.0.0).AND.(Y.EQ.0.0))THEN
+	  U(1)=(1.0,0.0)
+      DO 11 K=2,NMA
+   11 U(K)=(0.0,0.0)
+
+	RETURN
+	END IF
+      LL=(Y.GE.0.0)
+      Y=ABS(Y)
+      Z=CMPLX(X,Y)
+      R0=CABS(Z)
+      R02=R0*R0
+      SUM=CEXP(-I*Z)
+      D1=2.3026*D+1.3863
+      KK=1
+      S1=0.0
+      IF(NMAX.EQ.0)GO TO 50
+      X=0.5*D1/NMAX
+   20 IF(X.GT.10.0)GO TO 30
+      P=X*5.7941D-5-1.76148D-3
+      P=X*P+2.08645D-2
+      P=X*P-1.29013D-1
+      P=X*P+8.57770D-1
+      S1=X*P+1.01250 
+      GO TO 40
+   30 Q=ALOG(X)-0.775
+      P=(0.775-ALOG(Q))/(1.0+Q)
+      P=1.0/(1.0+P)
+      S1=X*P/Q
+   40 IF(KK-2)50,60,60
+   50 R1=S1*NMAX
+      IF(Y-D1)52,51,51
+   51 S1=1.3591*R0
+      GO TO 61
+   52 X=0.73576*(D1-Y)/R0
+      KK=KK+1
+      GO TO 20
+   60 S1=1.3591*R0*S1
+   61 IF(R1-S1)62,62,63
+   62 NU=1.0+S1
+      GO TO 70
+   63 NU=1.0+R1
+   70 N=0
+      L=1.0
+      C=(1.0,0.0)
+   80 N=N+1
+      L=N*L/(N+1)
+      C=-C*I
+      IF(N.LT.NU)GO TO 80
+      R=(0.0,0.0)
+      S=(0.0,0.0)
+   81 R=1.0/(2.0*N/Z-R)
+      L=(N+1)*L/N
+      LAMDA=2.0*N*L*C
+      C=C*I
+      S=R*(LAMDA+S)
+      IF(N.LE.NMAX)RR(N)=R
+      N=N-1
+      IF(N.GE.1)GO TO 81
+      U(1)=SUM/(1.0+S)
+      IF(NMAX.EQ.0)GO TO 90
+      DO 82 K=1,NMAX
+   82 U(K+1)=U(K)*RR(K)
+   90 IF(LL)GO TO 92
+      DO 91 K=1,NMA
+   91 U(K)=CONJG(U(K))
+   92 CONTINUE
+      DO 100 K=1,NMA
+      IF(CABS(U(K)-UI(K))/CABS(U(K)).GT.EPS)GO TO 101
+  100 CONTINUE
+      RETURN
+  101 NU=NU+5
+      DO 102 K=1,NMA
+  102 UI(K)=U(K)
+      GO TO 70
+  200 WRITE(6,*)"ORDEN O ARGUMENTO INVALIDO"
+      RETURN
+      END
+      !
+      SUBROUTINE BESYC(Z,NMAX,BY)
+      COMPLEX Z,Z1,Z2,Z3,Z4,Z5,Z6,Z8,Z10,Z12,F0,F1,T0,T1,Y0,Y1,BY(51)
+!
+!     YN(Z), N=0,1,...,NMAX
+!
+!     CALCULO DE Y0 Y Y1
+!
+      ZM=CABS(Z)
+      IF(ZM.GT. 3.0)GOTO 30
+      Z2=(Z/3.0)**2
+      Z4=Z2*Z2
+      Z6=Z4*Z2
+      Z8=Z6*Z2
+      Z10=Z8*Z2
+      Z12=Z10*Z2
+      F0=1.0-2.2499997*Z2+1.2656208*Z4-0.3163866*Z6+0.0444479*Z8 &
+        -0.0039444*Z10+0.0002100*Z12
+      Y0=0.636619772*CLOG(Z/2.0)*F0+0.36746691+0.60559366*Z2 &
+        -0.74350384*Z4+0.25300117*Z6-0.04261214*Z8+0.00427916*Z10 &
+        -0.00024846*Z12
+      IF(NMAX.EQ.0)GO TO 10
+      F1=(0.5-0.56249985*Z2+0.21093573*Z4-0.03954289*Z6+0.00443319*Z8 &
+        -0.00031761*Z10+0.00001109*Z12)*Z
+      Y1=(0.636619772*Z*CLOG(Z/2.0)*F1-0.6366198+0.2212091*Z2 &
+        +2.1682709*Z4-1.3164827*Z6+0.3123951*Z8-0.0400976*Z10 &
+        +0.0027873*Z12)/Z
+      GOTO 10
+   30 Z1=3.0/Z
+      Z2=Z1*Z1
+      Z3=Z2*Z1
+      Z4=Z3*Z1
+      Z5=Z4*Z1
+      Z6=Z5*Z1
+      F0=0.79788456-0.00000077*Z1-0.00552740*Z2-0.00009512*Z3 &
+        +0.00137237*Z4-0.00072805*Z5+0.00014476*Z6
+      T0=Z-0.78539816-0.04166397*Z1-0.00003954*Z2+0.00262573*Z3 &
+        -0.00054125*Z4-0.00029333*Z5+0.00013558*Z6
+      Y0=F0*CSIN(T0)/CSQRT(Z)
+      IF(NMAX.EQ.0)GO TO 10
+      F1=0.79788456+0.00000156*Z1+0.01659667*Z2+0.00017105*Z3 &
+        -0.00249511*Z4+0.00113653*Z5-0.00020033*Z6
+      T1=Z-2.35619449+0.12499612*Z1+0.00005650*Z2-0.00637879*Z3 &
+        +0.00074348*Z4+0.00079824*Z5-0.00029166*Z6
+      Y1=F1*CSIN(T1)/CSQRT(Z)
+   10 CONTINUE
+      BY(1)=Y0
+      IF(NMAX.EQ.0)RETURN
+      BY(2)=Y1
+!
+!     CALCULO DE Y2,Y3,...,YNMAX
+!
+      DO 20 N=2,NMAX+1
+      BY(N+1)=2.0*(N-1)/Z*BY(N)-BY(N-1)
+   20 CONTINUE
+      RETURN
+      END
+      !
+      
+      
+      SUBROUTINE HANKELS(Z,H0,H1)
+!#define comparar
+!#ifdef comparar
+!     use specfun
+!     use glovars,only:UI
+!     integer :: NM,K
+!     complex*16, dimension(0:10) :: CBJ,CDJ,CBY,CDY
+!#endif
+!     Z = COMPLEX ARGUMENT
+!
+!     COMPUTE SECOND KIND HANKEL FUNCTIONS H0 AND H1
+!
+      COMPLEX*16 :: Z,H0,H1,C,A,E,E2,ZH,P
+      real*8 :: X,Y,R,PHI,J,AR
+      X=REAL(Z)
+      Y=AIMAG(Z)
+      R=SQRT(X*X+Y*Y)
+      PHI=ATAN2(Y,X)
+      IF(R.LE.10.0)GO TO 207
+      J=2.0*R
+      C=(0.0,0.1250)/Z
+      K=2
+      P=C*C
+      A=4.5*P
+      P=7.5*P
+      H0=1.0+C+A
+      H1=1.0-3.0*C-P
+107   I=4*K
+      K=K+1
+      DI=I
+      DK=K
+      A=A*C*(DI+1.0/DK)
+      P=P*C*(DI-3.0/DK)
+      H0=H0+A
+      H1=H1-P
+      AR=ABS(REAL(P))+ABS(AIMAG(P))
+      IF(AR.GT.1.E-16.AND.K.LT.J)GO TO 107
+      AR=0.785398163397448-X-PHI/2.0
+      E=0.0
+      IF(Y.GT.-160.0) E=0.7978845608028650/SQRT(R)*EXP(Y)*CMPLX(COS(AR),SIN(AR),8)
+!     IF(X.EQ.0.0)E=CMPLX(0.0,AIMAG(E))
+      IF(abs(X) .lt. 0.00001)E=CMPLX(0.0,AIMAG(E),8)
+      H0=H0*E
+      H1=H1*E*(0.0,1.0)
+      GO TO 237
+207   ZH=Z/2.0
+      C=-ZH*ZH
+      E=CMPLX(0.0,0.3183098861837910,8)
+      E2=E*2.0
+      A=1.0-E2*(0.5772156649015330+LOG(R/2.0))+PHI*0.636619772367582
+      P=1.0
+      K=1
+      H0=A
+      H1=A+E*(1.0-1.0/C)
+257   A=A+E2/K
+      P=P*C
+      H0=H0+A*P
+      K=K+1
+      P=P/(K*K)
+      H1=H1+(A*K+E)*P
+      IF(ABS(REAL(P))+ABS(AIMAG(P)).GT.1.E-16) GO TO 257
+      H1=H1*ZH
+!     IF(X.NE.0.0)GO TO 23
+      IF(abs(X) .gt. 0.00001) GO TO 237
+      H0=CMPLX(0.0,AIMAG(H0),8)
+      H1=CMPLX(REAL(H1),0.0,8)
+
+237   K=K     
+      RETURN
+      END SUBROUTINE HANKELS
+      
+      end module Friedrich
       PROGRAM tunelRecub
 ! Solución analítica de la difración de una onda P incidente 
 ! en una cavidad cilíndrica circular con recubrimiento
@@ -1012,7 +1304,9 @@
       real*8,dimension(2) :: BEALF
       character(LEN=4)          :: nom(5)
       character(LEN=9)          :: logflag
-      character(LEN=100)        :: titleN,xAx,yAx,CTIT
+      character(LEN=100)        :: titleN,xAx,yAx,CTIT 
+      CHARACTER(len=32) :: arg
+      real*8,dimension(200,2) :: OUTVAR
       
 !     complex*16,dimension(:,:),allocatable :: AF
 !     complex*16,dimension(:,:),allocatable :: Xbem
@@ -1027,6 +1321,7 @@
       eta = radios(2)/radios(1) !b/a
       BEALF(1:2)=SQRT((0.5-NU(1:2))/(1.0-NU(1:2))) !IF POISSON RATIO IS GIVEN
       alf(1:2) = bet(1:2)/BEALF(1:2)
+      outvar = z0
       print*,"alf", alf(1),alf(2)
       print*,"bet", bet(1),bet(2)
       print*,"mu1=",(RHO(1) * bet(1)**2.)
@@ -1075,7 +1370,7 @@
       gammaP = z0! spacing variable  2.5D
       gammaS = z0! spacing variable
       call makeBessels(minNS,.false.) ! n = -1,0,1,2,...,vm (imprimir)
-      do n=0,minNS!nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
+      do n=0,nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
       M(1:6,1:6) = z0; B(1:6,1) = z0; iPIV = 6
       ! sigma_{rr}1 = sigma_{rr}2   @ r = b
       M(1,1) = - muR * e11(3,1,1,2,n)
@@ -1231,7 +1526,7 @@
       end do !J   
       ! plot curves
       ! end program tunelRecub
-      
+      print*,"printing"
       
       
       
@@ -1275,6 +1570,7 @@
       call system('mkdir outEspectrosOriginales')
       CALL chdir("outEspectrosOriginales")
       do i = 1,nRes
+      write(6,'(A)', ADVANCE = "NO") ","
         reg => Rw(i)%reg 
 !         pt_RES = Rw(i)%s_rr(1:nplot)
 !         call plot(i,1,reg, abscisa ,pt_RES,nplot)
@@ -1307,7 +1603,6 @@
 !     call fork(size(Uo),Uo,+1) !backward
 !     Uo = Uo / sqrt(real(size(Uo))) / dt ! factor de escala
       
-      
       write(titleN,'(a)') 'WaveAmplitude-ricker_frec.pdf'
       xAx = 'frec[Hz] '
       write(yAx,'(a)') 'amplitude'      
@@ -1315,7 +1610,7 @@
 !     logflag = 'none     '
       call plotSpectrum(Uo(:),real(DFREC,4), size(Uo(:)),int(size(Uo(:))/2), & 
             titleN,xAx,yAx,logflag,CTIT,1200,800,real(DFREC*(NFREC+1),4))
-
+      
       !snapshots 
       if (imprimirEspectros) &
       call system('mkdir outEspectros')
@@ -1359,7 +1654,8 @@
       
       
       print*,Rw(i)%r,Rw(i)%th,abs(Rw(i)%S(NFREC,1))
-       
+      outvar(i,1) = Rw(i)%th
+      outvar(i,2) = abs(Rw(i)%S(NFREC,1))
         
       do ii = 1,5  !#< g     al tiempo       !#>
       Rw(i)%S(:,ii) = Rw(i)%S(:,ii) * Uo
@@ -1386,6 +1682,12 @@
       CALL chdir("..")
         end do
       end do ! i:nRes
+      
+      open(169,FILE= 'outvar.m',action="write",status="replace")
+      write(arg,'(a)') "out"
+      call scripToMatlabMNmatrixR(nREs,2,outvar(1:nRes,1:2),arg,169)
+      close(169)
+      
       if (hacerSnapshots) then
       call system('mkdir outSnapshots')
       CALL chdir("outSnapshots")
@@ -1782,4 +2084,5 @@
       print*,trim(titleN)
       call system(trim(titleN))
       end subroutine CINETECA
+
 

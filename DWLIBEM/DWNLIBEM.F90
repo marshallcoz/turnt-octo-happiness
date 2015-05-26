@@ -3887,24 +3887,24 @@
          kz = UR*real(come/c * cos(Po(iFte)%gamma))
          la = UR*real(LAMBDA(N+1))
          am = UR*real(AMU(N+1))
-        end if                                         !
+        end if                                                              !
         FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
-              * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))               !
+              * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))          !
         FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
-              * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))               !
+              * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))          !
         szz = UI * ( &                                                      !
-                    ( FF%W * kz * (la + 2.0* am)) &            !
-                  - ( FF%U * kx * la))                              !
-        szx = UI * am * ( kz * FF%U - kx * FF%W )                      !
+                    ( FF%W * kz * (la + 2.0* am)) &                         !
+                  - ( FF%U * kx * la))                                      !
+        szx = UI * am * ( kz * FF%U - kx * FF%W )                           !
         sxx = UI * ( &                                                      !
-                  - ( FF%U * kx * (la + 2.0*am)) &             !
-                  + ( FF%W * kz * la)) 
+                  - ( FF%U * kx * (la + 2.0*am)) &                          !
+                  + ( FF%W * kz * la))                                      !
         nx(1) = p_X%normal%x; nx(2) = p_X%normal%z                          !
         FF%Tx = sxx * nx(1) + szx * nx(2)                                   !
         FF%Tz = szx * nx(1) + szz * nx(2)                                   !
-        FF%sxx = sxx
-        FF%szx = szx
-        FF%szz = szz
+        FF%sxx = sxx                                                        !
+        FF%szx = szx                                                        !
+        FF%szz = szz                                                        !
         return                                                              !
       end if! fin onda plana -´-´-´-´-´-´-´-´-´-´-´-´-´-´--´-´ fin onda plana          
       if (XinoEstaEnInterfaz .eqv. .true.) then 
@@ -5705,6 +5705,7 @@
          n_maxtime = int(maxtime/dt)
          if(maxtime .lt. dt) n_maxtime = 2*nfrec
          if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
+         S(n_maxtime+1: NPTSTIME) = z0;
          
       ! guardar para hacer sabana o plotear
       if (allpoints(iP)%isSabana) then
@@ -7095,3 +7096,4 @@
         end if
         end if        
       end subroutine plot_at_eta
+
