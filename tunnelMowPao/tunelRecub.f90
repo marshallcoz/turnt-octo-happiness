@@ -1013,6 +1013,14 @@
       character(LEN=4)          :: nom(5)
       character(LEN=9)          :: logflag
       character(LEN=100)        :: titleN,xAx,yAx,CTIT
+      
+!     complex*16,dimension(:,:),allocatable :: AF
+!     complex*16,dimension(:,:),allocatable :: Xbem
+!     complex*16,dimension(:),allocatable :: WORKbem
+!     real*8,dimension(:),allocatable :: Rbem,Cbem,RWORK
+!     real*8 :: RCOND,FERR,BERR
+!     character*1 :: EQUED
+      
       call set_radios !a,b
       call setup_resu !puntos receptores
       Dt = (1.0) / (real(NPTSTIME) * DFREC)
@@ -1037,6 +1045,13 @@
       write(6,'(A)', ADVANCE = "NO") " "
       print*,""
       write(6,'(A)', ADVANCE = "NO") repeat(" ",60)
+      
+!     allocate(AF(6,6))
+!     allocate(Xbem(6,1))
+!     allocate(Rbem(6))
+!     allocate(Cbem(6))
+!     allocate(WORKbem(2*6))
+!     allocate(RWORK(2*6))
       do J=1,NFREC !*********************************************
       FREC=DFREC*real(J); if (J .eq. 1)  FREC = 0.5_8 * DFREC ! Hz
       OME=2.0*PI*FREC !rad/s
@@ -1060,8 +1075,8 @@
       gammaP = z0! spacing variable  2.5D
       gammaS = z0! spacing variable
       call makeBessels(minNS,.false.) ! n = -1,0,1,2,...,vm (imprimir)
-      do n=0,3!minNS!nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
-      M = z0; B = z0; iPIV = 6
+      do n=0,minNS!nmax*nfracs ! ensamblar matriz 4.26 y terminos independientes
+      M(1:6,1:6) = z0; B(1:6,1) = z0; iPIV = 6
       ! sigma_{rr}1 = sigma_{rr}2   @ r = b
       M(1,1) = - muR * e11(3,1,1,2,n)
       M(1,2) = - muR * e12(3,2,1,2,n)
@@ -1112,19 +1127,29 @@
       M(6,6) = e42(4,2,2,1,n)
       B(6,1) = z0
 
+!#< r  solve system       . . !#>
+      ! driver simple
       call zgesv(6,1,M(1:6,1:6),6,IPIV,B(:,1),6,info)
+      
+      ! driver experto:
+!     call ZGESVX('E','N',6,1,M,6,AF,6,IPIV,EQUED,Rbem, &
+!     Cbem,B,6,Xbem,6,RCOND,FERR,BERR,WORKbem,RWORK,INFO)
       
       if(info .ne. 0) then
         write(6,'(A,I0,a,I0)', ADVANCE = "NO") &
-        "se corta la suma en ",n, "system info = ",info
+        "/",n, " info =",info
+        if (info .gt. 6) write(6,'(A)', ADVANCE = "NO") " working precision"
+        if (info .le. 6) write(6,'(A)', ADVANCE = "NO") "factor U is exactly singular"
 !       stop 1120
         exit
-      else if (abs(B(1,1)) .lt. 0.00000001) then  !NaN
+!     else if (abs(B(1,1)) .lt. 0.00000001) then  !NaN
 !      write(6,'(A,I0,a)', ADVANCE = "NO") &
 !     "trim at",n, " por chiquito abs(B(1)) < 10^{-8}"
 !      exit
+      else
+        write(6,'(A)', ADVANCE = "NO") "."
       end if
-!     call showMNmatrixZ(6,1,B,"  A  ",6)
+!     call showMNmatrixZ(6,1,B,"  A  ",6)     
       !#< r elementos mecanicos !#>
       do i = 1,nRes
 !      r => Rw(i)%r
@@ -1757,5 +1782,4 @@
       print*,trim(titleN)
       call system(trim(titleN))
       end subroutine CINETECA
-
 
