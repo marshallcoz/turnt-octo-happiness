@@ -1,7 +1,7 @@
 1	verbose [int]
-F	make a videos [logical]
+T	make a videos [logical]
 F       vivaChurubusco [logical]
-F	Solve IBEM boundary [logical]
+T	Solve IBEM boundary [logical]
 F	The inclusion is the layered media, the rest is homogeneous.
 F	Plot FK de medio sin topografia [logical]
 F       Plot FKCK

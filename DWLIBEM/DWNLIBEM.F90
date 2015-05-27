@@ -71,6 +71,8 @@
       real*8,dimension(:),allocatable :: Rbem,Cbem,RWORK
       real*8 :: RCOND,FERR,BERR
       character*1 :: EQUED
+      complex*16,dimension(200,5) :: OUTVAR
+      outvar = 0
       !#< blue
       call system('clear')
       CALL get_command_argument(1, arg)
@@ -857,6 +859,7 @@
            if (.not. allpoints(iP_x)%isSabana) then
             print*,"ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"] ", &
             "n = [",allpoints(iP_x)%normal%x,",",allpoints(iP_x)%normal%z,"]"
+            
             print*,"reg",allpoints(iP_x)%region," layer",allpoints(iP_x)%layer
             if (allpoints(iP_x)% guardarMovieSiblings) then
             print*,"   W=",allpoints(iP_x)%Wmov(J,1,1:npixX,currentiFte)
@@ -870,11 +873,32 @@
             print*,"   szx=",allpoints(iP_x)%resp(J,currentiFte)%szx
             print*,"   szz=",allpoints(iP_x)%resp(J,currentiFte)%szz
              
+            ! a polares locales y guardar:
+            allpoints(iP_x)%sinT = (980 - allpoints(iP_x)%center%z)/5.5
+            allpoints(iP_x)%cosT = (10 - allpoints(iP_x)%center%x)/5.5
+            
+            outvar(iP_x,1) = UR*10. - allpoints(iP_x)%center%x
+            outvar(iP_x,2) = UR*980. - allpoints(iP_x)%center%z
+            
+            outvar(iP_x,3) = allpoints(iP_x)%resp(J,currentiFte)%sxx
+            outvar(iP_x,4) = allpoints(iP_x)%resp(J,currentiFte)%szx
+            outvar(iP_x,5) = allpoints(iP_x)%resp(J,currentiFte)%szz
+            
+!           outvar(iP_x,3) = abs( &
+!            allpoints(iP_x)%sinT **2 * allpoints(iP_x)%resp(J,currentiFte)%sxx + &
+!            allpoints(iP_x)%cosT **2 * allpoints(iP_x)%resp(J,currentiFte)%szz - &
+!            2*allpoints(iP_x)%sinT*allpoints(iP_x)%cosT*allpoints(iP_x)%resp(J,currentiFte)%szx &
+!            ) !stt
             end if
            end if
           end do !iP_x
         end if!
-
+      
+      open(169,FILE= 'outvar.m',action="write",status="replace")
+      write(arg,'(a)') "out"
+      call scripToMatlabMNmatrixZ(nPts-1,5,outvar(2:nPts,1:5),arg,169)
+      close(169)
+      
       ! sabana en frecuencia eta
       if (PrintEtas .or. onlythisJ) then 
         call chdir(trim(adjustl(rutaOut)))

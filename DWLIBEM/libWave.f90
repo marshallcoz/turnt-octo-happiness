@@ -1440,6 +1440,24 @@
       
       end subroutine scripToMatlabMNmatrixZ
       
+      subroutine scripToMatlabMNmatrixR(m,n,MAT,name,outpf)
+      integer, intent(in) :: m,n, outpf
+      real*8, dimension(m,n), intent(in) :: MAT
+      integer :: i,j 
+      character(LEN=32), intent(in) :: name
+      
+      write(outpf,'(A,A)') trim(name), " = ["
+      do i = 1,m
+        write(outpf,'(a)',advance='no') "["
+        do j = 1,n
+          write(outpf,'(EN26.9,2x)',advance='no') REAL(MAT(i,j))
+        end do
+        write(outpf,'(A)',advance='yes')'];'
+      end do
+      write(outpf,'(a)') "];"
+      
+      end subroutine scripToMatlabMNmatrixR
+      
       subroutine showMNmatrixZabs(m,n,MAT,name,outpf)
       integer, intent(in) :: m,n,outpf
       complex*16, dimension(m,n), intent(in) :: MAT
@@ -2979,4 +2997,5 @@
       call disfin()
       end subroutine drawPHI
       end module ploteo10pesos
+
 

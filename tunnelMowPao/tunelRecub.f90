@@ -1,16 +1,17 @@
       module datos
       save
-!     real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
-!     real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
-!     real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
-      real*8, dimension(2), parameter :: rho = (/2700.0, 7850.0/)
-      real*8, dimension(2), parameter :: nu = (/0.25, 0.3/)
-      real*8, dimension(2), parameter :: bet = (/3333.333, 3397.23/) !1 medio, 2 liner
+      real*8, dimension(2), parameter :: rho = (/2.0, 2.0/)
+      real*8, dimension(2), parameter :: nu = (/0.333, 0.333/)
+      real*8, dimension(2), parameter :: bet = (/500.0, 750.0/) !1 medio, 2 liner
+!     real*8, dimension(2), parameter :: rho = (/2700.0, 7850.0/)
+!     real*8, dimension(2), parameter :: nu = (/0.25, 0.3/)
+!     real*8, dimension(2), parameter :: bet = (/3333.333, 3397.23/) !1 medio, 2 liner
       real*8, dimension(2) :: alf
       integer,parameter :: nRes = 120
       real*8, dimension(2) :: radios ! a, b 
       real, parameter :: Qq = 10000.0, Ts = 0.19, Tp = 0.06
-      real*8, parameter :: DFREC = 0.66666!0.33
+      real*8, parameter :: DFREC = 0.33
+!     real*8, parameter :: DFREC = 0.666666
       integer, parameter :: NFREC = 150, nplot = 150, NPTSTIME = 2048
       integer, parameter :: nmax = 51, nfracs = 1
       integer, parameter :: frameInicial = 1, nframes = 168
@@ -20,15 +21,15 @@
                                Z0 = cmplx(0.0d0,0.0d0,8)
       real*8, parameter :: PI = real(4.0d0*ATAN(1.0d0),8)
       logical, parameter :: imprimirEspectros = .false.
-      logical, parameter :: hacerSnapshots = .false.
+      logical, parameter :: hacerSnapshots = .true.
       real :: ventana
-      real, parameter :: MeshVecLen = 1.0, giro = 0!-PI/2
+      real, parameter :: MeshVecLen = 1.0, giro = -PI/2
       contains
       subroutine set_radios
-!     radios(1) = 5.00_8 ! a   : in the liner
-!     radios(2) = 5.60_8 ! b   : in the medium
-      radios(1) = 5.45_8 ! a   : in the liner
-      radios(2) = 5.50_8 ! b   : in the medium
+      radios(1) = 5.00_8 ! a   : in the liner
+      radios(2) = 5.60_8 ! b   : in the medium
+!     radios(1) = 5.45_8 ! a   : in the liner
+!     radios(2) = 5.50_8 ! b   : in the medium
       ventana = 6.5
       end subroutine set_radios
       end module datos
@@ -642,8 +643,6 @@
 !     do i = 0,nmax!ns
 !     print*,i,",J=",Bess(reg)%JYH1H2(1,i)%r(r)%c(c), & 
 !              ",Y=",Bess(reg)%JYH1H2(2,i)%r(r)%c(c)
-!     print*,i,",H1=",Bess(reg)%JYH1H2(4,i)%r(r)%c(c), & 
-!              ",H1=",H1
 !     end do ! i
 !     stop 588
       
@@ -1324,6 +1323,7 @@
       outvar = z0
       print*,"alf", alf(1),alf(2)
       print*,"bet", bet(1),bet(2)
+      print*,"rho", rho(1),rho(2)
       print*,"mu1=",(RHO(1) * bet(1)**2.)
       print*,"mu2=",(RHO(2) * bet(2)**2.)
       print*,"muR=",(RHO(1) * bet(1)**2.)/(RHO(2) * bet(2)**2.)
@@ -1424,7 +1424,7 @@
 
 !#< r  solve system       . . !#>
       ! driver simple
-      call zgesv(6,1,M(1:6,1:6),6,IPIV,B(:,1),6,info)
+      call zgesv(6,1,M(1:6,1:6),6,IPIV,B(1:6,1),6,info)
       
       ! driver experto:
 !     call ZGESVX('E','N',6,1,M,6,AF,6,IPIV,EQUED,Rbem, &
@@ -1741,6 +1741,8 @@
       Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(1)
       e21 = - (n**2 + n + s2(reg)*radios(r)**2 / 2. - p2(reg)*radios(r)**2) * &
              Bess_n + alfa(reg) * radios(r) * Bess_n_1
+      ! Xi (2014)
+!     e21 = n * (-(n+1)* Bess_n + alfa(reg) * radios(r) * Bess_n_1)
       end function e21
       function e22(i,c,reg,r,n)
       use vars_func_of_w, only : beta
@@ -1754,6 +1756,9 @@
       Bess_n => Bess(reg)%JYH1H2(i,n)%r(r)%c(2)
       Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e22 = n * ((n+1)*Bess_n - beta(reg)*radios(r)*Bess_n_1)
+      ! xi 2014
+!     e22 = - (n**2 + n - beta(reg)**2 * radios(r)**2 / 2.) * &
+!            Bess_n - beta(reg) * radios(r) * Bess_n_1
       end function e22
       function e41(i,c,reg,r,n)
       use vars_func_of_w, only : alfa
@@ -1781,6 +1786,11 @@
       Bess_n_1 => Bess(reg)%JYH1H2(i,n-1)%r(r)%c(2)
       e42 = - (n**2 + n - beta(reg)**2 * radios(r)**2 / 2.) * Bess_n + &
             beta(reg) * radios(r) * Bess_n_1
+!     e42 = (n**2 - n - beta(reg)**2 * radios(r)**2 / 2.) * Bess_n + &
+!           beta(reg) * radios(r) * Bess_n_1
+!     e42 = - (n**2 + n - beta(reg)**2 * radios(r)**2 / 2.) * &
+!            Bess_n - beta(reg) * radios(r) * Bess_n_1      
+!     e42 = - n * (-(n+1) * Bess_n + beta(reg)*radios(r)*Bess_n_1)
       end function e42
       function e71(i,c,reg,r,n)
       use vars_func_of_w, only : alfa
