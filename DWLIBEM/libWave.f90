@@ -134,6 +134,7 @@
         logical :: isOnInterface
         logical :: guardarFK
         logical :: isSabana
+        logical :: isSeccion
         logical :: isOD
         logical :: guardarMovieSiblings
         integer :: boundaryIndex
@@ -184,7 +185,7 @@
         logical :: overDeterminedSystem, punEnlaFront
         integer :: OD_Jini,OD_Jend
         logical :: SabanaPlotIndividual,sabanaBajarAFrontera
-        integer, save :: nIpts, nSabanapts, nMpts, nBpts, nPts,&
+        integer, save :: nIpts, nSabanapts, nSecciones, nMpts, nBpts, nPts,&
                        iPtini,iPtfin,mPtini,mPtfin, & 
                        n_top_sub,n_con_sub,n_val_sub,n_OD
         complex*16, dimension(:,:), allocatable :: ibemMat,ibemMatS

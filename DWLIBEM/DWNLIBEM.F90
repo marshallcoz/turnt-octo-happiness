@@ -33,13 +33,13 @@
           complex*16, dimension(:),pointer :: pt_workA
         end subroutine intrplr_gloMat
         
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores,plotFuente)
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
       use resultVars, only : Punto
       type (Punto), dimension(:), pointer :: BP
       integer, intent(in) :: nbpts
       character(LEN=100) :: titleN
       character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom, plotReceptores,plotFuente
+      logical, intent(in) :: zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente
       end subroutine drawBoundary
         
       end interface
@@ -174,19 +174,21 @@
          write(titleN,'(a,I0,a)') '0___OriginalGeometry',currentiFte,'.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
-         call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.,.true.)
+         call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.,.false.,.true.)
        end do
          
-       write(titleN,'(a)') '0___Sensors.pdf'
        write(extension,'(a)') 'PDF'
        BP => BouPoints
-       call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.,.false.)
+       write(titleN,'(a)') '0___SensorsA.pdf'
+       call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.,.false.,.false.)
+       write(titleN,'(a)') '0___SensorsB.pdf'
+       call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.,.true.,.false.)
          
        if (workBoundary .eqv. .true.) then 
          write(titleN,'(a)') '0___Inclusion.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
-         call drawBoundary(BP,nbpts,titleN,extension,.true.,.false.,.false.)
+         call drawBoundary(BP,nbpts,titleN,extension,.true.,.false.,.false.,.false.)
        end if
        call chdir("..")
               
@@ -1230,13 +1232,13 @@
           type (Punto), pointer :: BP
          end subroutine punGa
          
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores,plotFuente)
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
       use resultVars, only : Punto
       type (Punto), dimension(:), pointer :: BP
       integer, intent(in) :: nbpts
       character(LEN=100) :: titleN
       character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom, plotReceptores,plotFuente
+      logical, intent(in) :: zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente
       end subroutine drawBoundary
          
       end interface 
@@ -1499,7 +1501,7 @@
        write(txt,'(a,I0,a)') 'Division_at[J=',iJ,'].pdf'
        write(extension,'(a)') 'PDF'
        BP => BouPoints
-       call drawBoundary(BP,nBpts,txt, extension,.true.,.false.,.false.)
+       call drawBoundary(BP,nBpts,txt, extension,.true.,.false.,.false.,.false.)
        CALL chdir("..") !out of subdivs
        CALL chdir("..") !out of outs
       end if!
@@ -6137,13 +6139,13 @@
       use sourceVars, only : iFte => currentiFte
       implicit none
       interface
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores,plotFuente)
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
       use resultVars, only : Punto
       type (Punto), dimension(:), pointer :: BP
       integer, intent(in) :: nbpts
       character(LEN=100) :: titleN
       character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom, plotReceptores,plotFuente
+      logical, intent(in) :: zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente
       end subroutine drawBoundary
       end interface
       real, dimension(:,:,:), allocatable :: xvmat,yvmat
@@ -6447,7 +6449,7 @@
       write(titleN,'(a)') 'foto_0.png'
       write(extension,'(a)') 'PNG'
       BP => BouPoints
-      call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.,.true.)
+      call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.,.false.,.true.)
       !  -framerate #   antes de -i para hacerlo más lento. Donde # es menor a 25 (default)
       write(titleN,'(a)')'ffmpeg -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p 0_video.mp4'
       print*,trim(titleN)
@@ -6479,13 +6481,13 @@
       use ploteo10pesos !las rutinas externas no requieren interfaz 
       implicit none
       interface
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores,plotFuente)
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA,plotReceptoresB,plotFuente)
       use resultVars, only : Punto
       type (Punto), dimension(:), pointer :: BP
       integer, intent(in) :: nbpts
       character(LEN=100) :: titleN
       character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom, plotReceptores,plotFuente
+      logical, intent(in) :: zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente
       end subroutine drawBoundary
       end interface
       integer ,intent(in) :: imec
@@ -6718,7 +6720,7 @@
       write(path,'(a,a)') nombre(iMec),'0.png'
       write(extension,'(a)') 'PNG'
       BP => BouPoints
-      call drawBoundary(BP,nbpts, path, extension,.false.,.false.,.true.)
+      call drawBoundary(BP,nbpts, path, extension,.false.,.false.,.false.,.true.)
       !  ffmpeg -framerate 15 -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4
       write(path,'(a,a,a)')'ffmpeg -i ',nombre(iMec), & 
                   '%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p video.mp4'
@@ -6772,7 +6774,7 @@
       end if !verbose 2
       end subroutine Hollywood           
       
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptores,plotFuente)
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
       
       use DISLIN
       use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
@@ -6788,7 +6790,7 @@
       integer, intent(in) :: nbpts
       character(LEN=100) :: titleN
       character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom, plotReceptores,plotFuente
+      logical, intent(in) :: zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente
       real :: maxY,minY,maxX,minX,xstep,zstep,encuadre
       integer :: i,J,sc
       real*8, dimension(:,:),allocatable :: rec
@@ -7029,7 +7031,7 @@
       end if !tipoFuente
 !     end do
       end if!
-      if (plotReceptores) then
+      if (plotReceptoresA) then
       !receptores ----------------------------------------------------------
       CALL HSYMBL(int(25,4)) !size of symbols                              !
       do j=1,nipts                                                         !
@@ -7038,7 +7040,7 @@
             call color('RED') 
             CALL RLSYMB (0, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
             CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
-               real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.5,4), &  !
+               real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.5,4), & !
               real(IP(j)%center%z + IP(j)%normal%z * MeshVecLen*0.5,4), &  !
               int(1001,4))                                                 !
           end if                                                           !
@@ -7051,7 +7053,28 @@
               real(IP(j)%center%x + IP(j)%normal%x * xstep*0.4,4), &       !
               real(IP(j)%center%z + IP(j)%normal%z * xstep*0.4,4), &       !
               int(1001,4))
-          end if                                                             !
+          end if                                                           !
+      end do                                                               !
+      end if!
+      if (plotReceptoresB) then
+      !receptores ----------------------------------------------------------
+      do j=1,nipts                
+          if (IP(j)%isSeccion) then                                        !
+          CALL HSYMBL(int(10,4)) !size of symbols                          !
+          call color('BLUE') 
+          CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))  !
+          CALL HSYMBL(int(25,4)) !size of symbols 
+          call color('CYAN') 
+          CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &    !
+              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.4,4), &       !
+              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.4,4), &       !
+              int(1001,4))                                                 !
+          else                                                             !
+          if (.not. IP(j)%atBou) then
+          CALL HSYMBL(int(25,4)) !size of symbols                          !
+          call color('BLUE')                                               !
+          CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))  !
+          end if ; end if                                                  !
       end do                                                               !
       end if
       call disfin()

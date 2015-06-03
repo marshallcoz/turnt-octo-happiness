@@ -336,7 +336,7 @@
 
       subroutine getInquirePoints
       use resultVars, only : Punto,inqPoints, nIpts, iPtini,iPtfin, &
-                       nSabanapts, Sabana,sabZeroini,sabZerofin,&
+                       nSabanapts, nSecciones, Sabana,sabZeroini,sabZerofin,&
                        SabanaPlotIndividual, sabanaBajarAFrontera, &
                        n_OD,overDeterminedSystem,punEnlaFront,Punto2d,promP2d,negP2d
       use waveNumVars, only : NPTSTIME
@@ -350,11 +350,11 @@
       end interface
 
       integer :: thelayeris
-      integer :: i,j,k,iIndex, nnsabanas,nbouP,thisnsab
+      integer :: i,j,k,iIndex, nnsabanas,nnsecciones,nbouP,thisnsab
       logical :: lexist, tellisoninterface, ths_isoninterface,wtfk
       integer :: auxGuardarFK, ths_layer, sabanabajarmax
       real :: xini,deltax,zini,deltaz,dx,dz, SbanadeltaZ
-      real*8 :: escalax,escalay,offsetx,offsety,r
+      real*8 :: escalax,escalay,offsetx,offsety,r,nx,nz
       logical :: cn,adentroOafuera,tellpunEnlaFront
       integer, dimension(0:2) :: reg
       type (Punto), dimension(:), allocatable :: auxInq
@@ -372,6 +372,7 @@
       READ(7,*) nIpts
       READ(7,*) nnsabanas, nSabanapts, &
                 SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
+      READ(7,*) nnsecciones, nsecciones
       READ(7,*) tellpunEnlaFront
       punEnlaFront=tellpunEnlaFront
       if (punEnlaFront) then; nbouP = nXI
@@ -382,8 +383,9 @@
       READ(7,*) offsetx,offsety
       iPtini = 1
       if (nnsabanas .eq. 0) nSabanapts=0
-      iPtfin = nIpts + nSabanapts + nbouP
-      allocate(inqPoints(nIpts + nSabanapts + nbouP))
+      if (nnsecciones .eq. 0) nsecciones=0
+      iPtfin = nIpts + nSabanapts + nsecciones + nbouP
+      allocate(inqPoints(nIpts + nSabanapts + nsecciones + nbouP))
       inqPoints(:)%normal%x = 0
       inqPoints(:)%normal%z = 0
       inqPoints(:)%isOnInterface = .false.
@@ -532,9 +534,43 @@
       end do ! j
       read(7,*) !hacer zeros el rango en la sabana:
       read(7,*) sabZeroini,sabZerofin
-      close(7)
       nIpts = nIpts + nSabanapts
+      else
+      read(7,*) ! Sbana---
+      read(7,*) !escala
+      read(7,*) !offset
+      read(7,*) ! encabezados
+      read(7,*) ! hacer zeros
+      read(7,*) ! valores
       end if !sabanas
+
+      if (nnsecciones .gt. 0) then
+      read(7,*) !Secciones -------------------------
+      read(7,*) escalax,escalay !; print*,escalax,escalay
+      READ(7,*) offsetx,offsety !; print*, offsetx,offsety
+      read(7,*) ! npuntos     Xi        deltax      Zi       deltaz       nx       nz
+      do j=1,nnsecciones
+        read(7,*) thisnsab,xini,deltax,zini,deltaz,nx,nz
+        dx = 0.0
+        dz = 0.0
+        do i = 1,thisnsab
+        iIndex = iIndex + 1
+        inqPoints(iIndex)%isSeccion = .true.
+        inqPoints(iIndex)%center%x = (xini + dx)*escalax + offsetx
+        inqPoints(iIndex)%center%z = (zini + dz)*escalay + offsety
+        inqPoints(iIndex)%normal%x = nx
+        inqPoints(iIndex)%normal%z = nz
+        ths_layer = thelayeris(inqPoints(iIndex)%center%z)
+        ths_isoninterface = tellisoninterface(inqPoints(iIndex)%center%z)
+        inqPoints(iIndex)%layer = ths_layer
+        inqPoints(iIndex)%isOnInterface = ths_isoninterface
+        dx = dx + deltax
+        dz = dz + deltaz
+        end do
+      end do
+      nIpts = nIpts + nsecciones
+      end if
+      close(7)
 
       if (nIpts .lt. size(inqPoints)) then
         allocate(auxInq(nIpts))
