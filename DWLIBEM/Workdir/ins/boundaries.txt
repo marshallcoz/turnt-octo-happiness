@@ -1,3 +1,53 @@
+Superficie (x,y)ini - (x,y)fin en metros TRIAN6
+0     N_topo segmentos :: T^0 + T^d = 0
+3    N_cont segmentos :: T^d = T^0; u^d = u^0
+3    N_vall segmentos :: T^d = 0
+***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
+1.0 1.0  <- escala:x escala:y
+0 0  <- offset:x offset:y
+1.0  <- escala:n
+***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
+5.6 5.6  <- escala:x escala:y
+10 80  <- offset:x offset:y
+1.0  <- escala:n
+0.0  -0.6666  0.5   0.3333 F
+0.5   0.3333 -0.5   0.3333 F
+-0.5  0.3333  0.0  -0.6666 F
+***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
+3.0 3.0  <- escala:x escala:y
+10 80  <- offset:x offset:y
+-1.0  <- escala:n
+0.0  -0.6666  0.5   0.3333 F
+0.5   0.3333 -0.5   0.3333 F
+-0.5  0.3333  0.0  -0.6666 F
+Inclusion properties
+Alfa(m/s) Beta(m/s) Dens(T/m3) 
+11000.   5500.  2.0
+Cualquier receptor dentro de esta superficie está en el aire
+3    N segmentos 
+3.0 3.0  <- escala:x escala:y
+10 80  <- offset:x offset:y
+0.0  -0.6666  0.5   0.3333 F
+0.5   0.3333 -0.5   0.3333 F
+-0.5  0.3333  0.0  -0.6666 F
+Cualquier receptor dentro de estas superficies está en la region homogenea
+1  N de regiones
+3  Total de segmentos
+3    N segmentos 
+5.6 5.6  <- escala:x escala:y
+10 80  <- offset:x offset:y
+0.0  -0.6666  0.5   0.3333 F
+0.5   0.3333 -0.5   0.3333 F
+-0.5  0.3333  0.0  -0.6666 F
+Borde de región homogenea cuando flip12 .true.
+0    N segmentos 
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+
+
+
+
+
 Superficie (x,y)ini - (x,y)fin en metros TUNEL-CIRCULAR 6060
 0     N_topo segmentos :: T^0 + T^d = 0
 60    N_cont segmentos :: T^d = T^0; u^d = u^0

@@ -71,7 +71,7 @@
       real*8,dimension(:),allocatable :: Rbem,Cbem,RWORK
       real*8 :: RCOND,FERR,BERR
       character*1 :: EQUED
-      complex*16,dimension(200,5) :: OUTVAR
+      complex*16,dimension(400,5) :: OUTVAR
       outvar = 0
       !#< blue
       call system('clear')
@@ -241,13 +241,6 @@
       do i=1,Npts
         allpoints(i)%pointIndex = i
       end do ! i
-      !#< b
-      if (verbose .ge. 2) then;    print*,"inquire points, center,region,layer,movie"
-        do iP=1,nPts
-          print*,iP,allpoints(iP)%center,allpoints(ip)%region,& 
-          allpoints(ip)%layer,allpoints(ip)%guardarMovieSiblings
-        end do
-      end if !#>
       
       allocate(k_vec(2*nmax))
       k_vec(1) = 0!real(dk * 0.01,8)
@@ -360,26 +353,6 @@
            Lambda(l) = RHO(l)*alfa(l)**2. - real(2.)*aMU(l)
           end do 
         end if
-!     !#< g
-!     if (developerfeature .ne. 0) then 
-!     developerAUXvec(J,1) = amu(N+1) * (come/beta(N+1))**2. 
-!     if (J .lt. 5) developerAUXvec(J,1) = developerAUXvec(J,1) + 2*UI*OMEI 
-!     !<- trampita para que no sea un numero muy chico
-!     developerAUXvec(J,2) = longitudcaracteristica_a * come / alfa(N+1) !ok
-!     print*,J,come,developerAUXvec(J,1)
-!    cycle
-!     print*,"J=",J
-!     print*,"   lamb_alf_0=",alfa(0)/frec
-!     print*,"   lamb_bet_0=",beta(0)/frec
-!     print*,"   lamb_alf_1=",alfa(1)/frec
-!     print*,"   lamb_bet_1=",beta(1)/frec
-!     print*,"   lamb_alf_2=",alfa(2)/frec
-!     print*,"   lamb_bet_2=",beta(2)/frec
-!     print*,"   lamb_alf_3=",alfa(3)/frec
-!     print*,"   lamb_bet_3=",beta(3)/frec
-!     print*,"-------------------------"
-!     end if!#> !developerfeature .ne. 0
-      !#< b
       
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
@@ -685,6 +658,15 @@
           if(i .eq. 9) allpoints(iP_x)%resp(J,currentiFte)%szz = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%szz
         end do !i
+        
+        if (comoFacDeAmpliDinamica) then
+!         call FFpsv(0,FF,dir_j,allpoints(iP_x),Po(iFte),cOME,1,5)
+!         allpoints(iP_x)%resp(J,currentiFte)%W = allpoints(iP_x)%resp(J,currentiFte)%W / FF%W
+!         allpoints(iP_x)%resp(J,currentiFte)%U = allpoints(iP_x)%resp(J,currentiFte)%U / FF%U
+!         allpoints(iP_x)%resp(J,currentiFte)%sxx = allpoints(iP_x)%resp(J,currentiFte)%sxx / FF%sxx
+!         allpoints(iP_x)%resp(J,currentiFte)%szx = allpoints(iP_x)%resp(J,currentiFte)%szx / FF%szx
+!         allpoints(iP_x)%resp(J,currentiFte)%szz = allpoints(iP_x)%resp(J,currentiFte)%szz / FF%szz
+        end if ! comoFacDeAmpliDinamica
       end do !iP_x
       !
       if (makeVideo) then 
@@ -716,6 +698,7 @@
           end do 
           fotogramas(iP_x-nIpts,m,J,i,currentiFte) = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                                          allpoints(iP_x)%Wmov(J,i,m,currentiFte)
+          
       end do !i
       end do !iP_x
       end do !m
@@ -964,28 +947,6 @@
            call chdir(trim(adjustl(rutaOut)))
            write(arg,'(a,I0)') 'traces',currentiFte
            CALL chdir(trim(arg))
-       if (PSV) then !#< g  
-!       if (developerfeature .eq. 1) then
-!       write(yAx,'(a)') 'denominador'
-!         call W_to_t(developerAUXvec(1:nfrec,1),'r__',yax,iP,& 
-!                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,0)
-!       do iP = 2,4,2
-!       ! tx = sxx = \sigma_{\theta \theta}
-!         write(yAx,'(a)') '$|\sigma_{\theta \theta}^{*}|$'
-!         call W_to_t(allpoints(iP)%resp(:,currentiFte)%Tx,'Tx-',yax,iP,& 
-!                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,0)
-!       end do!
-!       do iP = 1,3,2
-!       ! tz = szz = \sigma_{\theta \theta}
-!         write(yAx,'(a)') '$|\sigma_{\theta \theta}^{*}|$'
-!         call W_to_t(allpoints(iP)%resp(:,currentiFte)%Tz,'Tz-',yax,iP,& 
-!                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,0)
-!       end do
-!       end if !#>
-       end if !psv
        
       call plotSisGram(PSV,SH,.true.)    
       if (plotFKCK) call F_K_exp(XF)
@@ -2065,6 +2026,169 @@
 #endif
       end subroutine diffField_at_iz
       
+!     subroutine G0estr(FF,p_x, cOME_in)
+!     ! esta función es llamada con cada profundidad donde hay
+!     ! por lo menos una fuente.
+!     use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum,PWfrecReal
+!     use resultVars, only : pota,Punto,nZs,MecaElem,FFres
+!     use refSolMatrixVars, only : B,Ak
+!     use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
+!     use wavelets 
+!     use dislin
+!     use sourceVars, only: Po,iFte=>currentiFte!nFuentes,tipofuente, , PW_pol
+!     use soilvars, only:N,Z,alfa0,beta0,alfa,beta
+!     use, intrinsic :: iso_c_binding!, only : C_INT
+!     use debugStuff
+!     implicit none
+!     interface
+!       include 'interfaz.f'
+!       function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k,ik)
+!         use soilvars, only:N
+!         complex*16, dimension(1:5) :: PSVdiffByStrata
+!         real*8, intent(in)           :: z_i,k
+!         complex*16, intent(in)       :: cOME_i  
+!         integer, intent(in)          :: e,ik
+!         complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
+!       end function PSVdiffByStrata
+!       
+!       subroutine  eGAeNU(i_zF,ik,pXI,dj)
+!       use resultVars, only : Punto
+!         integer :: ik,i_zF,dj
+!         type(Punto), pointer :: pXi
+!       end subroutine  eGAeNU
+!     end interface
+!     type(FFres),target :: FF
+!     integer, intent(in) :: i_zF,dir_j,J
+!     complex*16, intent(in),target  :: cOME_in
+!     logical,pointer :: intf
+!     integer, pointer :: ef
+!     real*8,target :: k
+!     real*8, pointer :: zf,xf,pt_k
+!     complex*16, dimension(:,:), allocatable, target :: auxK,savedAuxK
+!     complex*16, target  :: cOME,alf,bet
+!     complex*16, pointer :: pt_cOME_i
+!     integer, dimension(:),allocatable,target :: ipivA
+!     integer, dimension(:),pointer :: pt_ipivA
+!     complex*16, dimension(:),allocatable,target :: workA
+!     complex*16, dimension(:),pointer :: pt_workA
+!     complex*16,dimension(:,:),pointer :: pointA
+!     type(Punto), pointer :: pXi,p_X
+!     logical :: auxLogic ,porLoMenosUnoEsEstr,isPW
+!     integer :: ik,tam,itabla_z,itabla_x,iMec,mecS,mecE,&
+!                nXis,n_Xs,iXi,dj,pos,ne!,i_Fuente,i_FuenteFinal
+!     type(MecaElem)  :: Meca_diff, SHdiffByStrata
+ !     allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
+!     
+!     
+!     isPW = .false.
+!     if (Po(iFte)%tipofuente .eq. 1) isPW = .true.
+!           
+!     cOME = cOME_in 
+!     
+!        if (isPW) then ! onda plana incidente·p
+!           ! con incidencia de onda plana no usamos atenuación                  ·l
+!          if (PWfrecReal) then 
+!            cOME = OME * UR  !real(cOME_in) * UR!                               ·a
+!            alf = alfa0(N+1)
+!            bet = beta0(N+1)
+!          else
+!            cOME = cOME_in  !real(cOME_in) * UR!                               ·a
+!            alf = alfa(N+1)
+!            bet = beta(N+1)
+!          end if!
+!          if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)!    ·a
+!          if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
+!        end if! ·································································n
+ !      call asociar(pXi,iFte,0,3) ! asociar apuntador a fuente [pXi]
+!     
+!      xf=>pXi%center%x;zf=>pXi%center%z;ef=>pXi%layer;intf=>pXi%isOnInterface
+!     ! Si es la fuente real y es una onda plana no se usa el DWN. Se calcula para
+!     ! el número de onda horizontal asociado al ángulo de incidencia ············
+!     if (isPW) then ! onda plana incidente   ·
+!           tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
+!           pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
+!           pt_k => k; pt_come_i => cOME!                                        ·
+!           allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
+!           pt_ipivA => ipivA; pt_workA => workA!                                ·
+!           call gloMat_PSV(pointA,pt_k,0)!                                      ·
+!           call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
+!           call PSVvectorB_ondaplana(B(:,0),pxi%gamma)!                         ·
+!           B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
+!         pos = 0; ne = 2*nmax+1
+!     else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+!     ! La fuente es cilíndrica 
+!       pos = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(pos-2)                !
+!       B(:,pos:ne) = 0                                                         !
+!       tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
+!        
+!        ! si la fuente está sobre una interfaz ...............
+!        if (pXi%isOnInterface) then
+!          do ik = 1,pos+1                                                      !r
+!            call PSVvectorB_force(0,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !i
+!            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                 !c
+!          end do                                                                  !a
+!          do ik = ne,2*NMAX                                                       !
+!            call PSVvectorB_force(0,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !
+!            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
+!          end do
+!        else ! la fuente está entre interfaces ..............
+!          do ik = 1,pos+1
+!            call eGAeNU(0,ik,pXI,dj)
+!          end do!                                                                 
+!          do ik = ne,2*NMAX
+!            call eGAeNU(0,ik,pXI,dj)
+!          end do
+!        end if                                                                  !
+!     end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
+!     
+!     ! resultado en el receptor
+!     if (isPW) then ! onda plana·············
+!                savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
+!                             p_X%center%z, p_X%layer,cOME,k,0)!                ·a
+!     else ! onda plana incidente / onda cilíndrica circular ····················
+!       do ik = 1,pos+1                                                         !
+!             savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
+!                             p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !i
+!       end do ! ik                                                             !i
+!       do ik = ne,2*Nmax                                                       !n
+!            savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
+!                                p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)     !
+!       end do ! ik                                                             !
+!     end if! onda cilíndrica circular ··········································
+!     
+!     ! fase horizontal
+!           ! reponer auxK original sin fase horizontal
+!         auxK(1:pos+1,mecS:mecE)      = savedAuxK(1:pos+1,mecS:mecE)
+!         auxK(ne:2*nmax,mecS:mecE) = savedAuxK(ne:2*nmax,mecS:mecE)
+!           ! agregar información fase horizontal de fuente y receptor 
+!         do imec = 1,5 !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+!           if (isPW) then 
+!               auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
+!               exp(-UI*k*(p_x%center%x - xf))            !                 ·
+!               CYCLE ! imec                              !                 ·
+!           end if ! ························································
+!           do ik = 1,pos+1                                                 !
+!               auxk(ik,imec) = auxk(ik,imec) * &                           !
+!               exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
+!           end do !  ik                                                    !i
+!           do ik = ne,2*Nmax                                               !l
+!               auxk(ik,imec) = auxk(ik,imec) * &                           !i
+!               exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!n
+!           end do !  ik                                                    !d
+ !     ! K -> X  .........................................................   !
+!            auxK(1,iMec) = sum(auxK(1:pos+1,iMec))+sum(auxK(ne:2*nmax,iMec))
+!            auxK(1,iMec) = auxK(1,iMec)*dk
+!                                                            !
+!     end do !imec !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+!     
+!     
+!     FF%W = 
+!     FF%U = 
+!     FF%sxx = 
+!     FF%sxz = 
+!     FF%szz = 
+!         
+!     end subroutine G0estr
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
       subroutine makeGANU (J)
       use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, & 
@@ -5526,16 +5650,36 @@
 
       subroutine plotSisGram(PSV,SH,guardarW)
       use resultVars , only : iPtini,iPtfin,allpoints
-      use waveNumVars, only : NFREC!,NPTSTIME
+      use waveNumVars, only : NFREC,NPTSTIME
       use glovars, only : PlotFilledSabanas
       use sourceVars, only : currentiFte
-      integer :: iP,i
+      use geometryvars, only : Xcoord_Voidonly, Xcoord_Incluonly
+      integer :: iP,i,j
       character(LEN=100) :: yax,nam
       logical, intent(in) :: PSV,SH, guardarW
+      complex*16, dimension(NPTSTIME) :: S,Sxx,Szx,Szz,Stt,Srt
+      real*8 :: si,co
       if (guardarW) then
-       ! in traces directory
-       write(nam,'(a,I0,a)') "W",currentiFte,".bin"
+       ! archivo donde se guarda la solución en frecuencia para
+       ! usarse en furturas corridas
+       write(nam,'(a,I0,a)') "W",currentiFte,".bin"  
        OPEN(6373,FILE=trim(nam),STATUS='UNKNOWN', ACCESS='STREAM',ACTION='WRITE')
+       write(nam,'(a,I0,a)') "Geom",currentiFte,".txt"  
+       OPEN(9975,FILE=trim(nam),STATUS='UNKNOWN', ACTION='WRITE')
+      do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont    !
+      write(9975,'(EN22.4,2x,EN22.4,2x,EN22.4,2x,EN22.4)') & 
+                       Xcoord_Incluonly(j,1,1),Xcoord_Incluonly(j,2,1) ,&
+                       Xcoord_Incluonly(j,1,2),Xcoord_Incluonly(j,2,2) 
+      end do
+      do j=1,size(Xcoord_Voidonly (:,1,1))!n_topo+1,n_topo+n_cont    !
+      write(9975,'(EN22.4,2x,EN22.4,2x,EN22.4,2x,EN22.4)') & 
+                       Xcoord_Voidonly(j,1,1), Xcoord_Voidonly(j,2,1) ,&
+                       Xcoord_Voidonly(j,1,2), Xcoord_Voidonly(j,2,2) 
+      end do
+      
+       close(9975)
+       write(nam,'(a,I0,a)') "Secciones",currentiFte,".txt"  
+       OPEN(9973,FILE=trim(nam),STATUS='UNKNOWN', ACTION='WRITE')
       end if !
       if (PSV) then
         do iP = iPtini,iPtfin
@@ -5546,7 +5690,7 @@
           end do; end if
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%W,'w--',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,1)
+                    allpoints(iP)%center%z,1,S)
         end do        
           call makeSabana('1_S-w__.pdf',.false.)
           if(PlotFilledSabanas) call makeSabana('1_S-w_f.pdf',.true.) ! filled traces
@@ -5559,7 +5703,7 @@
           end do; end if
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%U,'u--',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,2)
+                    allpoints(iP)%center%z,2,S)
         end do         
           call makeSabana('1_S-u__.pdf',.false.)
           if(PlotFilledSabanas) call makeSabana('1_S-u_f.pdf',.true.) ! filled traces
@@ -5569,11 +5713,11 @@
 !         write(yAx,'(a)') '$Tz_$ [m]'
 !         call W_to_t(allpoints(iP)%resp(:,currentiFte)%Tz,'Tz-',yax,iP,& 
 !                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,0)
+!                   allpoints(iP)%center%z,0,S)
 !         write(yAx,'(a)') '$Tx_$ [m]'
 !         call W_to_t(allpoints(iP)%resp(:,currentiFte)%Tx,'Tx-',yax,iP,& 
 !                   allpoints(iP)%center%x,& 
-!                   allpoints(iP)%center%z,0)
+!                   allpoints(iP)%center%z,0,S)
 !       end do
         
         !#< r ____________   sxx   _________________________________________ !#>
@@ -5584,30 +5728,48 @@
           end do; end if
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%sxx,'sxx',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,3)
-        end do
+                    allpoints(iP)%center%z,3,Sxx)
+!       end do
         !#< r ____________   szx   _________________________________________ !#>
-        do iP = iPtini,iPtfin
+!       do iP = iPtini,iPtfin
           write(yAx,'(a)') '$\sigma_{zx}$ [m]'
           if (guardarW) then ; do i = 1, NFREC+1
           write(6373) allpoints(iP)%resp(i,currentiFte)%szx
           end do; end if
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%szx,'szx',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,4)
-        end do
+                    allpoints(iP)%center%z,4,Szx)
+!       end do
         !#< r ____________   szz   _________________________________________ !#> 
-        do iP = iPtini,iPtfin
+!       do iP = iPtini,iPtfin
           write(yAx,'(a)') '$\sigma_{zz}$ [m]'
           if (guardarW) then ; do i = 1, NFREC+1
           write(6373) allpoints(iP)%resp(i,currentiFte)%szz
           end do; end if
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%szz,'szz',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,5)
-        end do
+                    allpoints(iP)%center%z,5,Szz)
+          
+          if (allpoints(iP)%isSeccion) then
+             si = allpoints(iP)%sinT
+             co = allpoints(iP)%cosT
+             stt = si**2*Sxx + co**2*Szz - 2*si*co*Szx
+             srt = si*co*(Szz-Sxx) + Szx * (co**2 - si**2)
+              write(9973 ,'(EN22.4,2x,EN22.4,2x)', ADVANCE = "NO") & 
+                 allpoints(iP)%center%x, allpoints(iP)%center%z  
+            do i = 1, NPTSTIME ! stt !(tangencial)
+              write(9973,'(EN22.4,2x)', ADVANCE = "NO") & 
+              real(stt(i))
+            end do!
+            do i = 1, NPTSTIME ! srt !(cortante)
+              write(9973,'(EN22.4,2x)', ADVANCE = "NO") & 
+              real(srt(i))
+            end do
+              write(9973,'(a)') ""
+          end if
+        end do 
        end if !psv
-        
+        close(9973)
        if (SH) then
           do iP = iPtini,iPtfin
           write(yAx,'(a)') '$u_2$ [m]'
@@ -5616,7 +5778,7 @@
           end do; end if
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%V,'v--',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,0)    
+                    allpoints(iP)%center%z,0,S)    
           end do 
 !         call chdir("..") 
           call makeSabana('1_S-v__.pdf',.false.) 
@@ -5626,7 +5788,7 @@
           write(yAx,'(a)') '$Ty_$ [m]'
           call W_to_t(allpoints(iP)%resp(:,currentiFte)%Ty,'Ty-',yax,iP,& 
                     allpoints(iP)%center%x,& 
-                    allpoints(iP)%center%z,0)     
+                    allpoints(iP)%center%z,0,S)     
           end do
 !         call chdir("..")
        end if !sh  
@@ -5657,18 +5819,18 @@
            do i = 1, NFREC+1
              read(6372) allpoints(iP)%resp(i,iFte)%U
            end do! 
-        end do
+        end do!
         do iP = iPtini,iPtfin
            do i = 1, NFREC+1
              read(6372) allpoints(iP)%resp(i,iFte)%sxx
            end do! 
-        end do
-        do iP = iPtini,iPtfin
+!       end do
+!       do iP = iPtini,iPtfin
            do i = 1, NFREC+1
              read(6372) allpoints(iP)%resp(i,iFte)%szx
            end do! 
-        end do
-        do iP = iPtini,iPtfin
+!       end do
+!       do iP = iPtini,iPtfin
            do i = 1, NFREC+1
              read(6372) allpoints(iP)%resp(i,iFte)%szz
            end do! 
@@ -5689,7 +5851,7 @@
       
 
 ! Sismo/Foto- gramas 
-      subroutine W_to_t(W,nombre,yAx,iP,x_i,z_i,icomp)
+      subroutine W_to_t(W,nombre,yAx,iP,x_i,z_i,icomp,Sout)
       use waveNumVars, only : NFREC,DFREC, NPTSTIME, OMEI, t_vec
       use glovars
       use waveVars, only : dt,Uo,maxtime
@@ -5705,11 +5867,8 @@
       character(LEN=3)   :: nombre
       character(LEN=100) :: titleN,yAx, CTIT
       character(LEN=32)  :: name
-      complex*16, dimension(NPTSTIME) :: S
-      
-!     character(LEN=9)   :: logflag
+      complex*16, dimension(NPTSTIME) :: S,Sout
       integer :: i,n_maxtime
-!     real*8 :: this_maxtime
       
       write(CTIT,'(a,F7.2,a,F7.2,a)')'(', x_i,' , ',z_i,')'
       
@@ -5724,7 +5883,7 @@
       !  (1) pasar al tiempo
          S = FFTW(NPTSTIME,S,+1,1/(NPTSTIME*dt)) !backward
          
-      !  (2) remover efecto de la frecuencia imaginaria
+      !  (2) remover efecto de la frecuencia imaginaria (DWN)
          S = S * exp(- OMEI * Dt*((/(i,i=0, NPTSTIME-1)/)))
          
          !tiempo maximo para graficar
@@ -5732,7 +5891,7 @@
          if(maxtime .lt. dt) n_maxtime = 2*nfrec
          if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
          S(n_maxtime+1: NPTSTIME) = z0;
-         
+         Sout = S
       ! guardar para hacer sabana o plotear
       if (allpoints(iP)%isSabana) then
          ! guardamos la sabana actual

@@ -22,6 +22,7 @@
       logical    :: useAzimi
       integer    :: PrintNum 
       logical    :: PWfrecReal
+      logical    :: comoFacDeAmpliDinamica
       complex*16, dimension(:,:), allocatable :: developerAUXvec !sigma0
       complex*16, parameter :: UI = cmplx(0.0d0,1.0d0,8), &
                                UR = cmplx(1.0d0,0.0d0,8), &

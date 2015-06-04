@@ -21,3 +21,4 @@ T	Reusar directorio de resultados [logical]
 1.0	Longitud característica a [real]
 5	En segmentos de esquina, dividir dividir la longitud de segmentos por [int]
 F       Ondaplana con frec real
+F       Resultados como factor de amplificación dinámica

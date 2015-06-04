@@ -89,6 +89,7 @@
       read(35,*) longitudcaracteristica_a
       read(35,*) fraccionDeSmallestWL_segm_de_esquina
       read(35,*) PWfrecReal
+      read(35,*) comoFacDeAmpliDinamica
       close(35)
       CALL chdir("..")
       end subroutine getMainInput
@@ -494,6 +495,45 @@
       print*,"Found no points to overdetermine the system"
       end if
       !
+      if (nnsecciones .gt. 0) then
+      read(7,*) !Secciones -------------------------
+      read(7,*) escalax,escalay !; print*,escalax,escalay
+      READ(7,*) offsetx,offsety !; print*, offsetx,offsety
+      read(7,*) ! npuntos     Xi        deltax      Zi       deltaz       nx       nz
+      do j=1,nnsecciones
+        read(7,*) thisnsab,xini,deltax,zini,deltaz,nx,nz
+        dx = 0.0
+        dz = 0.0
+        do i = 1,thisnsab
+        iIndex = iIndex + 1
+        inqPoints(iIndex)%isSeccion = .true.
+        inqPoints(iIndex)%center%x = (xini + dx)*escalax + offsetx
+        inqPoints(iIndex)%center%z = (zini + dz)*escalay + offsety
+        inqPoints(iIndex)%normal%x = nx
+        inqPoints(iIndex)%normal%z = nz
+         if (abs(inqPoints(iIndex)%normal%x) .lt. 0.0001) inqPoints(iIndex)%normal%x = 0
+         if (abs(inqPoints(iIndex)%normal%z) .lt. 0.0001) inqPoints(iIndex)%normal%z = 0
+       ! angulo para hacer la rotaci—n a coordenadas normal y tangencial
+         r = sqrt(inqPoints(iIndex)%normal%z**2 + inqPoints(iIndex)%normal%x**2)
+         inqPoints(iIndex)%cosT = inqPoints(iIndex)%normal%x/r
+         inqPoints(iIndex)%sinT = inqPoints(iIndex)%normal%z/r
+        ths_layer = thelayeris(inqPoints(iIndex)%center%z)
+        ths_isoninterface = tellisoninterface(inqPoints(iIndex)%center%z)
+        inqPoints(iIndex)%layer = ths_layer
+        inqPoints(iIndex)%isOnInterface = ths_isoninterface
+        dx = dx + deltax
+        dz = dz + deltaz
+        end do
+      end do
+      nIpts = nIpts + nsecciones
+      else
+        read(7,*) !Secciones -------------------------
+        read(7,*) !; print*,escalax,escalay
+        READ(7,*) !; print*, offsetx,offsety
+        read(7,*) ! npuntos     Xi        del
+      end if !nsecciones
+
+      !
       if (nSabanapts .gt. 0) then
       allocate(Sabana(nSabanapts, NPTSTIME))
       read(7,*) !Sabanapoints -------------------------
@@ -536,40 +576,15 @@
       read(7,*) sabZeroini,sabZerofin
       nIpts = nIpts + nSabanapts
       else
-      read(7,*) ! Sbana---
-      read(7,*) !escala
-      read(7,*) !offset
-      read(7,*) ! encabezados
-      read(7,*) ! hacer zeros
-      read(7,*) ! valores
+       read(7,*) ! Sbana---
+       read(7,*) !escala
+       read(7,*) !offset
+       read(7,*) ! encabezados
+       read(7,*) ! hacer zeros
+       read(7,*) ! valores
       end if !sabanas
 
-      if (nnsecciones .gt. 0) then
-      read(7,*) !Secciones -------------------------
-      read(7,*) escalax,escalay !; print*,escalax,escalay
-      READ(7,*) offsetx,offsety !; print*, offsetx,offsety
-      read(7,*) ! npuntos     Xi        deltax      Zi       deltaz       nx       nz
-      do j=1,nnsecciones
-        read(7,*) thisnsab,xini,deltax,zini,deltaz,nx,nz
-        dx = 0.0
-        dz = 0.0
-        do i = 1,thisnsab
-        iIndex = iIndex + 1
-        inqPoints(iIndex)%isSeccion = .true.
-        inqPoints(iIndex)%center%x = (xini + dx)*escalax + offsetx
-        inqPoints(iIndex)%center%z = (zini + dz)*escalay + offsety
-        inqPoints(iIndex)%normal%x = nx
-        inqPoints(iIndex)%normal%z = nz
-        ths_layer = thelayeris(inqPoints(iIndex)%center%z)
-        ths_isoninterface = tellisoninterface(inqPoints(iIndex)%center%z)
-        inqPoints(iIndex)%layer = ths_layer
-        inqPoints(iIndex)%isOnInterface = ths_isoninterface
-        dx = dx + deltax
-        dz = dz + deltaz
-        end do
-      end do
-      nIpts = nIpts + nsecciones
-      end if
+
       close(7)
 
       if (nIpts .lt. size(inqPoints)) then
