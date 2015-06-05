@@ -1,7 +1,7 @@
 Points of interest test pocos puntos
 1  <- Por lo menos (1)
 0  128  F  0.0000000001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
-2  12   puntos en secciones planas
+9  54   puntos en secciones planas
 T  Puntos en la frontera
 ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
@@ -9,11 +9,18 @@ ___________________________________________________________
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst
 0.0  100.5         0.0       1.0       1           F   1  <-primer elemento en medio estr.
 Secciones ----------------------------------------------------
- 1.0   1.0  <- escala:x escala:y
+ 5.0   5.0  <- escala:x escala:y
 10.0  80.0  <- offset:x offset:y
  npuntos     Xi        deltax      Zi       deltaz       nx       nz
-    6        0.0         0.0      -2.0       -0.2        0.0     -1.0
-    6        1.0         0.0       1.0        0.13        0.0      1.0
+    6        0.0         0.0      -1.0       -0.02        0.0     -1.0
+    6       -0.3827     -0.0077   -0.9239    -0.0185     -0.374609     -0.9271
+    6       -0.7071     -0.0141   -0.7071    -0.0141     -0.707109     -0.70710
+    6       -0.9239     -0.0185   -0.3827    -0.0077     -0.920506     -0.39072
+    6       -1.0        -0.02       0.0        0.0       -1.0      0.0
+    6       -0.9239     -0.0185    0.3827     0.0077     -0.920506      0.39072
+    6       -0.7071     -0.0141    0.7071     0.0141     -0.707109      0.70710
+    6       -0.3827     -0.0077    0.9239     0.0185     -0.374609      0.9271
+    6        0.0         0.0       1.0        0.02        0.0      1.0
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
@@ -33,7 +40,8 @@ hacer zeros el rango en la sabana:
     6       -0.3827     -0.0077    0.9239     0.0185     -0.374609      0.9271
     6        0.0         0.0       1.0        0.02        0.0      1.0
 
-
+    6        0.0         0.0      -2.0       -0.2        0.0     -1.0
+    6        1.0         0.0       1.0        0.13        0.0      1.0
 
 
 

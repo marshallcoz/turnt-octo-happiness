@@ -50,9 +50,18 @@
           yvmat(j,i,1:n_maxtime) = real(fotogramas(i,j,1:n_maxtime,1,iFte),4) !W
           ! para no imprimir lo que se ve muy pequeñito
           do iT = 1,n_maxtime
-            if (abs(yvmat(j,i,iT)) .le. mav1*0.0025) yvmat(j,i,iT) = 0.0
-            if (abs(xvmat(j,i,iT)) .le. mav2*0.0025) xvmat(j,i,iT) = 0.0
+            if (abs(yvmat(j,i,iT)) .le. mav1*0.005) yvmat(j,i,iT) = 0.0
+            if (abs(xvmat(j,i,iT)) .le. mav2*0.005) xvmat(j,i,iT) = 0.0
           end do
+          ! para no imprimir los picos raros
+            if (abs(yvmat(j,i,1)) .gt. abs(mav1*0.1)) then
+                 yvmat(j,i,1:n_maxtime) = 0.0
+                 xvmat(j,i,1:n_maxtime) = 0.0
+            end if!
+            if (abs(xvmat(j,i,1)) .gt. abs(mav2*0.1)) then
+                 yvmat(j,i,1:n_maxtime) = 0.0
+                 xvmat(j,i,1:n_maxtime) = 0.0
+            end if
         end do
       end do
       madmax = max(mav1,mav2)
@@ -403,7 +412,7 @@
       CALL MESSAG(CTIT,int(7800-lentitle-100,4),int(2850,4))
 
       call height(80) ! de los caracteres
-      write(CTIT,'(a)') '$u_{i}$ and hodogram at boundaries'
+      write(CTIT,'(a)') '$u_{i}$'
       lentitle = NLMESS(CTIT)
       call color ('FORE')
       CALL MESSAG(CTIT,int(15,4),int(15,4))

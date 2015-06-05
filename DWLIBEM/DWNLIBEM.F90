@@ -558,11 +558,11 @@
 !      CALL chdir("..")
 !      stop 456 
 !#>
+            
       ! driver simple:
 !     call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
       
       ! driver experto:
-      
       allocate(AF(Mi,Mi))
       allocate(Xbem(Mi,1))
       allocate(Rbem(Mi))
@@ -6344,9 +6344,20 @@
           
           ! para no imprimir lo que se ve muy pequeñito
           do iT = 1,n_maxtime
-            if (abs(yvmat(j,i,iT)) .le. mav1*0.0025) yvmat(j,i,iT) = 0.0
-            if (abs(xvmat(j,i,iT)) .le. mav2*0.0025) xvmat(j,i,iT) = 0.0
+            if (abs(yvmat(j,i,iT)) .le. mav1*0.005) yvmat(j,i,iT) = 0.0
+            if (abs(xvmat(j,i,iT)) .le. mav2*0.005) xvmat(j,i,iT) = 0.0
           end do
+          
+          !print*,j,i,yvmat(j,i,1)+xvmat(j,i,1)
+          ! para no imprimir los picos raros
+            if (abs(yvmat(j,i,1)) .gt. abs(mav1*0.1)) then
+                 yvmat(j,i,1:n_maxtime) = 0.0
+                 xvmat(j,i,1:n_maxtime) = 0.0
+            end if!
+            if (abs(xvmat(j,i,1)) .gt. abs(mav2*0.1)) then
+                 yvmat(j,i,1:n_maxtime) = 0.0
+                 xvmat(j,i,1:n_maxtime) = 0.0
+            end if
         end do
       end do
       madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
