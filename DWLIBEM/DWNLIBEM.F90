@@ -33,15 +33,24 @@
           complex*16, dimension(:),pointer :: pt_workA
         end subroutine intrplr_gloMat
         
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
-      use resultVars, only : Punto
-      type (Punto), dimension(:), pointer :: BP
-      integer, intent(in) :: nbpts
-      character(LEN=100) :: titleN
-      character(LEN=3) :: extension
-      logical, intent(in) :: zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente
-      end subroutine drawBoundary
+        subroutine drawBoundary(BP, nbpts, titleN, extension, & 
+         zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
+          use resultVars, only : Punto
+          type (Punto), dimension(:), pointer :: BP
+          integer, intent(in) :: nbpts
+          character(LEN=100) :: titleN
+          character(LEN=3) :: extension
+          logical, intent(in) :: zoomGeom, plotReceptoresA, & 
+          plotReceptoresB,plotFuente
+        end subroutine drawBoundary
         
+        subroutine G0estr(FF,p_x,J,cOME_in)
+          use resultVars, only : Punto,FFres
+          type(FFres), pointer :: FF
+          type(Punto), pointer :: p_X
+          integer, intent(in) :: J
+          complex*16, intent(in),target  :: cOME_in
+        end subroutine G0estr
       end interface
       integer :: J,l,iP,ik,iz,i,ip_x,ipxi,m
       integer :: dir,iPhi,iPhi_I,iPhi_F,ipxi_I,ipxi_F
@@ -72,6 +81,8 @@
       real*8 :: RCOND,FERR,BERR
       character*1 :: EQUED
       complex*16,dimension(400,5) :: OUTVAR
+      type (FFres), pointer :: FF
+      type(Punto), pointer :: p_X
       outvar = 0
       !#< blue
       call system('clear')
@@ -660,12 +671,13 @@
         end do !i
         
         if (comoFacDeAmpliDinamica) then
-!         call FFpsv(0,FF,dir_j,allpoints(iP_x),Po(iFte),cOME,1,5)
-!         allpoints(iP_x)%resp(J,currentiFte)%W = allpoints(iP_x)%resp(J,currentiFte)%W / FF%W
-!         allpoints(iP_x)%resp(J,currentiFte)%U = allpoints(iP_x)%resp(J,currentiFte)%U / FF%U
-!         allpoints(iP_x)%resp(J,currentiFte)%sxx = allpoints(iP_x)%resp(J,currentiFte)%sxx / FF%sxx
-!         allpoints(iP_x)%resp(J,currentiFte)%szx = allpoints(iP_x)%resp(J,currentiFte)%szx / FF%szx
-!         allpoints(iP_x)%resp(J,currentiFte)%szz = allpoints(iP_x)%resp(J,currentiFte)%szz / FF%szz
+          p_x => allpoints(iP_x)
+          call G0estr(FF,p_x,J,cOME)
+          allpoints(iP_x)%resp(J,currentiFte)%W = allpoints(iP_x)%resp(J,currentiFte)%W / FF%W
+          allpoints(iP_x)%resp(J,currentiFte)%U = allpoints(iP_x)%resp(J,currentiFte)%U / FF%U
+          allpoints(iP_x)%resp(J,currentiFte)%sxx = allpoints(iP_x)%resp(J,currentiFte)%sxx / FF%sxx
+          allpoints(iP_x)%resp(J,currentiFte)%szx = allpoints(iP_x)%resp(J,currentiFte)%szx / FF%szx
+          allpoints(iP_x)%resp(J,currentiFte)%szz = allpoints(iP_x)%resp(J,currentiFte)%szz / FF%szz
         end if ! comoFacDeAmpliDinamica
       end do !iP_x
       !
@@ -957,11 +969,11 @@
         CALL chdir(trim(arg))
         call crepa_four_fotogramas
         if (PSV .and. vivaChurubusco) call Churubusco(.false.)
-        if (SH) call Hollywood(3)
+        if (SH .and. vivaChurubusco) call Hollywood(3)
         call chdir("..")
       end if
       !
-      if (workboundary .and. punEnlaFront) then
+      if (workboundary .and. punEnlaFront .and. vivaCine) then
         write(arg,'(a,I0)') 'video',currentiFte
         CALL chdir(trim(arg))
         if (PSV) call CINETECA
@@ -1564,19 +1576,26 @@
       use wavelets !las funciones: ricke
       use waveVars, only : Dt,Uo,dt,maxtime!, ampfunction,Escala
       use waveNumVars, only : DFREC,nfrec, NPTSTIME
-      use gloVars, only : ve => verbose,Ur,z0,Printnum!,rutaOut
-      use sourceVars, only:Po,iFte=>currentiFte
+      use gloVars, only : ve => verbose,Ur,Ui,z0,Printnum,rutaOut
+      use sourceVars, only:Po,iFte=>currentiFte, nFuentes
       use ploteo10pesos
       implicit none
-!     integer  :: iFte
+      integer  :: i,nval
       character(LEN=9)          :: logflag
       character(LEN=100)        :: titleN,xAx,yAx,CTIT
       CHARACTER(len=32) :: arg
+      logical :: inquire, lexist, argumA
+      real*8 :: val1,val2
       !complex*16 :: FFTW!(NPTSTIME)
       integer :: n_maxtime
+      argumA = .false.
       CALL get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .ne. 0) then 
-        if (trim(arg) .eq. '-a') ve = 6
+        if (trim(arg) .eq. '-a') then 
+        iFte = 1
+        ve = 6
+        argumA = .true.
+        end if
       end if
       
        n_maxtime = int(maxtime/dt)
@@ -1588,33 +1607,29 @@
       ! prepare the signal we will use as incident wave amplitude.
       ! el tamaño del ricker es 2*NFREC porque incluirá el conjugado
       
-      Uo(:,iFte)=z0
+ 153  Uo(:,iFte)=z0
       if(Po(iFte)%ampfunction .eq. 1) then
         call ricker(Uo(:,iFte),Po(iFte)%Ts,Po(iFte)%Tp) ! Ricker wavelet saved on Uo
           if (ve .ge. 1) then
-             write(Printnum,'(a)')'   Incident wave amplitude function: Ricker'
-!           call chdir(trim(adjustl(rutaOut)))
-            write(titleN,'(a,I0,a)') 'WaveAmplitude-ricker_time',iFte,'.pdf'
+            write(Printnum,'(a)')'   Incident wave amplitude function: Ricker'
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-t.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Ricker wavelet'
             xAx = 'time[sec]'
             write(yAx,'(a)') 'amplitude'
             call plotXYcomp(Uo(1:n_maxtime,iFte),real(Dt,4), & 
                  n_maxtime,titleN,xAx,yAx,CTIT,1200,800,0.0)
-!           CALL chdir("..")
           end if
         ! forward
         Uo(:,iFte) = FFTW(NPTSTIME,Uo(:,iFte),-1,Dt)     
         Uo(1,iFte) = 0   
           if (ve .ge. 1) then
-!           call chdir(trim(adjustl(rutaOut)))
-            write(titleN,'(a,I0,a)') 'WaveAmplitude-ricker_frec',iFte,'.pdf'
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
             xAx = 'frec[Hz] '
             write(yAx,'(a)') 'amplitude'      
             logflag = 'logx     '      
 !           logflag = 'none     '
             call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
             titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
-!           CALL chdir("..")
           end if
      !********************************************************************************
       elseif(Po(iFte)%ampfunction .eq. 2) then ! Gaussian
@@ -1622,7 +1637,7 @@
           if (ve .ge. 1) then
            write(Printnum,'(a)')'   Incident wave amplitude function: Gaussian'
 !           call chdir(trim(adjustl(rutaOut)))
-            write(titleN,'(a,I0,a)') 'WaveAmplitude-Gaussian_frec',iFte,'.pdf'
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Gaussian wavelet'
             xAx = 'frec[Hz] '
             write(yAx,'(a)') 'amplitude'
@@ -1630,6 +1645,81 @@
                  n_maxtime,titleN,xAx,yAx,CTIT,1200,800,0.0)
 !           CALL chdir("..")
           end if
+      elseif(Po(iFte)%ampfunction .eq. 3) then ! inDispl.txt
+     !********************************************************************************
+        CALL chdir("..")
+        CALL chdir("ins")
+        inquire(file="inAmplitude.txt",exist=lexist)
+        if (lexist) then
+        OPEN(77,FILE="inAmplitude.txt",FORM="FORMATTED")
+        else
+        write(6,'(a)') 'There is a missing input file. '
+        stop 'Check "inAmplitude.txt" on input directory'
+        end if
+        READ(77,*)
+        READ(77,*) inquire
+        READ(77,*) nval
+        if (nval .gt. NPTSTIME) then 
+        print*, "**** warning inAmplitude trimmed to ", NPTSTIME
+        nval = NPTSTIME
+        end if
+        Uo(:,iFte) = 0
+        if ( inquire) then
+        do i = 1,nval
+        READ(77,*) val1
+        Uo(i,iFte) = UR * val1
+        end do
+        close(77)
+          if (ve .ge. 1) then
+            CALL chdir("..")
+            call chdir(trim(adjustl(rutaOut)))
+            write(Printnum,'(a)')'   Incident wave amplitude function from file'
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-t.pdf'
+            write(CTIT,'(a)') 'WaveAmplitude'
+            xAx = 'time[sec]'
+            write(yAx,'(a)') 'amplitude'
+            call plotXYcomp(Uo(1:NPTSTIME,iFte),real(Dt,4), & 
+                 n_maxtime,titleN,xAx,yAx,CTIT,1200,800,0.0)
+          end if
+        
+        ! forward
+        Uo(:,iFte) = FFTW(NPTSTIME,Uo(:,iFte),-1,Dt) 
+        
+          if (ve .ge. 1) then
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
+            xAx = 'frec[Hz] '
+            write(yAx,'(a)') 'amplitude'      
+            logflag = 'logx     '      
+!           logflag = 'none     '
+            call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
+            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+            CALL chdir("..")
+            CALL chdir("ins")
+          end if
+        else
+        do i = 1,nval
+        READ(77,*) val1, val2
+        Uo(i,iFte) = UR * val1 + UI * val2
+        end do
+        if (ve .ge. 1) then
+            CALL chdir("..")
+            call chdir(trim(adjustl(rutaOut)))
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
+            xAx = 'frec[Hz] '
+            write(yAx,'(a)') 'amplitude'      
+            logflag = 'logx     '      
+!           logflag = 'none     '
+            call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
+            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+            CALL chdir("..")
+            CALL chdir("ins")
+          end if
+        close(77)
+        end if
+        
+        CALL chdir("..")
+        call chdir(trim(adjustl(rutaOut)))
+        
       else  ! DIRAC -----------------------------------------
        if (ve .ge. 1) write(Printnum,'(a)')'   Incident wave amplitude function: Dirac delta'
         Uo(:,iFte)=UR
@@ -1637,7 +1727,14 @@
       Uo(:,iFte) = Uo(:,iFte)*Po(iFte)%Escala !escala de la señal
       write(Printnum,'(a)') &
        "---------------------------------------------------------------------------------"
-      if (ve .eq. 6) stop "argumento -a"
+      if (argumA .eqv. .true.) then 
+      if (iFte .eq. nfuentes) then
+      stop "argumento -a"
+      else
+      iFte = iFte + 1
+      go to 153
+      end if
+      end if
       end subroutine sourceAmplitudeFunction
       subroutine diffField_at_iz(i_zF,dir_j,J,cOME_in)
 !#define ver 1
@@ -2026,169 +2123,166 @@
 #endif
       end subroutine diffField_at_iz
       
-!     subroutine G0estr(FF,p_x, cOME_in)
-!     ! esta función es llamada con cada profundidad donde hay
-!     ! por lo menos una fuente.
-!     use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum,PWfrecReal
-!     use resultVars, only : pota,Punto,nZs,MecaElem,FFres
-!     use refSolMatrixVars, only : B,Ak
-!     use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
-!     use wavelets 
-!     use dislin
-!     use sourceVars, only: Po,iFte=>currentiFte!nFuentes,tipofuente, , PW_pol
-!     use soilvars, only:N,Z,alfa0,beta0,alfa,beta
-!     use, intrinsic :: iso_c_binding!, only : C_INT
-!     use debugStuff
-!     implicit none
-!     interface
-!       include 'interfaz.f'
-!       function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k,ik)
-!         use soilvars, only:N
-!         complex*16, dimension(1:5) :: PSVdiffByStrata
-!         real*8, intent(in)           :: z_i,k
-!         complex*16, intent(in)       :: cOME_i  
-!         integer, intent(in)          :: e,ik
-!         complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
-!       end function PSVdiffByStrata
-!       
-!       subroutine  eGAeNU(i_zF,ik,pXI,dj)
-!       use resultVars, only : Punto
-!         integer :: ik,i_zF,dj
-!         type(Punto), pointer :: pXi
-!       end subroutine  eGAeNU
-!     end interface
-!     type(FFres),target :: FF
-!     integer, intent(in) :: i_zF,dir_j,J
-!     complex*16, intent(in),target  :: cOME_in
-!     logical,pointer :: intf
-!     integer, pointer :: ef
-!     real*8,target :: k
-!     real*8, pointer :: zf,xf,pt_k
-!     complex*16, dimension(:,:), allocatable, target :: auxK,savedAuxK
-!     complex*16, target  :: cOME,alf,bet
-!     complex*16, pointer :: pt_cOME_i
-!     integer, dimension(:),allocatable,target :: ipivA
-!     integer, dimension(:),pointer :: pt_ipivA
-!     complex*16, dimension(:),allocatable,target :: workA
-!     complex*16, dimension(:),pointer :: pt_workA
-!     complex*16,dimension(:,:),pointer :: pointA
-!     type(Punto), pointer :: pXi,p_X
-!     logical :: auxLogic ,porLoMenosUnoEsEstr,isPW
-!     integer :: ik,tam,itabla_z,itabla_x,iMec,mecS,mecE,&
-!                nXis,n_Xs,iXi,dj,pos,ne!,i_Fuente,i_FuenteFinal
-!     type(MecaElem)  :: Meca_diff, SHdiffByStrata
- !     allocate(auxK(2*nmax,5)); allocate(savedAuxK(2*nmax,5))
-!     
-!     
-!     isPW = .false.
-!     if (Po(iFte)%tipofuente .eq. 1) isPW = .true.
-!           
-!     cOME = cOME_in 
-!     
-!        if (isPW) then ! onda plana incidente·p
-!           ! con incidencia de onda plana no usamos atenuación                  ·l
-!          if (PWfrecReal) then 
-!            cOME = OME * UR  !real(cOME_in) * UR!                               ·a
-!            alf = alfa0(N+1)
-!            bet = beta0(N+1)
-!          else
-!            cOME = cOME_in  !real(cOME_in) * UR!                               ·a
-!            alf = alfa(N+1)
-!            bet = beta(N+1)
-!          end if!
-!          if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)!    ·a
-!          if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
-!        end if! ·································································n
- !      call asociar(pXi,iFte,0,3) ! asociar apuntador a fuente [pXi]
-!     
-!      xf=>pXi%center%x;zf=>pXi%center%z;ef=>pXi%layer;intf=>pXi%isOnInterface
-!     ! Si es la fuente real y es una onda plana no se usa el DWN. Se calcula para
-!     ! el número de onda horizontal asociado al ángulo de incidencia ············
-!     if (isPW) then ! onda plana incidente   ·
-!           tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
-!           pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
-!           pt_k => k; pt_come_i => cOME!                                        ·
-!           allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
-!           pt_ipivA => ipivA; pt_workA => workA!                                ·
-!           call gloMat_PSV(pointA,pt_k,0)!                                      ·
-!           call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
-!           call PSVvectorB_ondaplana(B(:,0),pxi%gamma)!                         ·
-!           B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
-!         pos = 0; ne = 2*nmax+1
-!     else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
-!     ! La fuente es cilíndrica 
-!       pos = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(pos-2)                !
-!       B(:,pos:ne) = 0                                                         !
-!       tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
-!        
-!        ! si la fuente está sobre una interfaz ...............
-!        if (pXi%isOnInterface) then
-!          do ik = 1,pos+1                                                      !r
-!            call PSVvectorB_force(0,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !i
-!            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                 !c
-!          end do                                                                  !a
-!          do ik = ne,2*NMAX                                                       !
-!            call PSVvectorB_force(0,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !
-!            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !
-!          end do
-!        else ! la fuente está entre interfaces ..............
-!          do ik = 1,pos+1
-!            call eGAeNU(0,ik,pXI,dj)
-!          end do!                                                                 
-!          do ik = ne,2*NMAX
-!            call eGAeNU(0,ik,pXI,dj)
-!          end do
-!        end if                                                                  !
-!     end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
-!     
-!     ! resultado en el receptor
-!     if (isPW) then ! onda plana·············
-!                savedauxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
-!                             p_X%center%z, p_X%layer,cOME,k,0)!                ·a
-!     else ! onda plana incidente / onda cilíndrica circular ····················
-!       do ik = 1,pos+1                                                         !
-!             savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
-!                             p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !i
-!       end do ! ik                                                             !i
-!       do ik = ne,2*Nmax                                                       !n
-!            savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
-!                                p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)     !
-!       end do ! ik                                                             !
-!     end if! onda cilíndrica circular ··········································
-!     
-!     ! fase horizontal
-!           ! reponer auxK original sin fase horizontal
-!         auxK(1:pos+1,mecS:mecE)      = savedAuxK(1:pos+1,mecS:mecE)
-!         auxK(ne:2*nmax,mecS:mecE) = savedAuxK(ne:2*nmax,mecS:mecE)
-!           ! agregar información fase horizontal de fuente y receptor 
-!         do imec = 1,5 !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
-!           if (isPW) then 
-!               auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
-!               exp(-UI*k*(p_x%center%x - xf))            !                 ·
-!               CYCLE ! imec                              !                 ·
-!           end if ! ························································
-!           do ik = 1,pos+1                                                 !
-!               auxk(ik,imec) = auxk(ik,imec) * &                           !
-!               exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
-!           end do !  ik                                                    !i
-!           do ik = ne,2*Nmax                                               !l
-!               auxk(ik,imec) = auxk(ik,imec) * &                           !i
-!               exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!n
-!           end do !  ik                                                    !d
- !     ! K -> X  .........................................................   !
-!            auxK(1,iMec) = sum(auxK(1:pos+1,iMec))+sum(auxK(ne:2*nmax,iMec))
-!            auxK(1,iMec) = auxK(1,iMec)*dk
-!                                                            !
-!     end do !imec !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
-!     
-!     
-!     FF%W = 
-!     FF%U = 
-!     FF%sxx = 
-!     FF%sxz = 
-!     FF%szz = 
-!         
-!     end subroutine G0estr
+      subroutine G0estr(FF,p_x,J,cOME_in)
+      ! funcion de Green en medio estratificado. 
+      ! cálculo lento uno por uno.
+      ! Para onda planas y para fuerza en una dirección x o z
+      use gloVars, only : z0,UI,UR,PWfrecReal
+      use resultVars, only : Punto,MecaElem,FFres
+      use refSolMatrixVars, only : B,Ak
+      use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME
+      use wavelets 
+      use dislin
+      use sourceVars, only: Po,iFte=>currentiFte
+      use soilvars, only:N,Z,alfa0,beta0,alfa,beta
+      use, intrinsic :: iso_c_binding
+      use debugStuff
+      implicit none
+      interface
+        include 'interfaz.f'
+         
+        function PSVdiffByStrata(coefOndas_PSV,z_i,e,cOME_i,k,ik)
+          use soilvars, only:N
+          complex*16, dimension(1:5) :: PSVdiffByStrata
+          real*8, intent(in)           :: z_i,k
+          complex*16, intent(in)       :: cOME_i  
+          integer, intent(in)          :: e,ik
+          complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
+        end function PSVdiffByStrata
+        
+        subroutine  eGAeNU(i_zF,ik,pXI,dj)
+          use resultVars, only : Punto
+          integer :: ik,i_zF,dj
+          type(Punto), pointer :: pXi
+        end subroutine  eGAeNU
+      end interface
+      type(FFres), pointer :: FF
+      type(Punto), pointer :: p_X
+      integer, intent(in) :: J
+      complex*16, intent(in),target  :: cOME_in
+      
+      integer, parameter :: dir_j = 3
+      real*8,target :: k
+      real*8, pointer :: zf,xf,pt_k
+      complex*16, dimension(:,:), allocatable, target :: auxK!,savedAuxK
+      complex*16, target  :: cOME,alf,bet
+      complex*16, pointer :: pt_cOME_i
+      integer, dimension(:),allocatable,target :: ipivA
+      integer, dimension(:),pointer :: pt_ipivA
+      complex*16, dimension(:),allocatable,target :: workA
+      complex*16, dimension(:),pointer :: pt_workA
+      complex*16,dimension(:,:),pointer :: pointA
+      type(Punto), pointer :: pXi
+      logical :: isPW
+      integer :: ik,tam,iMec,dj,pos,ne
+      
+      allocate(auxK(2*nmax,5))
+      isPW = .false.
+      if (Po(iFte)%tipofuente .eq. 1) isPW = .true.
+            
+      cOME = cOME_in 
+         if (isPW) then ! onda plana incidente
+           if (PWfrecReal) then !  no usamos atenuación
+             cOME = OME * UR  !real(cOME_in) * UR!
+             alf = alfa0(N+1)
+             bet = beta0(N+1)
+           else
+             cOME = cOME_in 
+             alf = alfa(N+1)
+             bet = beta(N+1)
+           end if
+           ! numeros de onda horizontales 
+           if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)
+           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
+         end if! ································································
+      call asociar(pXi,iFte,0,3) ! asociar apuntador a fuente [pXi]
+      
+       xf=>pXi%center%x;zf=>pXi%center%z!;ef=>pXi%layer;intf=>pXi%isOnInterface
+      ! Si es la fuente real y es una onda plana no se usa el DWN. Se calcula para
+      ! el número de onda horizontal asociado al ángulo de incidencia ············
+      if (isPW) then ! onda plana incidente   ·
+            tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
+            pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
+            pt_k => k; pt_come_i => cOME!                                        ·
+            allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
+            pt_ipivA => ipivA; pt_workA => workA!                                ·
+            call gloMat_PSV(pointA,pt_k,0)!                                      ·
+            call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
+            call PSVvectorB_ondaplana(B(:,0),pxi%gamma)!                         ·
+            B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
+            pos = 0; ne = 2*nmax+1
+      else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
+      ! La fuente es cilíndrica 
+        pos = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(pos-2)                !
+        B(:,pos:ne) = 0                                                         !
+        tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !
+         ! si la fuente está sobre una interfaz ...............                 !
+         if (pXi%isOnInterface) then                                            !
+           do ik = 1,pos+1                                                      !
+             call PSVvectorB_force(0,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !
+             B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                               !
+           end do                                                               !
+           do ik = ne,2*NMAX                                                    !
+             call PSVvectorB_force(0,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !
+             B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                               !
+           end do                                                               !
+         else ! la fuente está entre interfaces ..............                  !
+           do ik = 1,pos+1                                                      !
+             call eGAeNU(0,ik,pXI,dj)                                           !
+           end do!                                                              !             
+           do ik = ne,2*NMAX                                                    !
+             call eGAeNU(0,ik,pXI,dj)                                           !
+           end do                                                               !
+         end if                                                                 !
+      end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
+      
+      ! resultado en el receptor
+      if (isPW) then ! onda plana·············                                  .
+              auxK(1,1:5) = PSVdiffByStrata(B(:,0), &!                          ·
+                              p_X%center%z, p_X%layer,cOME,k,0)!                ·
+      else ! onda plana incidente / onda cilíndrica circular ····················
+        do ik = 1,pos+1                                                         !
+              auxK(ik,1:5) = PSVdiffByStrata(B(:,ik), &                         !
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !
+        end do ! ik                                                             !
+        do ik = ne,2*Nmax                                                       !
+              auxK(ik,1:5) = PSVdiffByStrata(B(:,ik), &                         !
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !
+        end do ! ik                                                             !
+      end if! onda cilíndrica circular ··········································
+      
+      ! agregar información fase horizontal de fuente y receptor 
+          do imec = 1,5 !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+            if (isPW) then 
+                auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
+                exp(-UI*k*(p_x%center%x - xf))            !                 ·
+                CYCLE ! imec                              !                 ·
+            end if ! ························································
+            do ik = 1,pos+1                                                 !
+                auxk(ik,imec) = auxk(ik,imec) * &                           !
+                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
+            end do !  ik                                                    !i
+            do ik = ne,2*Nmax                                               !l
+                auxk(ik,imec) = auxk(ik,imec) * &                           !i
+                exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!n
+            end do !  ik                                                    !d
+      ! K -> X  .........................................................   !
+             auxK(1,iMec) = sum(auxK(1:pos+1,iMec))+sum(auxK(ne:2*nmax,iMec))
+             auxK(1,iMec) = auxK(1,iMec)*dk
+      end do !imec !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
+      
+      
+      ! campo directo si se está en el mismo estrato que la fuente
+      call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5)
+      
+      ! resultados
+      FF%W = FF%W + auxk(1,1)
+      FF%U = FF%U + auxk(1,2)
+      FF%sxx = FF%sxx + auxk(1,5)
+      FF%szx = FF%szx + auxk(1,4)
+      FF%szz = FF%szz + auxk(1,3)
+          
+      end subroutine G0estr
 ! G_stra - matrix pointAp,pt_k,pt_cOME_i
       subroutine makeGANU (J)
       use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, & 
@@ -5904,8 +5998,10 @@
       if (allpoints(iP)%atBou .and. icomp .ne. 0) then
          !allocate(allpoints(iP)%S(NPTSTIME,5)) !W U sxx szx szz
          allpoints(iP)%S(1:NPTSTIME,icomp) = S
-         write(name,'(a,I0,a,I0,a)') 'S_IP',iP,'_icomp',icomp,'.m'
+         write(name,'(a,I0,a,I0,a)') 's_IP',iP,'_icomp',icomp,'.m'
          OPEN(3211,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
+         write(3211,'(a,a,EN26.9,a,EN26.9,a)') yax, & 
+         ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
          call scripToMatlabMNmatrixZ(NPTSTIME,1,S,name,3211)
          close (3211)
       end if
@@ -5938,6 +6034,8 @@
         if (allpoints(iP)%atBou .and. icomp .ne. 0) then
          write(name,'(a,I0,a,I0,a)') 'f_IP',iP,'_icomp',icomp,'.m'
          OPEN(3212,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
+         write(3212,'(a,a,EN26.9,a,EN26.9,a)') yax, & 
+         ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
          call scripToMatlabMNmatrixZ(int(NPTSTIME/2),1,S(1:int(NPTSTIME/2)),name,3212)
          close (3212)
         end if  

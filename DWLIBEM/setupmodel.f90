@@ -69,6 +69,7 @@
       READ(35,'(I1)') verbose!; print*,"verbose =",verbose
       READ(35,'(L1)') makevideo!; print*,"make a video =",makevideo
       READ(35,'(L1)') vivaChurubusco
+      READ(35,'(L1)') vivaCine
       READ(35,'(L1)') workBoundary!; print*,"boundary? ",workBoundary
       READ(35,'(L1)') flip12; if(.not. workBoundary) flip12 = .false.
       READ(35,'(L1)') plotFKS!; print*,"plotFK?",plotFKS
@@ -371,8 +372,7 @@
       end if
       READ(7,*) !Points of interest for an accelerogram
       READ(7,*) nIpts
-      READ(7,*) nnsabanas, nSabanapts, &
-                SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
+      READ(7,*) nnsabanas, nSabanapts, SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
       READ(7,*) nnsecciones, nsecciones
       READ(7,*) tellpunEnlaFront
       punEnlaFront=tellpunEnlaFront
@@ -535,6 +535,7 @@
 
       !
       if (nSabanapts .gt. 0) then
+      print*,"Ahora con los puntos de la Sabana"
       allocate(Sabana(nSabanapts, NPTSTIME))
       read(7,*) !Sabanapoints -------------------------
       read(7,*) escalax,escalay
@@ -596,6 +597,7 @@
         deallocate(auxInq)
       end if
       CALL chdir("..")
+      print*,"chido con los puntos de interes"
       end subroutine getInquirePoints
 
       subroutine getPolaridad(skipdir,PSV,SH)

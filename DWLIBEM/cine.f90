@@ -168,8 +168,13 @@
       srt(i,j) = getsrt
       maxsrt = max(maxsrt,srt(i,j))
       end if
-      end do!
-      end do
+      end do! j
+      end do! i
+
+      ! ******************** envolvente
+
+
+      ! ******************** pelicula
 !     maxstt = maxval(stt(1:nframes,nIpts-nXi-nSabanapts:nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall))
 !     print*,"maxstt=",maxstt
       stt = stt/maxstt * MeshVecLen2 !;print*,"new max=",maxval(stt(:,:))

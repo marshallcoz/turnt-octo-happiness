@@ -7,6 +7,7 @@
       integer    :: verbose 
       logical    :: makeVideo
       logical    :: vivaChurubusco
+      logical    :: vivaCine
       logical    :: workBoundary
       logical    :: flip12
       logical    :: PrintEtas
