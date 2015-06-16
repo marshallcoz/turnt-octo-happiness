@@ -1,6 +1,6 @@
 % funcion de Green 3D semiespacio estratificado
 function [Mpsv,M_sh,cellMat] = GijTij_HSestr_dwn(m,f,ops)
-% Matriz global de continuidad de polarizaciones P-SV
+% Matriz global de continuidad P-SV y SH a cada k
 k = 0:f.dk:f.dk*f.nmax; k(1) = 0.01*f.dk;
 k2 = k.^2;
 Z0 = k*0;
@@ -155,7 +155,7 @@ for e = 1:ops.N+1
     ic= ic+2;
 end % e
 
-% Guardar matrices para la posteridad
+ % Guardar matrices para la posteridad
 cellMat = cell(1);
 cellMat{1,1}.sD0 = {sD0};
 cellMat{1,1}.sS0 = {sS0};

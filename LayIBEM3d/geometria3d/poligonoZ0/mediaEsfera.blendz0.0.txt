@@ -1,0 +1,14 @@
+---- /Users/marshall/Documents/DOC/coco/turnt-octo-happiness/LayIBEM3d/geometria3d/poligonoZ0/icoshpere2.blend vetices del poligono en 0.0---
+10
+     0.0     -1.0
+  0.5878   -0.809
+  0.9511   -0.309
+  0.9511    0.309
+  0.5878    0.809
+     0.0      1.0
+ -0.5878    0.809
+ -0.9511    0.309
+ -0.9511   -0.309
+ -0.5878   -0.809
+ 
+ 

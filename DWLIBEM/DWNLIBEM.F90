@@ -3376,7 +3376,7 @@
         this_B(1+4*(e_f-1)+2) = S331(1)! szz
         this_B(1+4*(e_f-1)+3) = S131(1)! szx   ! delta
        end if 
-      
+      !
       if (.not. fisInterf) then ! la fuerza no en la interfaz
       !                     =      (2) interfaz de abajo
        if (e_f .ne. N+1) then
@@ -3395,7 +3395,7 @@
         this_B(1+4*(e_f-1)+2) = S333(1)! szz   ! delta
         this_B(1+4*(e_f-1)+3) = S313(1)! szx 
        end if 
-    
+      !
       if (.not. fisInterf) then
       !                     =    (2) interfaz de abajo (con Fza en el HS no entra aqui)
        if (e_f .ne. N+1) then
@@ -7411,4 +7411,3 @@
         end if
         end if        
       end subroutine plot_at_eta
-

@@ -1,4 +1,5 @@
-%% funcion de Green 3d Espacio completo integral en num de onda radial
+%% funcion de Green 3d Espacio completo 
+% vía integral en num de onda radial
 function [G,T,FK] = GijTij_dwn(m,f,p_x,pXi)
 %m = m_vars;f=f_vars;
 %% se resuelve en cilíndricas y se transforma a cartesianas

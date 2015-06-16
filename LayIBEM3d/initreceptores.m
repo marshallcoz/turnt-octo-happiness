@@ -1,4 +1,4 @@
-function [res,receptor] = initreceptores(res,f_vars)
+function [res,receptor] = initreceptores(res,m_vars,f_vars,ops)
 hfig = figure('Name','ReceiversPlot');hold on
        
 xran = res.box(1,1):res.Del:res.box(1,2);
@@ -27,13 +27,17 @@ for i = 1:res.nx;
            receptor{cont}.region = 1;%'E';
            inout = inpolygon(xran(i),yran(j),xv,yv);
            if (inout == 1)
-               receptor{cont}.region = 2;
+               receptor{cont}.region = 2; %'R'
                auxtx = ['{\color{blue}' num2str(cont) '}'];
            else
                auxtx = ['{\color{red}' num2str(cont) '}'];
+               [lay,isonint] = telllayer(m_vars,zran(k),ops.N);
+               receptor{cont}.layer = lay;
+               receptor{cont}.isoninterf = isonint;
            end%'R';end
                text(xran(i),yran(j),zran(k),auxtx)
            
+           % para el resultado final:
            receptor{cont}.greenG = zeros(3,3,f_vars.NFREC); 
            receptor{cont}.greenT = zeros(3,3,f_vars.NFREC); 
            %res.receptor{cont}.sism = zeros(3,3,f_vars.ntiempo);

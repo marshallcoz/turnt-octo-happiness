@@ -1,8 +1,9 @@
 %% funcion de Green 3d Espacio completo sin fase radial 
 % (para el término independiente)
-function [PSV,SH] = Gij_dwn_atInterf(m,f,k,z)
-PSV = zeros(4,2,f.nmax+1); %Szz,Szr,Ur,Uz; Horz, Vert; ik
-SH =  zeros(2,1,f.nmax+1); %    Szr,Ur;    Horz      ; ik
+function [PSV,SH] = Gij_dwn_atInterf(m,f,z)
+PSV = zeros(4,2,f.nmax+1); %Szz,Szr,Uz,Ur; Horz, Vert; ik
+SH =  zeros(2,1,f.nmax+1); %    Szr,   Ur; Horz      ; ik
+k = 0:f.dk:f.dk*f.nmax; k(1) = 0.01*f.dk;
 k2 = k.^2;
 ome = f.come;
 alf = m.alfa;
@@ -31,7 +32,7 @@ PSV(2,2,:) = -b2_4pio2*(2*gam.*ega+k2_nu2./nu.*enu).*k2;%szr
 PSV(3,2,:) = -b2_4piom2m*((gam.*ega + k2./nu.*enu).*k); %uz
 PSV(4,2,:) = -sign(z)*b2_4piom2m*((ega - enu).*k2); %ur
 
-%fuerza horizontal (1) --------------------------------------------------
+%fuerza horizontal (1) -------------------------------------------
 %PSV
 % esfuerzos:
 PSV(1,1,:) = -1i*b2_4pio2*(k2_nu2./gam.*ega + 2*nu.*enu).*k2; %szz
@@ -43,8 +44,3 @@ PSV(4,1,:) = -1i*b2_4piom2m*(k2_ga.*ega+nu.*enu).*k; % ur
 %SH
 SH(1,1,:) = -1i*cons1*om2be2*enu.*k; %szr
 SH(2,1,:) = -1i*b2_4piom2m*om2be2./nu.*enu.*k; % ur
-
-
-
-
-
