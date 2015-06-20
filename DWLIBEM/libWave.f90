@@ -48,8 +48,9 @@
       
 
       module waveVars
-      real*8, save :: Dt,maxtime  !segundos
+      real*8, save :: Dt  !segundos
       real, save :: t0
+      real, dimension(:), allocatable :: maxtime
       complex*16, dimension(:,:), allocatable :: Uo
 !     real, save :: Escala
 !     real, save :: Ts 
@@ -167,6 +168,7 @@
       !                        ,--- f: 1...nfrec+1
       !                        | ,--- iMec: 1:2 y 3
         type(FFres),dimension (:,:), allocatable :: resp
+        type(FFres),dimension (:,:), allocatable :: facAmpli
         complex*16, dimension (:,:,:,:), allocatable :: Wmov
         
         complex*16, dimension (:,:), allocatable :: S !(traza,componente)
@@ -198,7 +200,6 @@
         integer, allocatable, dimension(:,:), save :: fixedPoTa,pota
         integer :: nZs ! depths at pota
         complex*16, allocatable, dimension(:,:,:) :: XF
-        
         
       contains
        
@@ -433,7 +434,7 @@
       end do
       end subroutine ricker
       
-      subroutine gaussian(sigGaus)
+      subroutine gaussian(Uo,sigGaus)
 !     use waveVars, only : Uo,sigGaus
       use waveNumVars, only : NPTSTIME!,nfrec
       implicit none

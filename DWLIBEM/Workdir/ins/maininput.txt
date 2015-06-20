@@ -1,7 +1,7 @@
 1	verbose [int]
 T	make a videos [logical]
 T       vivaChurubusco [logical]
-F       vivaCine [logical]
+T       vivaCine [logical]
 T	Solve IBEM boundary [logical]
 F	The inclusion is the layered media, the rest is homogeneous.
 F	Plot FK de medio sin topografia [logical]
@@ -9,9 +9,9 @@ F       Plot FKCK
 F       Plot displacement at frecuency Eta.
 F       Plot filled sheets
 T	Save the Green funcs. for later use with "-L" argument [logical]
-8	Segments per wavelength [int :: R]
+12	Segments per wavelength [int :: R]
 F   150	Keep the subdivision of at least the Jth frequency [logical] [integer]
-F 1 150	Overdeterminate system
+T 1 150	Overdeterminate system
 2.5	K integrand runs up to fmax / (R * beta) [real :: R]
 1.25     K split pos, neg. [1.25] [real]    
 1	Periodic sources damping; omega = (omega , - r*PI/TW i) [float :: r] {1 or 2}
@@ -22,4 +22,4 @@ T	Reusar directorio de resultados [logical]
 1.0	Longitud característica a [real]
 5	En segmentos de esquina, dividir dividir la longitud de segmentos por [int]
 F       Ondaplana con frec real
-F       Resultados como factor de amplificación dinámica
+T       Calcular factor de amplificación dinámica en la frecuencia

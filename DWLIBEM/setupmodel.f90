@@ -96,7 +96,7 @@
       end subroutine getMainInput
 
       subroutine getSoilProps
-      use soilVars; use waveNumVars; use waveVars, only : dt, maxtime; use fitting
+      use soilVars; use waveNumVars; use waveVars, only : dt; use fitting
       use gloVars, only : verbose,PI, cKbeta,outpf => PrintNum,periodicdamper
       implicit none
       logical :: lexist
@@ -194,7 +194,7 @@
        end do
       end if
       READ(7,*)
-      READ(7,*)DFREC,NFREC,NPTSTIME,nK,Qq,TW,maxtime
+      READ(7,*)DFREC,NFREC,NPTSTIME,nK,Qq,TW
       close(7)
       CALL chdir("..")
 
@@ -644,7 +644,7 @@
       end subroutine getPolaridad
 
       subroutine getsource
-      use wavevars, only: t0! Escala,Ts,Tp, ampfunction, sigGaus,
+      use wavevars, only: t0,maxtime! Escala,Ts,Tp, ampfunction, sigGaus,
       use sourceVars, only: Po, nFuentes!, tipoFuente, PW_pol,
       use glovars, only:pi,PrintNum
       use resultVars, only : Punto
@@ -664,12 +664,12 @@
       real*8  :: nxfsource,nyfsource,nzfsource, PW_theta
       type (Punto), pointer :: BPi
         real :: Escala
-        real :: Ts
-        real :: Tp
+        real :: mastimere,Ts,Tp
         integer :: ampfunction
         real :: sigGaus
         integer :: PW_pol
         integer :: tipofuente
+
 
       CALL chdir("ins")
       inquire(file="source.txt",exist=lexist)
@@ -683,12 +683,13 @@
       READ(77,*) nFuentes;READ(77,*);READ(77,*)
 
       allocate(Po(nFuentes))
+      allocate(maxtime(nFuentes))
       write(Printnum,'(a)') &
        "---------------------------------------------------------------------------------"
       do i=1,nFuentes
        READ(77,*) xfsource, zfsource, nxfsource,&
                  nyfsource, nzfsource, PW_theta, l, regi,&
-                 Escala, ampfunction, Ts, Tp, sigGaus,&
+                 Escala, ampfunction,  mastimere, Ts, Tp, sigGaus,&
                  PW_pol, tipoFuente
        Po(i)%center%x = xfsource
        Po(i)%center%z = zfsource
@@ -731,6 +732,7 @@
        end if
        Po(i)%Escala=Escala
        Po(i)%ampfunction=ampfunction
+       maxtime(i) = mastimere
        Po(i)%Ts=Ts
        Po(i)%Tp=Tp
        Po(i)%sigGaus=sigGaus
@@ -1320,7 +1322,7 @@
 !         end if
 !       end if!
         end if!
-        if (allpoints(i)%region .eq. 2) allpoints(i)%layer = N+2
+        !if (allpoints(i)%region .eq. 2) allpoints(i)%layer = N+2
         if (verbose .ge. 1) then
         write(PrintNum,*)i,"[",allpoints(i)%center%x, &
         ",",allpoints(i)%center%z,"] is ",allpoints(i)%region,allpoints(i)%layer,allpoints(i)%isOD
@@ -1347,7 +1349,7 @@
       function tellisoninterface(zi)
       use soilVars, only : Z,N
       implicit none
-      real*8 ::  errT = 0.005_8
+      real*8 ::  errT = 0.05_8
       integer :: e
       real*8 :: zi
       logical :: tellisoninterface

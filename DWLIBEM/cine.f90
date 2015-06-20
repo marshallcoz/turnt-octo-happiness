@@ -33,9 +33,9 @@
       real*8 :: si,co,szz,szx,sxx
 
       !tiempo maximo para graficar
-       n_maxtime = int(maxtime/dt)
-       if(maxtime .lt. dt) n_maxtime = 2*nfrec
-       if(maxtime .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
+       n_maxtime = int(maxtime(iFte)/dt)
+       if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
+       if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
        print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," fotogramas"
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
