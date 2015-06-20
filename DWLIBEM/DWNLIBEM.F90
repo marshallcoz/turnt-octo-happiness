@@ -7389,9 +7389,21 @@
       CALL HSYMBL(int(25,4)) !size of symbols                               ! 
       do j=1,nXI                                                            !
       CALL RLVEC (real(midPoint(j,1),4), real(midPoint(j,2),4), &           !
-              real(midPoint(j,1)+normXI(j,1)* xstep*0.2,4), &                !
-              real(midPoint(j,2)+normXI(j,2)* xstep*0.2,4), int(1001,4))     !
-      end do                                                                !
+              real(midPoint(j,1)+normXI(j,1)* xstep*0.1,4), &                !
+              real(midPoint(j,2)+normXI(j,2)* xstep*0.1,4), int(1001,4))     !
+      end do                                                               !
+      if (overDeterminedSystem) then                                    !
+      do j=1,nipts                                                         !
+        if (IP(j)%isOD) then                                               !
+            call color('RED') 
+            CALL RLSYMB (0, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
+            CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
+               real(IP(j)%center%x + IP(j)%normal%x * xstep*0.1,4), & !
+               real(IP(j)%center%z + IP(j)%normal%z * xstep*0.1,4), &  !
+              int(1001,4))                                                 !
+          end if   
+      end do                                                        !
+      end if
       
       ! puntos centrales y gaussianos ------------------------------------
       call incmrk(-1) ! -1 : only symbols                                !
@@ -7471,24 +7483,26 @@
       if (plotReceptoresA) then
       !receptores ----------------------------------------------------------
       CALL HSYMBL(int(25,4)) !size of symbols                              !
+      if (overDeterminedSystem) then                                    !
       do j=1,nipts                                                         !
         if (IP(j)%isOD) then                                               !
-          if (overDeterminedSystem) then                                   !
             call color('RED') 
             CALL RLSYMB (0, real(IP(j)%center%x,4), real(IP(j)%center%z,4))!
             CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
-               real(IP(j)%center%x + IP(j)%normal%x * MeshVecLen*0.5,4), & !
-              real(IP(j)%center%z + IP(j)%normal%z * MeshVecLen*0.5,4), &  !
+               real(IP(j)%center%x + IP(j)%normal%x * xstep*0.2,4), & !
+               real(IP(j)%center%z + IP(j)%normal%z * xstep*0.2,4), &  !
               int(1001,4))                                                 !
-          end if                                                           !
-        end if                                                             !
+          end if   
+      end do  !
+      end if
+      do j=1,nipts                                                            !
           call color('BLUE') 
           CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))  !
           if (IP(j)%atBou) then
             call color('CYAN') 
             CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &  !
-              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.4,4), &       !
-              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.4,4), &       !
+              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.2,4), &       !
+              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.2,4), &       !
               int(1001,4))
           end if                                                           !
       end do                                                               !
@@ -7503,8 +7517,8 @@
           CALL HSYMBL(int(25,4)) !size of symbols 
           call color('CYAN') 
           CALL RLVEC (real(IP(j)%center%x,4), real(IP(j)%center%z,4), &    !
-              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.4,4), &       !
-              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.4,4), &       !
+              real(IP(j)%center%x + IP(j)%normal%x * xstep*0.2,4), &       !
+              real(IP(j)%center%z + IP(j)%normal%z * xstep*0.2,4), &       !
               int(1001,4))                                                 !
           else                                                             !
           if (.not. IP(j)%atBou) then
@@ -7580,4 +7594,3 @@
         end if
         end if        
       end subroutine plot_at_eta
-

@@ -356,7 +356,7 @@
       logical :: lexist, tellisoninterface, ths_isoninterface,wtfk
       integer :: auxGuardarFK, ths_layer, sabanabajarmax
       real :: xini,deltax,zini,deltaz,dx,dz, SbanadeltaZ
-      real*8 :: escalax,escalay,offsetx,offsety,r,nx,nz
+      real*8 :: escalax,escalay,escaladx,escalady,offsetx,offsety,r,nx,nz
       logical :: cn,adentroOafuera,tellpunEnlaFront
       integer, dimension(0:2) :: reg
       type (Punto), dimension(:), allocatable :: auxInq
@@ -498,6 +498,7 @@
       if (nnsecciones .gt. 0) then
       read(7,*) !Secciones -------------------------
       read(7,*) escalax,escalay !; print*,escalax,escalay
+      read(7,*) escaladx,escalady !; print*,escalax,escalay
       READ(7,*) offsetx,offsety !; print*, offsetx,offsety
       read(7,*) ! npuntos     Xi        deltax      Zi       deltaz       nx       nz
       do j=1,nnsecciones
@@ -507,8 +508,8 @@
         do i = 1,thisnsab
         iIndex = iIndex + 1
         inqPoints(iIndex)%isSeccion = .true.
-        inqPoints(iIndex)%center%x = (xini + dx)*escalax + offsetx
-        inqPoints(iIndex)%center%z = (zini + dz)*escalay + offsety
+        inqPoints(iIndex)%center%x = (xini*escalax + dx) + offsetx
+        inqPoints(iIndex)%center%z = (zini*escalay + dz) + offsety
         inqPoints(iIndex)%normal%x = nx
         inqPoints(iIndex)%normal%z = nz
          if (abs(inqPoints(iIndex)%normal%x) .lt. 0.0001) inqPoints(iIndex)%normal%x = 0
@@ -521,14 +522,15 @@
         ths_isoninterface = tellisoninterface(inqPoints(iIndex)%center%z)
         inqPoints(iIndex)%layer = ths_layer
         inqPoints(iIndex)%isOnInterface = ths_isoninterface
-        dx = dx + deltax
-        dz = dz + deltaz
+        dx = dx + deltax*escaladx
+        dz = dz + deltaz*escalady
         end do
       end do
       nIpts = nIpts + nsecciones
       else
         read(7,*) !Secciones -------------------------
         read(7,*) !; print*,escalax,escalay
+        read(7,*) !; print*,escaladx,escalady
         READ(7,*) !; print*, offsetx,offsety
         read(7,*) ! npuntos     Xi        del
       end if !nsecciones
