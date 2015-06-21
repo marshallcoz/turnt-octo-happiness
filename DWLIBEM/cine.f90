@@ -479,8 +479,10 @@
                   int(2*size(Xcoord_Voidonly(:,1,1)),4))
         end if
         ! normales
-        fai = nIpts-nXi-nSabanapts-nSecciones
-        faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+        !fai = nIpts-nXi-nSabanapts-nSecciones
+        !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+        fai = nPtsolos+1
+        faf = nPtsolos+nBPt_topo+nBPt_cont+nBPt_vall
         call color ('CYAN')
         call PENWID(real(2,4))
         CALL HSYMBL(int(60,4))
@@ -498,8 +500,10 @@
       call mypat(45,5,3,1)
       call PENWID(real(2.5,4))
       if (n_topo .gt. 0) then !#< r ######  topografía medio estratificado !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+      !fai = nIpts-nXi-nSabanapts-nSecciones
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+      fai = nPtsolos+1
+      faf = nPtsolos+nBPt_topo!nIpts-nXi-nSabanapts+n_topo
       do j=fai,faf
         if (allpoints(j)%atBou) then
       rec(1,1) = real(allpoints(j)%center%x ,4)
@@ -561,8 +565,10 @@
       end do
       end if!
       if (n_cont .gt. 0) then !#< r ##############  frontera de continuidad !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+      !fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+      fai = nPtsolos+nBPt_topo+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont
       do j=fai,faf
         if (allpoints(j)%atBou) then
       rec(1,1) = real(allpoints(j)%center%x ,4)
@@ -629,8 +635,10 @@
       end do
       end if!
       if (n_vall .gt. 0) then !#< r ########  frontera libre en incusión !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+      !fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+      fai = nPtsolos+nBPt_topo+nBPt_cont+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont+nBPt_vall
       do j=fai,faf
         if (allpoints(j)%atBou) then
       rec(1,1) = real(allpoints(j)%center%x ,4)
@@ -798,8 +806,10 @@
                  real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
       end do
       ! normales
-        fai = nIpts-nXi-nSabanapts-nSecciones
-        faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+        !fai = nIpts-nXi-nSabanapts-nSecciones
+        !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+        fai = nPtsolos+1
+        faf = nPtsolos+nBPt_topo+nBPt_cont+nBPt_vall
         call color ('CYAN')
         call PENWID(real(2,4))
         CALL HSYMBL(int(60,4))
@@ -816,8 +826,10 @@
       call mypat(45,5,3,1)
       call PENWID(real(2.5,4))
       if (n_topo .gt. 0) then !#< r ######  topografía medio estratificado !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+      !fai = nIpts-nXi-nSabanapts-nSecciones
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+      fai = nPtsolos+1
+      faf = nPtsolos+nBPt_topo
       do j=fai,faf
         if (allpoints(j)%atBou) then
       rec(1,1) = real(allpoints(j)%center%x ,4)
@@ -879,8 +891,10 @@
       end do
       end if!
       if (n_cont .gt. 0) then !#< r ##############  frontera de continuidad !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+      !fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+      fai = nPtsolos+nBPt_topo+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont
       do j=fai,faf
         if (allpoints(j)%atBou) then
       rec(1,1) = real(allpoints(j)%center%x ,4)
@@ -947,8 +961,10 @@
       end do
       end if!
       if (n_vall .gt. 0) then !#< r ########  frontera libre en incusión !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+      !fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+      fai = nPtsolos+nBPt_topo+nBPt_cont+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont+nBPt_vall
       do j=fai,faf
         if (allpoints(j)%atBou) then
       rec(1,1) = real(allpoints(j)%center%x ,4)
