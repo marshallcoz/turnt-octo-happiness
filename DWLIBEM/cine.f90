@@ -12,7 +12,7 @@
       use geometryvars, only : nXI,Xcoord_ER, &
                                Xcoord_Voidonly, Xcoord_Incluonly,&
                                n_topo,n_cont,n_vall
-      use resultvars, only : Punto,allpoints,nIpts,nSabanapts,nSecciones
+      use resultvars, only : Punto,allpoints,nIpts,nPtsolos,nSabanapts,nSecciones
       use ploteo10pesos
       use sourceVars, only : iFte => currentiFte
       implicit none

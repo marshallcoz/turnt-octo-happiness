@@ -337,7 +337,7 @@
       end subroutine vaciarWisdom
 
       subroutine getInquirePoints
-      use resultVars, only : Punto,inqPoints, nIpts, iPtini,iPtfin, &
+      use resultVars, only : Punto,nPtsolos,inqPoints, nIpts, iPtini,iPtfin, &
                        nSabanapts, nSecciones, Sabana,sabZeroini,sabZerofin,&
                        SabanaPlotIndividual, sabanaBajarAFrontera, &
                        n_OD,overDeterminedSystem,punEnlaFront,Punto2d,promP2d,negP2d
@@ -372,6 +372,7 @@
       end if
       READ(7,*) !Points of interest for an accelerogram
       READ(7,*) nIpts
+      nPtsolos = nIpts
       READ(7,*) nnsabanas, nSabanapts, SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
       READ(7,*) nnsecciones, nsecciones
       READ(7,*) tellpunEnlaFront

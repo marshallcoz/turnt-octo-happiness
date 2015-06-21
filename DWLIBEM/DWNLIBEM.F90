@@ -432,7 +432,7 @@
           write(PrintNum,'(a)') "*** loading data ***"
          !#< r  TODO: recalcular campo incidente !#>
          call loadW(PSV,SH)
-         
+!        nPtsolos = 3
 !        ! hacer ceros
 !        do i=1,275
 !          if (pasaNopasa(i) .eq. 0) then
@@ -454,6 +454,39 @@
          do currentiFte = 1,nfuentes
            write(arg,'(a,I0)') 'traces',currentiFte
            CALL chdir(trim(arg))
+           
+        if (comoFacDeAmpliDinamica) then
+           DO J = frecIni,frecEnd,-1
+           FREC=DFREC*real(J-1); if (J .eq. 1)  FREC = 0.5_8 * DFREC  ! Hz
+        OME=2.0*PI*FREC !rad/s
+        COME = CMPLX(OME, OMEI,8)!periodic sources damping
+        COME = COME * cmplx(1.0, -1.0/2.0/Qq,8) !histeretic damping
+      do dir= 1,3 !x,y,z direction of force application
+        if(dir .eq. 2) then
+           if(skipdir(dir)) cycle
+        else ! 1 o 3
+           if(skipdir(1) .and. skipdir(3)) cycle
+        end if! dir
+        if(.not. skipdir(dir)) then 
+      
+      if (PSV) then
+      do iP_x = iPtini,iPtfin !cada receptor X  
+          p_x => allpoints(iP_x)
+          call G0estr(MecElem,p_x,J,cOME,dir)
+          allpoints(iP_x)%facAmpli(J,currentiFte)%W = allpoints(iP_x)%resp(J,currentiFte)%W / MecElem(1)
+          allpoints(iP_x)%facAmpli(J,currentiFte)%U = allpoints(iP_x)%resp(J,currentiFte)%U / MecElem(2)
+          allpoints(iP_x)%facAmpli(J,currentiFte)%sxx = allpoints(iP_x)%resp(J,currentiFte)%sxx / MecElem(5)
+          allpoints(iP_x)%facAmpli(J,currentiFte)%szx = allpoints(iP_x)%resp(J,currentiFte)%szx / MecElem(4)
+          allpoints(iP_x)%facAmpli(J,currentiFte)%szz = allpoints(iP_x)%resp(J,currentiFte)%szz / MecElem(3)
+      end do ! iP_x
+      end if ! PSV 
+      
+         end if !skipdir
+      end do !dir
+
+           end do
+      end if ! comoFacDeAmpliDinamica
+           
            call plotSisGram(PSV,SH,.false.)
            if (plotFKCK) call F_K_exp(XF)
            CALL chdir("..")
@@ -1016,16 +1049,11 @@
       do iP_x = iPtini,iPtfin !cada receptor X  
           p_x => allpoints(iP_x)
           call G0estr(MecElem,p_x,J,cOME,dir)
-!         print*,"origW", allpoints(iP_x)%resp(J,currentiFte)%W
-!         print*,"denoW", MecElem(1)
           allpoints(iP_x)%facAmpli(J,currentiFte)%W = allpoints(iP_x)%resp(J,currentiFte)%W / MecElem(1)
-!         print*,"tota=", allpoints(iP_x)%resp(J,currentiFte)%W
-!         print*,"-------------------------------------------------------",J
           allpoints(iP_x)%facAmpli(J,currentiFte)%U = allpoints(iP_x)%resp(J,currentiFte)%U / MecElem(2)
           allpoints(iP_x)%facAmpli(J,currentiFte)%sxx = allpoints(iP_x)%resp(J,currentiFte)%sxx / MecElem(5)
           allpoints(iP_x)%facAmpli(J,currentiFte)%szx = allpoints(iP_x)%resp(J,currentiFte)%szx / MecElem(4)
           allpoints(iP_x)%facAmpli(J,currentiFte)%szz = allpoints(iP_x)%resp(J,currentiFte)%szz / MecElem(3)
-!         print*,J, " ---",allpoints(iP_x)%resp(J,currentiFte)%W
       end do ! iP_x
       end if ! PSV 
       
@@ -6133,14 +6161,14 @@
       
       ! guardar componentes en el borde
       if (allpoints(iP)%atBou .and. icomp .ne. 0) then
-         !allocate(allpoints(iP)%S(NPTSTIME,5)) !W U sxx szx szz
+!        !allocate(allpoints(iP)%S(NPTSTIME,5)) !W U sxx szx szz
          allpoints(iP)%S(1:NPTSTIME,icomp) = S
-         write(name,'(a,I0,a,I0,a)') 's_IP',iP,'_icomp',icomp,'.m'
-         OPEN(3211,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
-         write(3211,'(a,a,EN26.9,a,EN26.9,a)') yax, & 
-         ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
-         call scripToMatlabMNmatrixZ(NPTSTIME,1,S,name,3211)
-         close (3211)
+!        write(name,'(a,I0,a,I0,a)') 's_IP',iP,'_icomp',icomp,'.m'
+!        OPEN(3211,FILE=trim(name),FORM="FORMATTED",ACTION='WRITE')
+!        write(3211,'(a,a,EN26.9,a,EN26.9,a)') yax, & 
+!        ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
+!        call scripToMatlabMNmatrixZ(NPTSTIME,1,S,name,3211)
+!        close (3211)
       end if
       
       !  (3) GRAFICAR en el tiempo
@@ -6545,14 +6573,14 @@
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas,fotogramas_Region
-      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ, MeshVecLen!,nmarkZ,nmarkX
+      use meshVars, only : npixX,npixZ,MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkX
       use waveVars, only : dt,maxtime
       use waveNumVars, only : NFREC, NPTSTIME
       use soilVars, only : Z,N,col=>layershadecolor, shadecolor_inc
       use geometryvars, only : nXI,Xcoord_ER, & 
                                Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out,&
                                n_topo,n_cont,n_vall
-      use resultvars, only : Punto,BouPoints,nbpts,allpoints,punEnlaFront,nIpts,nSabanapts
+      use resultvars, only : Punto,BouPoints,nbpts,allpoints,punEnlaFront,nPtsolos,nIpts!,nSabanapts
       use ploteo10pesos
       use sourceVars, only : iFte => currentiFte
       implicit none
@@ -6568,6 +6596,7 @@
       end interface
       real, dimension(:,:,:), allocatable :: xvmat,yvmat
       real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep,encuadre, tlabel, madmax, escalaFlechas
+      real*8 :: mxU,mxW
       real,dimension(nIpts*2) :: delX,delZ
       integer :: i,ii,j,n_maxtime,iT,k,fai,faf
       character(LEN=100) :: titleN
@@ -6591,6 +6620,13 @@
        print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
+      
+      minx = MeshMinX
+      maxx = MeshMaxX
+      miny = MeshMinZ
+      maxy = MeshMaxZ
+      
+      xstep = real(((maxX-minX) / nmarkX ))
       
 !     CALL chdir("video")
       nframes = n_maxtime
@@ -6620,13 +6656,10 @@
         end do
       end do
       madmax = max(max(maxval(xvmat),maxval(yvmat)),max(maxval(abs(xvmat)),maxval(abs(yvmat))))
-      escalaFlechas = real((MeshVecLen * 3.0) / madmax)
+      escalaFlechas = real((xstep) / madmax)
       end if
       
-      minx = MeshMinX
-      maxx = MeshMaxX
-      miny = MeshMinZ
-      maxy = MeshMaxZ
+      
       xstep = real(((maxX-minX) / 0 ))
       zstep = real(((maxY-minY) / 0 ))
       encuadre = (maxY-minY)/(maxX-minX)
@@ -6694,6 +6727,7 @@
       if (workboundary) then !#< r ----------------------------------!#>
       ! dibujar inclusión
       if (flip12) then ! Xcoord_flip_out
+      print*,"flip12"
        if (allocated(Xcoord_flip_out)) then
        if (size(Xcoord_flip_out(:,1,1)) .gt. 1) then
         if (allocated(rec)) deallocate(rec)
@@ -6754,21 +6788,24 @@
        end if                                                !         !
       end if
       end if !flip12
-      !#< r ## dibujar contorno de topografia original         !#> 
+      
+      !#< r ## dibujar contorno naranja de geometría deformada     !#> 
       if (punEnlaFront .and. .not. testPoints) then 
       call color ('ORANGE')                                           !
       call PENWID(real(4.0,4))
       ii = 1
       if (n_topo .gt. 0) then
       k = 100000
-      fai = nIpts-nXi-nSabanapts
-      faf = nIpts-nXi-nSabanapts+n_topo
+      fai = nPtsolos+1!nIpts-nXi-nSabanapts
+      faf = nPtsolos+n_topo!nIpts-nXi-nSabanapts+n_topo
       do j=fai,faf
+      mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
+      mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
 !     print*,j
         if (allpoints(j)%atBou) then
           k = min(ii,k)
-          delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2),4)!U
-          delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1),4)!W
+          delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2) / mxU,4)!U
+          delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1) / mxW,4)!W
 !       print*,"   ",ii,allpoints(j)%center%x,allpoints(j)%center%z," -> ",delX(ii),delZ(ii)
           ii = ii + 1
         end if
@@ -6779,20 +6816,23 @@
       do j = k,ii-1
         call rline(delX(j),delZ(j),delX(j+1),delZ(j+1))
       end do
-      end if
+      end if ! k
       ii = ii + 1
-      end if!
+      end if ! hay n_topo
       if (n_cont .gt. 0) then
       k = 100000
-      fai = nIpts-nXi-nSabanapts+n_topo+1
-      faf = nIpts-nXi-nSabanapts+n_topo+n_cont
+      fai = nPtsolos+n_topo+1!nIpts-nXi-nSabanapts+n_topo+1
+      faf = nPtsolos+n_topo+n_cont!nIpts-nXi-nSabanapts+n_topo+n_cont
       do j=fai,faf
+      mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
+      mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
 !     print*,j
+!       print*,allpoints(j)%center
 !       if (allpoints(j)%isOnInterface) cycle
         if (allpoints(j)%atBou) then
           k = min(ii,k)
-          delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2),4)!x
-          delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1),4)!y
+          delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2)/mxU,4)!x
+          delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1)/mxW,4)!y
 !       print*,"   ",ii,allpoints(j)%center%x,allpoints(j)%center%z," -> ",delX(ii),delZ(ii)
           ii = ii + 1
         end if
@@ -6804,19 +6844,21 @@
        do j = k,ii-1
         call rline(delX(j),delZ(j),delX(j+1),delZ(j+1))
        end do
-      end if
+      end if ! k
       ii = ii + 1
-      end if!
+      end if! hay n_cont
       if (n_vall .gt. 0) then
       k = 100000
-      fai = nIpts-nXi-nSabanapts+n_topo+n_cont+1
-      faf = nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
+      fai = nPtsolos+n_topo+n_cont+1!nIpts-nXi-nSabanapts+n_topo+n_cont+1
+      faf = nPtsolos+n_topo+n_cont+n_vall!nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
       do j=fai,faf
+      mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
+      mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
 !     print*,j
         if (allpoints(j)%atBou) then
           k = min(ii,k)
-          delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2),4)!x
-          delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1),4)!y
+          delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2)/mxU,4)!x
+          delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1)/mxW,4)!y
 !       print*,"   ",ii,allpoints(j)%center%x,allpoints(j)%center%z," -> ",delX(ii),delZ(ii)
           ii = ii + 1
         end if
@@ -6844,12 +6886,12 @@
                  real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
       end do
       end if
-      call color ('FORE')                                           !
-      call PENWID(real(0.5,4))                                !
+      call color ('FORE')
+      call PENWID(real(0.5,4))
       end if! WORKBOUNDARY
       if (testPoints) then
        ! indicar asignacion de regiones
-      CALL HSYMBL(int(9,4)) !size of symbols                              !
+      CALL HSYMBL(int(9,4)) !size of symbols
       do ii=1,npixZ
         do j=1,npixX
           if (fotogramas_Region(ii,j) .eq. 0) cycle
@@ -7220,7 +7262,7 @@
       use geometryvars, only : nXI,Xcoord_ER,normXI, & 
                                midPoint, Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out
       use glovars, only : verbose, workBoundary,flip12
-      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkZ,nmarkX, MeshVecLen
+      use meshVars, only : MeshMaxX, MeshMaxZ, MeshMinX, MeshMinZ,nmarkZ,nmarkX
       
       implicit none
       type (Punto), dimension(:), pointer :: BP
@@ -7436,8 +7478,8 @@
       CALL HSYMBL(int(40,4)) !size of symbols                            !
       CALL RLSYMB (8, real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4))!star     !
       CALL RLVEC (real(Po(ifuente)%center%x,4), real(Po(ifuente)%center%z,4), &            !
-              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * MeshVecLen*2.0,4), &           !
-              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * MeshVecLen*2.0,4), int(1101,4))!
+              real(Po(ifuente)%center%x + Po(ifuente)%normal%x * xstep*0.4,4), &           !
+              real(Po(ifuente)%center%z + Po(ifuente)%normal%z * xstep*0.4,4), int(1101,4))!
       elseif (Po(ifuente)%tipoFuente .eq. 1) then !onda plana
       ! polarización
       if (Po(ifuente)%PW_pol .eq. 1) then !SV

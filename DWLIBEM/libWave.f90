@@ -189,7 +189,7 @@
         logical :: overDeterminedSystem, punEnlaFront
         integer :: OD_Jini,OD_Jend
         logical :: SabanaPlotIndividual,sabanaBajarAFrontera
-        integer, save :: nIpts, nSabanapts, nSecciones, nMpts, nBpts, nPts,&
+        integer, save :: nPtsolos,nIpts, nSabanapts, nSecciones, nMpts, nBpts, nPts,&
                        iPtini,iPtfin,mPtini,mPtfin, & 
                        n_top_sub,n_con_sub,n_val_sub,n_OD
         complex*16, dimension(:,:), allocatable :: ibemMat,ibemMatS
@@ -3001,5 +3001,4 @@
       call disfin()
       end subroutine drawPHI
       end module ploteo10pesos
-
 
