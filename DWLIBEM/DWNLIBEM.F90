@@ -6580,7 +6580,9 @@
       use geometryvars, only : nXI,Xcoord_ER, & 
                                Xcoord_Voidonly, Xcoord_Incluonly,Xcoord_flip_out,&
                                n_topo,n_cont,n_vall
-      use resultvars, only : Punto,BouPoints,nbpts,allpoints,punEnlaFront,nPtsolos,nIpts!,nSabanapts
+      use resultvars, only : Punto,BouPoints,nbpts,allpoints,punEnlaFront,& 
+                             nPtsolos,nIpts,& !nSabanapts,nSecciones,&
+                             nBPt_topo,nBPt_cont,nBPt_vall
       use ploteo10pesos
       use sourceVars, only : iFte => currentiFte
       implicit none
@@ -6727,7 +6729,7 @@
       if (workboundary) then !#< r ----------------------------------!#>
       ! dibujar inclusión
       if (flip12) then ! Xcoord_flip_out
-      print*,"flip12"
+!     print*,"flip12"
        if (allocated(Xcoord_flip_out)) then
        if (size(Xcoord_flip_out(:,1,1)) .gt. 1) then
         if (allocated(rec)) deallocate(rec)
@@ -6791,18 +6793,32 @@
       
       !#< r ## dibujar contorno naranja de geometría deformada     !#> 
       if (punEnlaFront .and. .not. testPoints) then 
+!     print*,"nIpts = ",nIpts
+!     print*,"nXi =   ",nXi
+!     print*,"nPtsolos = ",nPtsolos
+!     print*,"nSabana=",nSabanapts
+!     print*,"nSeccio=",nSecciones
+!     print*,"n_topo =",nBPt_topo
+!     print*,"n_cont =",nBPt_cont
+!     print*,"n_vall =",nBPt_vall
+      
       call color ('ORANGE')                                           !
       call PENWID(real(4.0,4))
       ii = 1
       if (n_topo .gt. 0) then
       k = 100000
       fai = nPtsolos+1!nIpts-nXi-nSabanapts
-      faf = nPtsolos+n_topo!nIpts-nXi-nSabanapts+n_topo
-      do j=fai,faf
-      mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
-      mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
+      faf = nPtsolos+nBPt_topo!nIpts-nXi-nSabanapts+n_topo
+!     print*,"hay n_topo =",fai,faf
+!     fai = nIpts-nXi-nSabanapts-nSecciones
+!     faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+!     print*,"hay n_topo =",fai,faf
 !     print*,j
+      do j=fai,faf
         if (allpoints(j)%atBou) then
+          mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
+          mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
+!         print*,"mxU=",mxU,"  mxW=",mxW
           k = min(ii,k)
           delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2) / mxU,4)!U
           delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1) / mxW,4)!W
@@ -6821,15 +6837,19 @@
       end if ! hay n_topo
       if (n_cont .gt. 0) then
       k = 100000
-      fai = nPtsolos+n_topo+1!nIpts-nXi-nSabanapts+n_topo+1
-      faf = nPtsolos+n_topo+n_cont!nIpts-nXi-nSabanapts+n_topo+n_cont
+      fai = nPtsolos+nBPt_topo+1!nIpts-nXi-nSabanapts+n_topo+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont!nIpts-nXi-nSabanapts+n_topo+n_cont
+!     print*,"hay n_cont =",fai,faf
+!     fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
+!     faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+!     print*,"hay n_cont =",fai,faf
       do j=fai,faf
-      mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
-      mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
-!     print*,j
 !       print*,allpoints(j)%center
 !       if (allpoints(j)%isOnInterface) cycle
         if (allpoints(j)%atBou) then
+          mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
+          mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
+!         print*,"mxU=",mxU,"  mxW=",mxW
           k = min(ii,k)
           delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2)/mxU,4)!x
           delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1)/mxW,4)!y
@@ -6849,13 +6869,18 @@
       end if! hay n_cont
       if (n_vall .gt. 0) then
       k = 100000
-      fai = nPtsolos+n_topo+n_cont+1!nIpts-nXi-nSabanapts+n_topo+n_cont+1
-      faf = nPtsolos+n_topo+n_cont+n_vall!nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
+      fai = nPtsolos+nBPt_topo+nBPt_cont+1!nIpts-nXi-nSabanapts+n_topo+n_cont+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont+nBPt_vall!nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
+!     print*,"hay n_vall =",fai,faf
+!     fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
+!     faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+!     print*,"hay n_vall =",fai,faf
       do j=fai,faf
-      mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
-      mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
 !     print*,j
         if (allpoints(j)%atBou) then
+          mxU = maxval(abs(allpoints(j)%S(1:nframes,2)))
+          mxW = maxval(abs(allpoints(j)%S(1:nframes,1)))
+!         print*,"mxU=",mxU,"  mxW=",mxW
           k = min(ii,k)
           delX(ii) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2)/mxU,4)!x
           delZ(ii) = real(allpoints(j)%center%z + escalaFlechas * allpoints(j)%S(i,1)/mxW,4)!y
@@ -7537,7 +7562,8 @@
           end if   
       end do  !
       end if
-      do j=1,nipts                                                            !
+      do j=1,nipts                                                         !
+          if (IP(j)%isSeccion) cycle
           call color('BLUE') 
           CALL RLSYMB (2, real(IP(j)%center%x,4), real(IP(j)%center%z,4))  !
           if (IP(j)%atBou) then

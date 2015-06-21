@@ -2,17 +2,17 @@ Points of interest test pocos puntos
 3  <- Por lo menos (1)
 0  128  T  0.0000000001  400000000  <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 16 96   puntos en secciones planas
-T  Puntos en la frontera
+T  0.1  Puntos en la frontera/spaceBarVall
 PUNTOS SOLOS -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0 20.0  <- offset:x offset:y
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst (0 libre en este, 1 continuidad, 2 libre en inclu)
 40.0     10.0         0.0       1.0       1           F   1  <-primer elemento en medio estr.
-0.0    6.425        0.0      -1.0       1           T   1
-0.0    5.4675       0.0       1.0       1           T   2
+0.0    6.424        0.0      -1.0       1           T   1
+0.0    5.468       0.0       1.0       1           T   2
 Secciones --------------------------------------------------
- 0.9   0.9  <- escala:x escala:y (para puntos iniciales)
- 3.5   3.5  <- escala:x escala:y (para puntos finales)
+ 0.91   0.91  <- escala:x escala:y (para puntos iniciales)
+ 3.5   3.5  <- escala:x escala:y (para deltas)
  0.0  20.0  <- offset:x offset:y     SECCIONES PARA TUNEL NATM 1
  npuntos     Xi        Dx      Zi       Dz       nx       nz
 6   0.0000    0.0000    5.9250    0.0417    0.0000   1.0000

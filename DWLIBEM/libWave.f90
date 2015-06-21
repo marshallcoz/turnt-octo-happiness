@@ -189,9 +189,10 @@
         logical :: overDeterminedSystem, punEnlaFront
         integer :: OD_Jini,OD_Jend
         logical :: SabanaPlotIndividual,sabanaBajarAFrontera
-        integer, save :: nPtsolos,nIpts, nSabanapts, nSecciones, nMpts, nBpts, nPts,&
+        integer, save :: nIpts, nSabanapts, nSecciones, nMpts, nBpts, nPts,&
                        iPtini,iPtfin,mPtini,mPtfin, & 
                        n_top_sub,n_con_sub,n_val_sub,n_OD
+        integer, save :: nPtsolos,nBPt_topo,nBPt_cont,nBPt_vall
         complex*16, dimension(:,:), allocatable :: ibemMat,ibemMatS
         complex*16, dimension(:), allocatable :: trac0vec 
         integer, dimension(:), allocatable :: IPIVbem
@@ -402,6 +403,7 @@
       real :: longitudcaracteristica_a
       integer :: N_de_regdionesR, N_de_segmentosR
       integer,dimension(:),allocatable :: Xcoord_Incluonly_e
+      real,save :: spaceBarVall
       end module GeometryVars
       module wavelets
       contains 

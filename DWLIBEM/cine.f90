@@ -12,7 +12,8 @@
       use geometryvars, only : nXI,Xcoord_ER, &
                                Xcoord_Voidonly, Xcoord_Incluonly,&
                                n_topo,n_cont,n_vall
-      use resultvars, only : Punto,allpoints,nIpts,nPtsolos,nSabanapts,nSecciones
+      use resultvars, only : Punto,allpoints,nIpts,nPtsolos,nSabanapts,&
+                              nSecciones,nBPt_topo,nBPt_cont,nBPt_vall
       use ploteo10pesos
       use sourceVars, only : iFte => currentiFte
       implicit none
@@ -73,6 +74,7 @@
       faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
       print*,"nIpts = ",nIpts
       print*,"nXi =   ",nXi
+      print*,"nPtsolos = ",nPtsolos
       print*,"nSabana=",nSabanapts
       print*,"nSeccio=",nSecciones
       print*,"n_topo =",n_topo
@@ -98,7 +100,7 @@
       minY = minval(real(Xcoord_ER(1:nXI,2,:),4))
       centroX = (maxX+minX)/2
       centroZ = (maxY+minY)/2
-      radio = max((maxY-minY)/2,(maxX-minX)/2)*1.2
+      radio = max((maxY-minY)/2,(maxX-minX)/2)*1.5
       maxx = centroX + radio
       minx = centroX - radio
       maxy = centroz + radio
@@ -258,8 +260,11 @@
 
       ii = 1
       if (n_topo .gt. 0) then !#< r ######  topografía medio estratificado !#>
-      fai = nIpts-nXi-nSabanapts-nSecciones
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+      !fai = nIpts-nXi-nSabanapts-nSecciones
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo
+      fai = nPtsolos+1!nIpts-nXi-nSabanapts
+      faf = nPtsolos+nBPt_topo!nIpts-nXi-nSabanapts+n_topo
+      !print*,"hay n_topo =",fai,faf
       do j=fai,faf
         if (allpoints(j)%atBou) then
           delX(ii,i,1) = real(allpoints(j)%center%x + escalaFlechas * allpoints(j)%S(i,2),4)!U
@@ -295,8 +300,11 @@
       end if!
       if (n_cont .gt. 0) then !#< r ##############  frontera de continuidad !#>
       k = 100000
-      fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+      !fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+1
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont
+      fai = nPtsolos+nBPt_topo+1!nIpts-nXi-nSabanapts+n_topo+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont!nIpts-nXi-nSabanapts+n_topo+n_cont
+      !print*,"hay n_cont =",fai,faf
       do j=fai,faf
 !     print*,j
         if (allpoints(j)%atBou) then
@@ -333,8 +341,11 @@
       end if!
       if (n_vall .gt. 0) then !#< r ########  frontera libre en incusión !#>
       k = 100000
-      fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
-      faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+      !fai = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+1
+      !faf = nIpts-nXi-nSabanapts-nSecciones+n_topo+n_cont+n_vall
+      fai = nPtsolos+nBPt_topo+nBPt_cont+1!nIpts-nXi-nSabanapts+n_topo+n_cont+1
+      faf = nPtsolos+nBPt_topo+nBPt_cont+nBPt_vall!nIpts-nXi-nSabanapts+n_topo+n_cont+n_vall
+      !print*,"hay n_vall =",fai,faf
       do j=fai,faf
 !     print*,j
         if (allpoints(j)%atBou) then

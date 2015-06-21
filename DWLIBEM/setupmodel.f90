@@ -340,9 +340,10 @@
       use resultVars, only : Punto,nPtsolos,inqPoints, nIpts, iPtini,iPtfin, &
                        nSabanapts, nSecciones, Sabana,sabZeroini,sabZerofin,&
                        SabanaPlotIndividual, sabanaBajarAFrontera, &
-                       n_OD,overDeterminedSystem,punEnlaFront,Punto2d,promP2d,negP2d
+                       n_OD,overDeterminedSystem,punEnlaFront,Punto2d,promP2d,negP2d, &
+                       nBPt_topo,nBPt_cont,nBPt_vall
       use waveNumVars, only : NPTSTIME
-      use GeometryVars, only: nXi,origGeom,n_topo,n_cont,n_vall
+      use GeometryVars, only: nXi,origGeom,n_topo,n_cont,n_vall,spaceBarVall
       use glovars, only : flip12
       implicit none
       interface
@@ -375,7 +376,7 @@
       nPtsolos = nIpts
       READ(7,*) nnsabanas, nSabanapts, SabanaPlotIndividual, SbanadeltaZ, sabanabajarmax
       READ(7,*) nnsecciones, nsecciones
-      READ(7,*) tellpunEnlaFront
+      READ(7,*) tellpunEnlaFront, spaceBarVall
       punEnlaFront=tellpunEnlaFront
       if (punEnlaFront) then; nbouP = nXI
       else; nbouP = 0
@@ -426,6 +427,7 @@
       if (flip12) then
         reg(0) = 0; reg(1)= 2; reg(2) = 1
       end if
+      nBPt_topo=0;nBPt_cont=0;nBPt_vall=0
       do i =1,nXI
        if (tellisoninterface(real(origGeom(i)%bord_A%z,8))) then
        if (origGeom(i)%tipoFrontera .eq. 1) then
@@ -439,6 +441,7 @@
        inqPoints(iIndex)%tipoFrontera = origGeom(i)%tipoFrontera
        IF (origGeom(i)%tipoFrontera .eq. 0) then
          inqPoints(iIndex)%region = reg(1)
+       nBPt_topo = nBPt_topo+1
        if (i .eq. 1) then                            !#< r tipoFrontera 0 !#>
        inqPoints(iIndex)%normal = promP2d(origGeom(1)%normal,origGeom(n_topo)%normal)
 !      print*,origGeom(1)%normal,origGeom(n_topo)%normal," ->",inqPoints(iIndex)%normal
@@ -448,6 +451,7 @@
        end if
        ELSE IF (origGeom(i)%tipoFrontera .eq. 1) then !#< r tipoFrontera 1 !#>
          inqPoints(iIndex)%region = reg(1)
+       nBPt_cont=nBPt_cont+1
        if (i .eq. n_topo+1) then
        inqPoints(iIndex)%normal = negP2d(promP2d(origGeom(n_topo+1)%normal, &
                                                  origGeom(n_topo+n_cont)%normal))
@@ -460,6 +464,7 @@
 
        ELSE IF (origGeom(i)%tipoFrontera .eq. 2) then !#< r tipoFrontera 2 !#>
          inqPoints(iIndex)%region = reg(2)
+       nBPt_vall=nBPt_vall+1
        if (i .eq. n_topo+n_cont+n_vall) then
        inqPoints(iIndex)%normal = promP2d(origGeom(n_topo+n_cont+1)%normal, &
                                           origGeom(n_topo+n_cont+n_vall)%normal)
@@ -468,7 +473,12 @@
        else
        inqPoints(iIndex)%normal = promP2d(origGeom(i)%normal,origGeom(i+1)%normal)
 !      print*,origGeom(i)%normal,origGeom(i-1)%normal," ->",inqPoints(iIndex)%normal
-       end if !#< r sobredeterminar sistema en frontera 2 !#>
+       end if
+       ! hacer que no esten exacto sobre la frotnera
+       inqPoints(iIndex)%center%x = inqPoints(iIndex)%center%x + spaceBarVall * inqPoints(iIndex)%normal%x
+       inqPoints(iIndex)%center%z = inqPoints(iIndex)%center%z + spaceBarVall * inqPoints(iIndex)%normal%z
+
+       !#< r sobredeterminar sistema en frontera 2 !#>
 !      if ( overDeterminedSystem ) then
 !          n_OD = n_OD +1
 !          inqPoints(iIndex)%isOD = .true.
