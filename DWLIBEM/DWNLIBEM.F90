@@ -83,10 +83,13 @@
       complex*16,dimension(400,5) :: OUTVAR
       complex*16, dimension(1:5) :: MecElem
       type(Punto), pointer :: p_X
-!     integer, dimension(275) :: pasaNopasa 
-              
-         
-!       pasaNopasa(1:275) = 0;
+!     integer, dimension(225) :: pasaNopasa 
+!             
+!        
+!       pasaNopasa(1:225) = 1 !1 pasa, 0 no pasa
+!       pasaNopasa(16) = 0 
+!       pasaNopasa(58) = 0
+        
 !       pasaNopasa(15) = 1 
 !       pasaNopasa(37) = 1 
 !       pasaNopasa(45) = 1 
@@ -434,7 +437,7 @@
          call loadW(PSV,SH)
 !        nPtsolos = 3
 !        ! hacer ceros
-!        do i=1,275
+!        do i=1,225
 !          if (pasaNopasa(i) .eq. 0) then
 !            print*," zeros to the ",i
 !            allpoints(i)%resp(:,:)%U = 0
@@ -448,45 +451,15 @@
 !            allpoints(i)%resp(:,:)%sxx = 0
 !          end if
 !        end do
-         
+         ! borr´e facamp
          
          call chdir(trim(adjustl(rutaOut)))
-         do currentiFte = 1,nfuentes
+      do currentiFte = 1,nfuentes
+           print*,"fuente=,",currentiFte
            write(arg,'(a,I0)') 'traces',currentiFte
            CALL chdir(trim(arg))
            
-        if (comoFacDeAmpliDinamica) then
-           DO J = frecIni,frecEnd,-1
-           FREC=DFREC*real(J-1); if (J .eq. 1)  FREC = 0.5_8 * DFREC  ! Hz
-        OME=2.0*PI*FREC !rad/s
-        COME = CMPLX(OME, OMEI,8)!periodic sources damping
-        COME = COME * cmplx(1.0, -1.0/2.0/Qq,8) !histeretic damping
-      do dir= 1,3 !x,y,z direction of force application
-        if(dir .eq. 2) then
-           if(skipdir(dir)) cycle
-        else ! 1 o 3
-           if(skipdir(1) .and. skipdir(3)) cycle
-        end if! dir
-        if(.not. skipdir(dir)) then 
-      
-      if (PSV) then
-      do iP_x = iPtini,iPtfin !cada receptor X  
-          p_x => allpoints(iP_x)
-          call G0estr(MecElem,p_x,J,cOME,dir)
-          allpoints(iP_x)%facAmpli(J,currentiFte)%W = allpoints(iP_x)%resp(J,currentiFte)%W / MecElem(1)
-          allpoints(iP_x)%facAmpli(J,currentiFte)%U = allpoints(iP_x)%resp(J,currentiFte)%U / MecElem(2)
-          allpoints(iP_x)%facAmpli(J,currentiFte)%sxx = allpoints(iP_x)%resp(J,currentiFte)%sxx / MecElem(5)
-          allpoints(iP_x)%facAmpli(J,currentiFte)%szx = allpoints(iP_x)%resp(J,currentiFte)%szx / MecElem(4)
-          allpoints(iP_x)%facAmpli(J,currentiFte)%szz = allpoints(iP_x)%resp(J,currentiFte)%szz / MecElem(3)
-      end do ! iP_x
-      end if ! PSV 
-      
-         end if !skipdir
-      end do !dir
 
-           end do
-      end if ! comoFacDeAmpliDinamica
-           
            call plotSisGram(PSV,SH,.false.)
            if (plotFKCK) call F_K_exp(XF)
            CALL chdir("..")
@@ -2336,7 +2309,7 @@
       end subroutine diffField_at_iz
       
       subroutine G0estr(MecElem,p_x,J,cOME_in,dir_j)
-!#define ver 1
+#define ver 1
       ! funcion de Green en medio estratificado. 
       ! cálculo lento uno por uno.
       ! Para onda planas y para fuerza en una dirección x o z

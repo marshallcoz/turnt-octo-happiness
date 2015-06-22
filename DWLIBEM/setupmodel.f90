@@ -1362,7 +1362,7 @@
       function tellisoninterface(zi)
       use soilVars, only : Z,N
       implicit none
-      real*8 ::  errT = 0.05_8
+      real*8 ::  errT = 0.1_8
       integer :: e
       real*8 :: zi
       logical :: tellisoninterface
