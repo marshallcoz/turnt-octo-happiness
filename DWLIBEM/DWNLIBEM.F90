@@ -2309,7 +2309,7 @@
       end subroutine diffField_at_iz
       
       subroutine G0estr(MecElem,p_x,J,cOME_in,dir_j)
-#define ver 1
+!#define ver 1
       ! funcion de Green en medio estratificado. 
       ! cálculo lento uno por uno.
       ! Para onda planas y para fuerza en una dirección x o z
