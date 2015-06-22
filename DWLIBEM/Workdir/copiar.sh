@@ -15,8 +15,11 @@ done
 cd $FUENTE
 for ((i=1; i<=7; i++)); do
     echo "copiando carpeta" $i
-    cp -r traces$i $DESTINO/traces$i
-    cp video$i/G$i.bin $DESTINO/video$i
+ #   cp -r traces$i $DESTINO/traces$i
+    cp ./traces$i/*.pdf $DESTINO/traces$i
+    cp ./traces$i/*.m $DESTINO/traces$i
+#    cp traces$i/W$i.bin $DESTINO/traces$i
+#    cp video$i/G$i.bin $DESTINO/video$i
     cp video$i/0_MecElemvideo.mp4 $DESTINO/video$i
     cp video$i/0_video.mp4 $DESTINO/video$i
 done
