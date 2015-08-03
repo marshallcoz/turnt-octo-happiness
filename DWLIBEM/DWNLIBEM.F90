@@ -6201,7 +6201,7 @@
       else
       S = S * t_vec ! t0 tiempo inicial
       end if
-      S = S * Uo(:,iFte)  ! conv con fucion de amplitud
+      S = S * Uo(:,iFte) ! conv con fucion de amplitud
       
       if (Verbose .ge. 4) call showMNmatrixZ(nptstime,1, S,"  S  ",6)
       
@@ -6211,11 +6211,11 @@
       !  (2) remover efecto de la frecuencia imaginaria (DWN)
          S = S * exp(- OMEI * Dt*((/(i,i=0, NPTSTIME-1)/)))
          
-         !tiempo maximo para graficar
+!        !tiempo maximo para graficar
          n_maxtime = int(maxtime(iFte)/dt)
          if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
          if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-         S(n_maxtime+1: NPTSTIME) = z0;
+!        S(n_maxtime+1: NPTSTIME) = z0;
          Sout = S
       ! guardar para hacer sabana o plotear
       if (allpoints(iP)%isSabana) then
@@ -6254,12 +6254,14 @@
         OPEN(3214,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE')
         write(3214,'(a,a,EN26.9,a,EN26.9,a)') yAx, & 
          ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
-        call scripToMatlabMNmatrixZ(int(n_maxtime),1,S(1:int(n_maxtime)),name,3214)
+        call scripToMatlabMNmatrixZ(NPTSTIME,1,S(1:int(NPTSTIME)),name,3214)
         close (3214)
-        
          
       !  (4) espectro correcto 
-        S = FFTW(NPTSTIME,S,-1,dt) !forward
+!       ! tapper ?
+         
+        ! fft 
+        S = FFTW(NPTSTIME,S(1:int(NPTSTIME)),-1,dt) !forward
         
 !#< g   imprimir espectro  !#>
       if (verbose .ge. 1) then
@@ -6280,8 +6282,8 @@
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].m'
         write(name,'(a,I0,a,I0)') 'f_IP',iP,'_icomp',icomp
         OPEN(3212,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE')
-        write(3212,'(a,a,EN26.9,a,EN26.9,a)') yAx, & 
-         ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
+        write(3212,'(a,a,/,a,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
+         ' en ','%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
         call scripToMatlabMNmatrixZ(int(NPTSTIME/2+1),1,S(1:int(NPTSTIME/2+1)),name,3212)
         close (3212)
         

@@ -1,6 +1,6 @@
 Points of interest test pocos puntos
 2  <- Por lo menos (1)
-1  128  T  0.0000000001  400000000  <- N sabanas / N puntos / plot each / Deltaz / Maxstep
+0  128  T  0.0000000001  400000000  <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 0  54   puntos en secciones planas
 F  0.1  Puntos en la frontera
 ___________________________________________________________
@@ -16,8 +16,7 @@ Secciones ----------------------------------------------------
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
-npuntos xini   deltax    zini   deltaz  guardarFK / Fit Frontera 
-128     20.0    0.078125  0.0    0.0        F         F
+npuntos xini   deltax    zini   deltaz  guardarFK / Fit Frontera    128     20.0    0.078125  0.0    0.0        F         F
 hacer zeros el rango en la sabana:
 0   62
 
