@@ -1,40 +1,23 @@
 Points of interest test pocos puntos
-3  <- Por lo menos (1)
-0  128  T  0.0000000001  400000000  <- N sabanas / N puntos / plot each / Deltaz / Maxstep
-16 96   puntos en secciones planas
-T  0.1  Puntos en la frontera/spaceBarVall
-PUNTOS SOLOS -----------------------------------------------
+2  <- Por lo menos (1)
+1  128  T  0.0000000001  400000000  <- N sabanas / N puntos / plot each / Deltaz / Maxstep
+0  54   puntos en secciones planas
+F  0.1  Puntos en la frontera
+___________________________________________________________
 1.0  1.0  <- escala:x escala:y
-0.0 20.0  <- offset:x offset:y
- X        Z          nx       nz   guardarFK=2   ptColocSobreEst (0 libre en este, 1 continuidad, 2 libre en inclu)
-40.0     10.0         0.0       1.0       1           F   1  <-primer elemento en medio estr.
-0.0    6.424        0.0      -1.0       1           T   1
-0.0    5.468       0.0       1.0       1           T   2
-Secciones --------------------------------------------------
- 0.91   0.91  <- escala:x escala:y (para puntos iniciales)
- 3.5   3.5  <- escala:x escala:y (para deltas)
- 0.0  20.0  <- offset:x offset:y     SECCIONES PARA TUNEL NATM 1
- npuntos     Xi        Dx      Zi       Dz       nx       nz
-6   0.0000    0.0000    5.9250    0.0417    0.0000   1.0000
-6  -4.1339   -0.0434    5.1846    0.0470   -0.6234   0.7819
-6  -3.9390   -0.0263   -4.8669   -0.0325   -0.6290  -0.7774
-6  -5.4455   -0.0353   -3.5014   -0.0227   -0.8413  -0.5406
-6  -6.4650   -0.0404   -1.8473   -0.0115   -0.9615  -0.2747
-6  -6.9116   -0.0414    1.5487    0.0093   -0.9758   0.2189
-6  -6.4867   -0.0509    2.9055    0.0259   -0.9126   0.4088
-6  -2.1768   -0.0148   -5.7239   -0.0390   -0.3552  -0.9348
-6   0.0000    0.0000   -6.0750   -0.0417    0.0000  -1.0000
-6   2.1768    0.0148   -5.7239   -0.0390    0.3552  -0.9348
-6   3.9390    0.0263   -4.8669   -0.0325    0.6290  -0.7774
-6   5.4455    0.0353   -3.5014   -0.0227    0.8413  -0.5406
-6   6.4650    0.0404   -1.8473   -0.0115    0.9615  -0.2747
-6   6.9116    0.0414    1.5487    0.0093    0.9758   0.2189
-6   6.4867    0.0509    2.9055    0.0259    0.9126   0.4088
-6   4.1339    0.0434    5.1846    0.0470    0.6234   0.7819  
+0.0  0.0  <- offset:x offset:y
+ X        Z          nx       nz   guardarFK=2   ptColocSobreEst
+0.0    0.0         0.0       1.0       2           F   1  <-primer elemento en medio estr.
+20.0    0.0         0.0       1.0       2           F   1  
+Secciones ----------------------------------------------------
+ 5.0   5.0  <- escala:x escala:y
+10.0  80.0  <- offset:x offset:y
+ npuntos     Xi        deltax      Zi       deltaz       nx       nz
 Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
-npuntos xini   deltax   zini   deltaz  guardarFK / Fit Fronter     128        0    0.156    0.0    0.0   F   T
+npuntos xini   deltax    zini   deltaz  guardarFK / Fit Frontera 
+128     20.0    0.078125  0.0    0.0        F         F
 hacer zeros el rango en la sabana:
 0   62
 
@@ -53,7 +36,7 @@ ___________________________________________________________
  X        Z          nx       nz   guardarFK=2   ptColocSobreEst
 0.0  100.5         0.0       1.0       1           F   1  <-primer elemento en medio estr.
 Secciones ----------------------------------------------------
- 5.0   5.0  <- escala:x escala:y                        SECCIONES PARA TUNEL CIRCULAR
+ 5.0   5.0  <- escala:x escala:y
 10.0  80.0  <- offset:x offset:y
  npuntos     Xi        deltax      Zi       deltaz       nx       nz
     6        0.0         0.0      -1.0       -0.02        0.0     -1.0

@@ -236,7 +236,7 @@
       if (verbose .ge. 1) then !#< b
        write(outpf,'(a)') &
        "--- frecuency --------------------------------------------------------------------"
-       write(outpf,'(a,F9.7,/,a,F15.5)') "   dt = ",Dt,"   Tmax=",Dt* NPTSTIME
+       write(outpf,'(a,F9.7,/,a,F15.5)') "   dt = (1.0) / (real(NPTSTIME) * DFREC) = ",Dt,"   Tmax=",Dt* NPTSTIME
        write(outpf,'(a,F8.1)') '   Atenuation Q = ',Qq
        write(outpf,'(a,I0,a,F8.4,a,F12.4,a,/)') &
            '   N. frequencies: ',NFREC,'  @',DFREC,'Hertz :. Fmax = ', &
@@ -244,7 +244,8 @@
 
        write(outpf,'(a)') &
        "--- DWN -------------------------------------------------------------------------"
-       write(outpf,'(a,F9.7)') "   DK = ",DK
+       write(outpf,'(a,F15.7)') "   kmax = 0.9* (2*pi*DFREC*NFREC) / minBeta * cKbeta = ",kmax
+       write(outpf,'(a,F9.7)') "   DK = kmax / nk = ",DK
        write(outpf,'(a,I0,a,I0,a,I0,a,I0,a,I0,a,I0,a)') "   nk a 3pt spline with (",&
           1,",",int(0.55*nK),"), (",&
           int(nfrec * frac)+1,",",int(0.6*nk),"), (",&
@@ -252,7 +253,7 @@
        write(outpf,'(a,I0)') '   nk average = ',int(sum(vecNK)/(NFREC+1))
        write(outpf,'(a,I0)') '   nmax (each sign): ',NMAX
        write(outpf,'(a,F12.7)') "   delta X = ", real(pi / (nMax * DK),4)
-       write(outpf,'(a,EN14.2E2,a)') "   L = ",2*pi/DK, "m"
+       write(outpf,'(a,EN14.2E2,a)') "   L = 2*pi/DK = ",2*pi/DK, "m"
        write(outpf,'(a,EN19.5E2,a)') &
        "   L/alfa = tp = ",(2*pi/DK)/maxval(abs(ALFA0)), "seconds"
        write(outpf,'(a,EN19.5E2,a)') &
@@ -541,7 +542,6 @@
       else
         read(7,*) !Secciones -------------------------
         read(7,*) !; print*,escalax,escalay
-        read(7,*) !; print*,escaladx,escalady
         READ(7,*) !; print*, offsetx,offsety
         read(7,*) ! npuntos     Xi        del
       end if !nsecciones
@@ -551,7 +551,7 @@
       print*,"Ahora con los puntos de la Sabana"
       allocate(Sabana(nSabanapts, NPTSTIME))
       read(7,*) !Sabanapoints -------------------------
-      read(7,*) escalax,escalay
+      read(7,*) escalax,escalay !; print*,escalax,escalay
       READ(7,*) offsetx,offsety
       read(7,*) !npuntos xini   deltax   zini   delta z  guardarFK
       do j=1,nnsabanas

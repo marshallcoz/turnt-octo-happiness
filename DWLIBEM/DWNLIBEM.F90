@@ -83,13 +83,11 @@
       complex*16,dimension(400,5) :: OUTVAR
       complex*16, dimension(1:5) :: MecElem
       type(Punto), pointer :: p_X
-!     integer, dimension(225) :: pasaNopasa 
-!             
-!        
-!       pasaNopasa(1:225) = 1 !1 pasa, 0 no pasa
+!       integer, dimension(275) :: pasaNopasa 
+!       pasaNopasa(1:275) = 1 !1 pasa, 0 no pasa
 !       pasaNopasa(16) = 0 
 !       pasaNopasa(58) = 0
-        
+!       
 !       pasaNopasa(15) = 1 
 !       pasaNopasa(37) = 1 
 !       pasaNopasa(45) = 1 
@@ -437,7 +435,7 @@
          call loadW(PSV,SH)
 !        nPtsolos = 3
 !        ! hacer ceros
-!        do i=1,225
+!        do i=1,275
 !          if (pasaNopasa(i) .eq. 0) then
 !            print*," zeros to the ",i
 !            allpoints(i)%resp(:,:)%U = 0
@@ -750,7 +748,7 @@
       Cbem,trac0vec,Mi,Xbem,Mi,RCOND,FERR,BERR,WORKbem,RWORK,INFO)
       
       if(info .ne. 0) stop "problem with ibem system"
-      if (any(isnan(real(trac0vec)))) stop "487 valió madres el ibem"
+      if (any(isnan(real(trac0vec)))) stop "751 valió madres el ibem"
       trac0vec = Xbem(:,1)
       deallocate(Af);deallocate(Xbem);deallocate(Rbem);deallocate(Cbem)
       deallocate(WORKbem);deallocate(RWORK)
@@ -890,7 +888,7 @@
       if(info .ne. 0) stop "problem with ibem system"
       
       if (any(isnan(real(trac0vec)))) then ! NAN is not equal even to itself
-      stop "2120 valio madres el ibem"; end if!
+      stop "891 valio madres el ibem"; end if!
       !#< b
       if (verbose .ge. 2) then  
          call chdir(trim(adjustl(rutaOut))) 
@@ -2030,6 +2028,7 @@
             pt_ipivA => ipivA; pt_workA => workA!                                ·
             call globalmatrix_SH(pointA,pt_k,pt_come_i)!                         ·p
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
+            call SHvectorB_ondaplana(B(:,0),pxi%gamma)!
             B(:,0) = matmul(Ak(:,:,0),B(:,0))!                                   ·a
           else!  P-SV                                                            ·n
 !           if (PWfrecReal) then
@@ -3849,6 +3848,100 @@
       end if
 !     print*,"eGAeNU",ik,sum(B(1:tam,ik))
       end subroutine  eGAeNU
+      
+      
+      subroutine SHvectorB_ondaplana(this_B,gamma)
+      use soilvars, only : n,amu0,amu,beta0,Z,beta
+      use glovars, only:UR,UI,z0,PWfrecReal
+!     use sourceVars, only: Po!,iFte=>currentiFte! PW_pol
+      use waveNumVars, only : cOME,ome
+      use debugStuff
+      implicit none
+      complex*16, intent(inout), dimension(1:4*N+2) :: this_B
+!     complex*16, intent(in)    :: come ! no trae amortiguamiento
+      real*8, intent(in) :: gamma
+      integer :: i,e
+!     real*8,dimension(1:2) :: theta
+!     complex*16 :: kx,kz,U,W,c,la,am
+      complex*16 :: kx,kz,V,am,c
+      real*8 :: z_loc
+      !     Colocamos la onda incindente en la interfaz
+      !     con el semiespacio de abajo.
+      e = N+1 
+      z_loc = 0! (Z(N+1)- Z(N+1)) 
+      
+        if (PWfrecReal) then
+        c = beta0(N+1) !SV
+        else
+        c = beta(N+1) !SV
+        end if
+      
+!     if (Po(iFte)%PW_pol .eq. 1) then
+!       if (PWfrecReal) then
+!       c = beta0(N+1) !SV
+!       else
+!       c = beta(N+1) !SV
+!       end if
+!       theta(1) = cos(gamma)
+!       theta(2) = sin(gamma)
+!     elseif (Po(iFte)%PW_pol .eq. 2) then 
+!       if (PWfrecReal) then
+!       c = alfa0(N+1) !SV
+!       else
+!       c = alfa(N+1) !SV
+!       end if
+!       theta(1) = sin(gamma)
+!       theta(2) = -cos(gamma)
+!     end if
+      !
+      if (PWfrecReal) then
+      kx = ome/c * sin(gamma)
+      kz = ome/c * cos(gamma)
+!     la = LAMBDA0(N+1)
+      am = AMU0(N+1)
+      else
+      kx = come/c * sin(gamma)
+      kz = come/c * cos(gamma)
+!     la = LAMBDA(N+1)
+      am = AMU(N+1)
+      end if
+!     U = (theta(1))* exp(UI * kz * (z_loc))
+!     W = (theta(2))* exp(UI * kz * (z_loc))
+      V = UR * exp(UI * kz * (z_loc))
+      
+      i=0
+!     this_B(1:4*N+2) = Z0 
+      this_B(1:2*N+1) = Z0 
+      if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
+!       i = 2  
+        i = 1                                                !
+!       this_B(1+4*(e-1)-2 + i) = W !  w                     !
+!       this_B(1+4*(e-1)-1 + i) = U !  u                     !
+        this_B(1+2*(e-1)-1 + i) = V !  v                     !
+      end if                                                 !  
+      ! ······················································
+      ! Desplazamientos en la frontera de la región de la fuente....
+      if (e .ne. 1) then                                     ! 
+!       this_B(1+4*(e-1)-2 + i) = W !  w                     !
+!       this_B(1+4*(e-1)-1 + i) = U !  u                     !
+        this_B(1+2*(e-1)-1 + i) = V !  v                     !
+      end if                                                 !
+      !.......................................................
+      
+      ! Tracciones en la frontera de la región de la fuente.........
+!     this_B(1+4*(e-1)   + i) = UI * ( &                           !
+!                           ( W * kz * (la + 2.0 * am)) & !
+!                         - ( U * kx * la)) ! szz           !
+!     this_B(1+4*(e-1)+1 + i) = UI * am &                      !
+!                         * ( kz * U - kx * W ) ! szx              !
+!     !                   sxx = UI * ( &                           !
+!     !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
+!     !                   + ( W * kz * LAMBDA(e)))                 !
+      this_B(1+2*(e-1)   + i) = UI * am * V * (- kx * 0 + kz * 1)
+      !............................................................!
+!     call showMNmatrixZ(4*N+2,1, this_B ,"  B  ",6)
+      end subroutine SHvectorB_ondaplana
+      
       
       subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
@@ -7210,7 +7303,7 @@
 !     nombre(iMec),'.mp4'
 !     call system(trim(path))
       
-      write(path,'(a,I0,a,I0,a,a,a)') 'ffmpeg -i 0_video.mp4 -filter:v ''''crop=1200:',&
+      write(path,'(a,a,I0,a,I0,a,a,a)') 'ffmpeg -i video.mp4 -filter:v ','''crop=1200:',&
             int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''' 0_',nombre(iMec),'.mp4'
       print*,trim(path)
       call system(trim(path))
@@ -7635,3 +7728,4 @@
         end if
         end if        
       end subroutine plot_at_eta
+
