@@ -85,145 +85,6 @@
       type(Punto), pointer :: p_X
 !       integer, dimension(275) :: pasaNopasa 
 !       pasaNopasa(1:275) = 1 !1 pasa, 0 no pasa
-!       pasaNopasa(16) = 0 
-!       pasaNopasa(58) = 0
-!       
-!       pasaNopasa(15) = 1 
-!       pasaNopasa(37) = 1 
-!       pasaNopasa(45) = 1 
-!       pasaNopasa(46) = 1 
-!       pasaNopasa(62) = 1 
-!       pasaNopasa(63) = 1 
-!       pasaNopasa(64) = 1 
-!       pasaNopasa(65) = 1 
-!       pasaNopasa(66) = 1 
-!       pasaNopasa(85) = 1 
-!       pasaNopasa(91) = 1
-!       pasaNopasa(101) = 1
-!       pasaNopasa(126) = 1
-!       pasaNopasa(148) = 1
-!       pasaNopasa(149) = 1
-!       pasaNopasa(150) = 1
-!       pasaNopasa(151) = 1
-!       pasaNopasa(152) = 1
-!       pasaNopasa(153) = 1
-!       pasaNopasa(154) = 1
-!       pasaNopasa(155) = 1
-!       pasaNopasa(156) = 1
-!       pasaNopasa(157) = 1
-!       pasaNopasa(158) = 1
-!       pasaNopasa(159) = 1
-!       pasaNopasa(160) = 1
-!       pasaNopasa(161) = 1
-!       pasaNopasa(162) = 1
-!       pasaNopasa(163) = 1
-!       pasaNopasa(164) = 1
-!       pasaNopasa(165) = 1
-!       pasaNopasa(166) = 1
-!       pasaNopasa(167) = 1
-!       pasaNopasa(168) = 1
-!       pasaNopasa(169) = 1
-!       pasaNopasa(170) = 1
-!       pasaNopasa(171) = 1
-!       pasaNopasa(172) = 1
-!       pasaNopasa(173) = 1
-!       pasaNopasa(174) = 1
-!       pasaNopasa(175) = 1
-!       pasaNopasa(176) = 1
-!       pasaNopasa(177) = 1
-!       pasaNopasa(178) = 1
-!       pasaNopasa(179) = 1
-!       pasaNopasa(180) = 1
-!       pasaNopasa(181) = 1
-!       pasaNopasa(182) = 1
-!       pasaNopasa(184) = 1
-!       pasaNopasa(185) = 1
-!       pasaNopasa(186) = 1
-!       pasaNopasa(187) = 1
-!       pasaNopasa(188) = 1
-!       pasaNopasa(190) = 1
-!       pasaNopasa(191) = 1
-!       pasaNopasa(192) = 1
-!       pasaNopasa(193) = 1
-!       pasaNopasa(194) = 1
-!       pasaNopasa(195) = 1
-!       pasaNopasa(196) = 1
-!       pasaNopasa(198) = 1
-!       pasaNopasa(199) = 1
-!       pasaNopasa(200) = 1
-!       pasaNopasa(201) = 1
-!       pasaNopasa(202) = 1
-!       pasaNopasa(203) = 1
-!       pasaNopasa(204) = 1
-!       pasaNopasa(205) = 1
-!       pasaNopasa(206) = 1
-!       pasaNopasa(207) = 1
-!       pasaNopasa(208) = 1
-!       pasaNopasa(209) = 1
-!       pasaNopasa(210) = 1
-!       pasaNopasa(211) = 1
-!       pasaNopasa(212) = 1
-!       pasaNopasa(213) = 1
-!       pasaNopasa(214) = 1
-!       pasaNopasa(215) = 1
-!       pasaNopasa(216) = 1
-!       pasaNopasa(217) = 1
-!       pasaNopasa(218) = 1
-!       pasaNopasa(219) = 1
-!       pasaNopasa(220) = 1
-!       pasaNopasa(221) = 1
-!       pasaNopasa(222) = 1
-!       pasaNopasa(223) = 1
-!       pasaNopasa(224) = 1
-!       pasaNopasa(226) = 1
-!       pasaNopasa(227) = 1
-!       pasaNopasa(228) = 1
-!       pasaNopasa(229) = 1
-!       pasaNopasa(231) = 1
-!       pasaNopasa(232) = 1
-!       pasaNopasa(233) = 1
-!       pasaNopasa(234) = 1
-!       pasaNopasa(235) = 1
-!       pasaNopasa(236) = 1
-!       pasaNopasa(237) = 1
-!       pasaNopasa(238) = 1
-!       pasaNopasa(239) = 1
-!       pasaNopasa(240) = 1
-!       pasaNopasa(241) = 1
-!       pasaNopasa(242) = 1
-!       pasaNopasa(243) = 1
-!       pasaNopasa(244) = 1
-!       pasaNopasa(245) = 1
-!       pasaNopasa(246) = 1
-!       pasaNopasa(247) = 1
-!       pasaNopasa(248) = 1
-!       pasaNopasa(249) = 1
-!       pasaNopasa(250) = 1
-!       pasaNopasa(251) = 1
-!       pasaNopasa(252) = 1
-!       pasaNopasa(253) = 1
-!       pasaNopasa(254) = 1
-!       pasaNopasa(255) = 1
-!       pasaNopasa(256) = 1
-!       pasaNopasa(257) = 1
-!       pasaNopasa(258) = 1
-!       pasaNopasa(260) = 1
-!       pasaNopasa(261) = 1
-!       pasaNopasa(262) = 1
-!       pasaNopasa(263) = 1
-!       pasaNopasa(264) = 1
-!       pasaNopasa(266) = 1
-!       pasaNopasa(267) = 1
-!       pasaNopasa(268) = 1
-!       pasaNopasa(269) = 1
-!       pasaNopasa(270) = 1
-!       pasaNopasa(271) = 1
-!       pasaNopasa(272) = 1
-!       pasaNopasa(273) = 1
-!       pasaNopasa(274) = 1
-!       pasaNopasa(275) = 1
-
-      
       
       outvar = 0
       !#< blue
@@ -307,7 +168,7 @@
       if (makeVideo) then
       call setVideoPointsRegions
       call chdir(trim(adjustl(rutaOut)))
-      if (PSV) call Churubusco(.true.)
+      call Churubusco(.true.)
       call chdir("..")
       end if !#< blue
        call chdir(trim(adjustl(rutaOut)))
@@ -1757,7 +1618,7 @@
       subroutine sourceAmplitudeFunction
       use wavelets !las funciones: ricke
       use waveVars, only : Dt,Uo,dt,maxtime!, ampfunction,Escala
-      use waveNumVars, only : DFREC,nfrec, NPTSTIME
+      use waveNumVars, only : DFREC,nfrec, NPTSTIME,OMEI
       use gloVars, only : ve => verbose,Ur,Ui,z0,Printnum,rutaOut
       use sourceVars, only:Po,iFte=>currentiFte, nFuentes
       use ploteo10pesos
@@ -1768,6 +1629,7 @@
       CHARACTER(len=32) :: arg
       logical :: inquire, lexist, argumA
       real*8 :: val1,val2
+      complex*16, dimension(NPTSTIME) :: S
       !complex*16 :: FFTW!(NPTSTIME)
       integer :: n_maxtime
       argumA = .false.
@@ -1784,6 +1646,16 @@
        if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
        if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
       
+      ! grafica del factor de correción
+      S = exp(- OMEI * Dt*((/(i,i=0, NPTSTIME-1)/)))
+      write(titleN,'(a)') 'x-LevantonDWN.pdf'
+      write(CTIT,'(a)') 'exp(-omei t)'
+      write(xAx,'(a)') 't[sec]'
+      write(yAx,'(a)') ''
+        call plotXYcomp(S(1:n_maxtime),real(Dt,4), & 
+         int(n_maxtime),titleN,xAx,yAx, CTIT ,1200,800,0.0)
+         
+         
 !     real :: factor
       ! Amplitude function of incident wave
       ! prepare the signal we will use as incident wave amplitude.
@@ -1808,10 +1680,12 @@
             write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
             xAx = 'frec[Hz] '
             write(yAx,'(a)') 'amplitude'      
-            logflag = 'logx     '      
+!           logflag = 'logx     '      
 !           logflag = 'none     '
-            call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
-            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+            call plotXYcomp(Uo(:,iFte),real(DFREC,4), & 
+                 size(Uo(:,iFte)),titleN,xAx,yAx,CTIT,1200,800,0.0)
+!           call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
+!           titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
           end if
      !********************************************************************************
       elseif(Po(iFte)%ampfunction .eq. 2) then ! Gaussian
@@ -1820,13 +1694,32 @@
            write(Printnum,'(a)')'   Incident wave amplitude function: Gaussian'
             write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
             write(CTIT,'(a)') 'WaveAmplitude of Gaussian wavelet'
-            xAx = 'frec[Hz] '
+            write(xAx,'(a)') 'frec[Hz] '
             write(yAx,'(a)') 'amplitude'
 !           call plotXYcomp(Uo(:,iFte),real(DFREC,4), & 
 !                n_maxtime,titleN,xAx,yAx,CTIT,1200,800,0.0)
 !           print*,Uo(:,iFte)
-            call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
-            titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+            call plotXYcomp(Uo(:,iFte),real(DFREC,4), & 
+                 size(Uo(:,iFte)),titleN,xAx,yAx,CTIT,1200,800,0.0)
+!           call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
+!           titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
+          end if
+      elseif(Po(iFte)%ampfunction .gt. 20) then ! GaussianCúbico
+        call gaussian(Uo(:,iFte),Po(iFte)%sigGaus)
+        Uo(:,iFte) = Uo(:,iFte) ** (Po(iFte)%ampfunction-20)
+          if (ve .ge. 1) then
+           write(Printnum,'(a,I0)')'   Incident wave amplitude function: Gaussian ',int((Po(iFte)%ampfunction-20))
+            write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
+            write(CTIT,'(a,I0,a)') 'WaveAmplitude of Gaussian',int((Po(iFte)%ampfunction-20)),' wavelet'
+            write(xAx,'(a)') 'frec[Hz] '
+            write(yAx,'(a)') 'amplitude'
+!           call plotXYcomp(Uo(:,iFte),real(DFREC,4), & 
+!                n_maxtime,titleN,xAx,yAx,CTIT,1200,800,0.0)
+!           print*,Uo(:,iFte)
+            call plotXYcomp(Uo(:,iFte),real(DFREC,4), & 
+                 size(Uo(:,iFte)),titleN,xAx,yAx,CTIT,1200,800,0.0)
+!           call plotSpectrum(Uo(:,iFte),real(DFREC,4), size(Uo(:,iFte)),int(size(Uo(:,iFte))/2), & 
+!           titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
           end if
       elseif(Po(iFte)%ampfunction .eq. 3) then ! inDispl.txt
      !********************************************************************************
@@ -6178,6 +6071,25 @@
       S = z0
       S(1:nfrec+1)= W(1:nfrec+1:+1)
       S(NPTSTIME-NFREC+2:NPTSTIME) = conjg(W(nfrec:2:-1))  
+      
+      ! (0) graficar en espectro sin corregir
+        write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_a_',nombre,'[', &
+               int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
+               int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
+        call plotXYcomp(S(1:int(nfrec)),real(DFREC,4), & 
+         int(nfrec),titleN, 'frec[hz] ',yAx, CTIT ,1200,800,0.0)
+        write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_a_',nombre,'[', &
+               int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
+               int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].m'
+        write(name,'(a,I0,a,I0)') 'Ampf_IP',iP,'_icomp',icomp
+        OPEN(3202,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE')
+        write(3202,'(a,a,/,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
+         '%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
+        call scripToMatlabMNmatrixZ(int(nfrec +1),1,S(1:int(nfrec +1)),name,3202)
+        close (3202)
+      
       if (soloFacAmpl) then  
       ! grafica simple:
          write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
@@ -6187,14 +6099,14 @@
          call plotXYcomp(S(1:int(nfrec +1)),real(DFREC), & 
          int(nfrec +1),titleN, 'frec[hz] ',yAx, CTIT ,1200,800,0.0)
          
-        write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               '3_Ampfactor_',nombre,iP,'[', &
+        write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_ampfac_',nombre,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].m'
         write(name,'(a,I0,a,I0)') 'Ampf_IP',iP,'_icomp',icomp
         OPEN(3212,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE')
-        write(3212,'(a,a,EN26.9,a,EN26.9,a)') yAx, & 
-         ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
+        write(3212,'(a,a,/,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
+         '%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
         call scripToMatlabMNmatrixZ(int(nfrec +1),1,S(1:int(nfrec +1)),name,3212)
         close (3212)
         return
@@ -6205,6 +6117,7 @@
       
       if (Verbose .ge. 4) call showMNmatrixZ(nptstime,1, S,"  S  ",6)
       
+            
       !  (1) pasar al tiempo
          S = FFTW(NPTSTIME,S,+1,1/(NPTSTIME*dt)) !backward
          
@@ -6215,7 +6128,7 @@
          n_maxtime = int(maxtime(iFte)/dt)
          if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
          if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-!        S(n_maxtime+1: NPTSTIME) = z0;
+         S(n_maxtime+1: NPTSTIME) = z0;
          Sout = S
       ! guardar para hacer sabana o plotear
       if (allpoints(iP)%isSabana) then
@@ -6239,27 +6152,27 @@
       
       !  (3) GRAFICAR en el tiempo
 !#< g   imprimir sismograma  !#>
-         write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               '2_S_',nombre,iP,'[', &
+         write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_s_',nombre,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
-         call plotXYcomp(S(1:n_maxtime) ,real(dt,4),n_maxtime,titleN, & 
+         call plotXYcomp(S(1:n_maxtime+1) ,real(dt,4),n_maxtime+1,titleN, & 
          'time[sec]',yAx, CTIT ,1200,800, 0.)
         
-        write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               '2_S_',nombre,iP,'[', &
+        write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_s_',nombre,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].m'
         write(name,'(a,I0,a,I0)') 's_IP',iP,'_icomp',icomp
         OPEN(3214,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE')
-        write(3214,'(a,a,EN26.9,a,EN26.9,a)') yAx, & 
-         ' en (', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')'
+        write(3214,'(a,a,/,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
+         '%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
         call scripToMatlabMNmatrixZ(NPTSTIME,1,S(1:int(NPTSTIME)),name,3214)
         close (3214)
          
       !  (4) espectro correcto 
 !       ! tapper ?
-         
+        
         ! fft 
         S = FFTW(NPTSTIME,S(1:int(NPTSTIME)),-1,dt) !forward
         
@@ -6269,21 +6182,21 @@
            (allpoints(iP)%isSabana .eqv. .true.)) then
        else
       ! grafica simple:
-         write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               'f_',nombre,iP,'[', &
+         write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_f_',nombre,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
          call plotXYcomp(S(1:int(NPTSTIME/2)),real((DFREC*NFREC)/(NPTSTIME/2),4), & 
          int(NPTSTIME/2),titleN, 'frec[hz] ',yAx, CTIT ,1200,800,0.0)
          
-        write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
-               'f_',nombre,iP,'[', &
+        write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
+               iP,'_f_',nombre,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].m'
         write(name,'(a,I0,a,I0)') 'f_IP',iP,'_icomp',icomp
         OPEN(3212,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE')
-        write(3212,'(a,a,/,a,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
-         ' en ','%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
+        write(3212,'(a,a,/,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
+         '%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
         call scripToMatlabMNmatrixZ(int(NPTSTIME/2+1),1,S(1:int(NPTSTIME/2+1)),name,3212)
         close (3212)
         
@@ -6678,7 +6591,10 @@
       logical :: testPoints
       integer :: nframes
       ! fotogramas tipo campo vectorial
-      
+      minx = MeshMinX
+      maxx = MeshMaxX
+      miny = MeshMinZ
+      maxy = MeshMaxZ
       if (testPoints) then
       nframes = 1
       else
@@ -6691,10 +6607,7 @@
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
       
-      minx = MeshMinX
-      maxx = MeshMaxX
-      miny = MeshMinZ
-      maxy = MeshMaxZ
+      
       
       xstep = real(((maxX-minX) / nmarkX ))
       
@@ -6963,14 +6876,14 @@
       do j = k,ii-1
         call rline(delX(j),delZ(j),delX(j+1),delZ(j+1))
       end do
-      end if
+      end if !k
       ii = ii + 1
       end if!
       ! n_topo,n_cont,n_vall
 !     do j = 1,ii-2
 !       call rline(delX(j),delX(j+1),delZ(j),delZ(j+1))   !
 !     end do
-      else
+      else !(punEnlaFront .and. .not. testPoints)
         call color ('FORE')                                           !
         call PENWID(real(0.5,4)) 
         call marker(int(-1,4)) ! sin marcadores                       !
@@ -6978,7 +6891,7 @@
       call rline(real(Xcoord_ER(j,1,1),4),real(Xcoord_ER(j,2,1),4), & !
                  real(Xcoord_ER(j,1,2),4),real(Xcoord_ER(j,2,2),4))   !
       end do
-      end if
+      end if !(punEnlaFront .and. .not. testPoints)
       call color ('FORE')
       call PENWID(real(0.5,4))
       end if! WORKBOUNDARY
@@ -7045,8 +6958,8 @@
                      fotogramas
       use meshVars, only : npixX,npixZ,nmarkZ,nmarkX
       use waveNumVars, only : NFREC, NPTSTIME
-      use soilVars, only : Z,N, shadecolor_inc
-      use geometryvars, only : nXI,Xcoord_ER, Xcoord_Voidonly, Xcoord_Incluonly
+      use soilVars, only : Z,N!, shadecolor_inc
+      use geometryvars, only : nXI,Xcoord_ER, Xcoord_Voidonly!, Xcoord_Incluonly
       use waveVars, only : dt,maxtime
       use resultvars, only : Punto,BouPoints,nbpts
       use sourceVars, only : iFte => currentiFte
@@ -7232,24 +7145,24 @@
       call rlrec(real(minX,4),real(minY,4),&                          !
                     real(maxX-minX,4),real(Z(1)-minY,4))              !
       end if!
-      if (workboundary) then ! si es una topografía                                         !
-      if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
-      allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))             !
-      i=1                                                             !
-      do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont    !
-      rec(i,1) = Xcoord_Incluonly(j,1,1)                              !
-      rec(i,2) = Xcoord_Incluonly(j,2,1)                              !
-      rec(i+1,1) = Xcoord_Incluonly(j,1,2)                            !
-      rec(i+1,2) = Xcoord_Incluonly(j,2,2)                            !
-      i=i+2                                                           !
-      end do                                                          !
+      if (workboundary) then !                                         !
+!     if (size(Xcoord_Incluonly(:,1,1)) .gt. 1) then
+!     allocate(rec(2* (size(Xcoord_Incluonly(:,1,1))),2))             !
+!     i=1                                                             !
+!     do j=1,size(Xcoord_Incluonly (:,1,1))!n_topo+1,n_topo+n_cont    !
+!     rec(i,1) = Xcoord_Incluonly(j,1,1)                              !
+!     rec(i,2) = Xcoord_Incluonly(j,2,1)                              !
+!     rec(i+1,1) = Xcoord_Incluonly(j,1,2)                            !
+!     rec(i+1,2) = Xcoord_Incluonly(j,2,2)                            !
+!     i=i+2                                                           !
+!     end do                                                          !
 !     print*, "shadecolor_inc", shadecolor_inc
-      call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
-      CALL RLAREA(real(rec(:,1),4), & 
-                  real(rec(:,2),4), & 
-                  int(2*size(Xcoord_Incluonly(:,1,1)),4))  !
-      deallocate(rec) 
-      end if!
+!     call SETRGB(shadecolor_inc, shadecolor_inc, shadecolor_inc)     !
+!     CALL RLAREA(real(rec(:,1),4), & 
+!                 real(rec(:,2),4), & 
+!                 int(2*size(Xcoord_Incluonly(:,1,1)),4))  !
+!     deallocate(rec) 
+!     end if!
       if (size(Xcoord_Voidonly(:,1,1)) .gt. 1) then
       allocate(rec(2* (size(Xcoord_Voidonly(:,1,1))),2))              !
       i = 1                                                           !

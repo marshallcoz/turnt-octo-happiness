@@ -436,15 +436,22 @@
       end do
       end subroutine ricker
       
-      subroutine gaussian(Uo,sigGaus)
+      subroutine gaussian(Uo,sigGausIn)
 !     use waveVars, only : Uo,sigGaus
       use waveNumVars, only : NPTSTIME!,nfrec
       implicit none
       integer :: i
       real*8 :: f,s
       complex*16, dimension(NPTSTIME) :: Uo
-      real :: sigGaus
+      real :: sigGaus,sigGausIn
+      integer :: shift
       f = 0.0
+      sigGaus = int(sigGausIn)
+      if (sigGausIn  - sigGaus .gt. 0.001) then
+        shift = int((sigGausIn  - sigGaus) * 1000)
+      else
+        shift = 0
+      end if
       !positivos
       s = real(sigGaus/100.0 * NPTSTIME/2,8)
       do i=1, NPTSTIME/2+1
@@ -452,8 +459,14 @@
         Uo(i) = cmplx(exp(-0.5*(f/s)**2.),0.,8)
       end do
       !negativos
+      if (shift .eq. 0) then
       Uo(NPTSTIME/2+2:NPTSTIME) = conjg(Uo(NPTSTIME/2:2:-1))
-      
+      else
+      if (shift + NPTSTIME/2+1 .gt. NPTSTIME) shift = NPTSTIME/2
+      Uo(shift:shift + NPTSTIME/2+1) = Uo(1:NPTSTIME/2+1)
+      Uo(1:shift) = 1.0
+      Uo(NPTSTIME/2+2:NPTSTIME) = conjg(Uo(NPTSTIME/2:2:-1))
+      end if
       end subroutine gaussian
       
       function FFTW(n,Uin,direccion,escala)
