@@ -264,7 +264,7 @@
       allocate( subMatD0(2,4,N+1,0:2*nmax))
       allocate( subMatS0(3,4,N+1,0:2*nmax))      
       allocate( k_vec(2*nmax))
-      k_vec(1) = 0!real(dk * 0.01,8)
+      k_vec(1) = real(dk * 0.01,8)
       do ik = 2,NMAX+1
         k_vec(ik) = real(ik-1,8) * dk
       end do!
@@ -390,7 +390,7 @@
            Lambda(l) = RHO(l)*alfa(l)**2. - real(2.)*aMU(l)
           end do 
         end if
-      
+      !#< b
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
         if (workBoundary) write(6,'(A)', ADVANCE = "NO") repeat(char(8),10) !nbp
@@ -405,7 +405,7 @@
         'w(',J,') | ',FREC," | ",result,"sec"
       end if
       if (onlythisJ) write(PrintNum,*) "Frec = ",COME, " eta = ",&
-      (ome*longitudcaracteristica_a)/(pi*beta0(N+1))!#> 
+      (ome*longitudcaracteristica_a)/(pi*beta0(N+1))!#>
       
       if (workBoundary) then ! Subsegment the topography if neccesssary
          call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+2),nbpts,BouPoints)
@@ -455,7 +455,8 @@
          tam = size(Ak,1)
 !      print*,"vecNK(J)=",vecNK(J)
 !      print*,"   pos",min(int(vecNK(J)*SpliK),nmax)+1," neg", 2*nmax-((min(int(vecNK(J)*SpliK),nmax))-2) 
-       k0 = min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J)  
+       k0 = min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J) 
+!      k0 = vecNK(J); 
        do ik = 1,k0 !vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)            
@@ -554,8 +555,11 @@
            if (Po(currentiFte)%region .eq. 1) then
               call diffField_at_iz(0,dir,J,cOME)
            else ! Po en región 2
+!          if (Po(currentiFte)%region .eq. 2) then
               if (workboundary) then
                  call termIndepR(dir,cOME)
+              else
+                  stop "indicó región 2 en un problema de 1 región"
               end if
            end if
         end if
@@ -578,8 +582,8 @@
       Ni = ik*l
        
 !#< b
-!      call chdir(trim(adjustl(rutaOut)))
-!       call chdir('matrices')
+       call chdir(trim(adjustl(rutaOut)))
+        call chdir('matrices')
 !     print*,n_top_sub,"n_top_sub"
 !     print*,n_con_sub,"n_con_sub"
 !     print*,n_val_sub,"n_val_sub"
@@ -591,8 +595,9 @@
 !      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
 !      close(421)
 !      CALL chdir(".."); CALL chdir("..")
+!      stop 456
 !      
-!     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
+!     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6);stop
 !     if (verbose .ge. 1) call showMNmatrixZ(size(trac0vec,1),1 , trac0vec,"  b  ",6) ;stop
 !      call chdir(trim(adjustl(rutaOut))) 
 !      open(421,FILE= "outA.m",action="write",status="replace")
@@ -2422,7 +2427,6 @@
       use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, & 
          gamma=>gamma_E,nu=>nu_E,eta=>eta_E
       use soilVars, only : ALFA,BETA,N
-      
 !     use dislin
       implicit none
       integer :: J,po,ne,e,ii,ik,ikI(2),ikF(2)
@@ -3986,6 +3990,12 @@
 !     print*,"px",p_x%center
 !     print*,"pxi",pXi%center
 !     print*,"dir_j=",dir_j
+      if ((p_X%boundaryIndex .eq. 17) .and. & 
+           (pXi%boundaryIndex .eq. 19)) then
+        print*,"entra"
+        print*,p_X%center,p_X%normal
+        print*,pXi%center,pXi%layer
+      end if
       FF%W=0; FF%U=0;FF%Tz=0;FF%Tx=0
       FF%sxx = 0;FF%szx = 0;FF%szz = 0
 !     estratosIguales = .false.
@@ -4009,7 +4019,7 @@
          else !pXi%region = 1
 !        print*,p_x%center,p_x%layer
 !        print*,pxi%center,pxi%layer
-          if (p_x%layer .eq. pXi%layer) shouldI = .true.
+          if (p_x%layer .eq. p_X%layer) shouldI = .true.
           if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
           estrato = p_x%layer
           e => p_x%layer
@@ -4230,6 +4240,19 @@
 !     print*,"-------------------------------------------"
 !     print*,""
       end if !should I?
+      
+      !print*,p_X%center
+      !print*,pXi%center
+      if ((p_X%boundaryIndex .eq. 17) .and.& 
+           (pXi%boundaryIndex .eq. 19)) then
+      print*,p_X%center,"---",pXi%center
+      print*,dir_j
+      print*,FF%W
+      print*,FF%U
+      print*,FF%Tz
+      print*,FF%Tx
+      stop "FFpsv"
+      end if
       end subroutine FFpsv
        
       subroutine greenexPSV(FF,dir_j,p_X,pXi, e,cOME)

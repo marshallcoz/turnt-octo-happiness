@@ -1,5 +1,48 @@
 Superficie (x,y)ini - (x,y)fin en metros CAJA
 0		N_topo segmentos :: T^0 + T^d = 0
+3		N_cont segmentos :: T^d = T^0; u^d = u^0
+0		N_vall segmentos :: T^d = 0
+***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
+1  1   <- escala:x escala:y
+0  0   <- offset:x offset:y
+1.0    <- [negativo invierte normal]
+***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
+0.5  0.5   <- escala:x escala:y
+0.5  0.6   <- offset:x offset:y
+1.0    <- [negativo invierte normal]
+    1.0000    0.0000    0.0000    1.0000   F
+    0.0000    1.0000   -1.0000    0.0000   F
+   -1.0000    0.0000    1.0000    0.0000   F
+***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
+1 1  <- escala:x escala:y
+0 0  <- offset:x offset:y
+1.0  <- [negativo invierte normal]
+Inclusion properties
+Alfa(m/s) Beta(m/s) Dens(T/m3) 
+40.0   20.0   1.0
+Cualquier receptor dentro de esta superficie está en el aire
+0    N segmentos 
+1 1  <- escala:x escala:y
+0 0  <- offset:x offset:y
+Cualquier receptor dentro de estas superficies está en la region homogenea
+1  N de regiones
+3  Total de segmentos
+3   N segmentos 
+0.5 0.5  <- escala:x escala:y
+0.5 0.6  <- offset:x offset:y
+    1.0000    0.0000    0.0000    1.0000   F
+    0.0000    1.0000   -1.0000    0.0000   F
+   -1.0000    0.0000    1.0000    0.0000   F 
+Borde de región homogenea cuando flip12 .true.
+0    N segmentos 
+1.0  1.0   <- escala:x escala:y
+0.0  0.0   <- offset:x offset:y
+
+
+
+
+Superficie (x,y)ini - (x,y)fin en metros CAJA
+0		N_topo segmentos :: T^0 + T^d = 0
 30		N_cont segmentos :: T^d = T^0; u^d = u^0
 0		N_vall segmentos :: T^d = 0
 ***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
@@ -46,7 +89,7 @@ Superficie (x,y)ini - (x,y)fin en metros CAJA
 1.0  <- [negativo invierte normal]
 Inclusion properties
 Alfa(m/s) Beta(m/s) Dens(T/m3) 
-2.0   1.0   1.0
+40.0   20.0   1.0
 Cualquier receptor dentro de esta superficie está en el aire
 0    N segmentos 
 1 1  <- escala:x escala:y
