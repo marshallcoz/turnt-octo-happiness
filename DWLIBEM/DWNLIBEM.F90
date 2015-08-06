@@ -217,12 +217,12 @@
         i = 2*N+1
         if (Z(0) .lt. 0.0) i = i + 1 !HS arriba
       end if !
-        if (PSV) then 
+      if (PSV) then 
         i = 4*N+2
         if (Z(0) .lt. 0.0) i = i + 2 !HS arriba
       end if
       ik = 0 !indice para onda plana
-        allocate (Ak(i,i,ik:2*nmax)); allocate (B(i,ik:2*nmax)) 
+        allocate (Ak(i,i,0:2*nmax)); allocate (B(i,0:2*nmax)) 
         allocate(ipivA(i)); allocate(workA((i)*(i)))
    !   to store the strata diffracted displacement: W,U,V,...
       do iP=iPtini,iPtfin
@@ -257,8 +257,12 @@
       do i=1,Npts
         allpoints(i)%pointIndex = i
       end do ! i
-      
-      allocate(k_vec(2*nmax))
+      allocate( gamma_E(0:2*nmax,N+1))
+      allocate( nu_E(0:2*nmax,N+1))
+      allocate( eta_E(0:2*nmax,N+1))
+      allocate( subMatD0(2,4,N+1,0:2*nmax))
+      allocate( subMatS0(3,4,N+1,0:2*nmax))      
+      allocate( k_vec(2*nmax))
       k_vec(1) = 0!real(dk * 0.01,8)
       do ik = 2,NMAX+1
         k_vec(ik) = real(ik-1,8) * dk
@@ -266,11 +270,6 @@
       do ik = nmax+2,2*NMAX
         k_vec(ik) = (ik - 2*NMAX - 1) * dk
       end do
-      allocate( gamma_E(0:2*nmax,N+1))
-      allocate( nu_E(0:2*nmax,N+1))
-      allocate( eta_E(0:2*nmax,N+1))
-      allocate( subMatD0(2,4,N+1,0:2*nmax))
-      allocate( subMatS0(3,4,N+1,0:2*nmax))
       allocate(t_vec(NPTSTIME))
       t_vec(1:NPTSTIME) = z0
       t_vec(1) = exp(cmplx(0.0,-0.01* dfrec * t0*(2*pi),8))
@@ -448,10 +447,10 @@
       
          pt_ipivA => ipivA
          pt_workA => workA
+         
+         call makeGANU (J) !los numeros de onda horizontales para P y S 
       if (PSV) then
          tam = size(Ak,1)
-
-       call makeGANU (J) !los numeros de onda horizontales para P y S 
 !      print*,"vecNK(J)=",vecNK(J)
 !      print*,"   pos",min(int(vecNK(J)*SpliK),nmax)+1," neg", 2*nmax-((min(int(vecNK(J)*SpliK),nmax))-2) 
          
@@ -479,17 +478,22 @@
        
       end if!psv ............................................
       if (SH) then
-         Ak = Z0
-      Do ik=1,nmax+1
+         !Ak = Z0
+         tam = size(Ak,1)
+         print*,"N=",N," tam=",tam
+      Do ik = 1,min(int(vecNK(J)*SpliK),nmax)+1!nmax+1
       ! k positivo
-         pointAp => Ak(1:size(Ak,1),1:size(Ak,2),ik)
+         pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)
-         call globalmatrix_SH(pointAp,pt_k,pt_cOME_i)
-         call inverseA(pointAp,pt_ipivA,pt_workA,size(Ak,1))
+         call globalmatrix_SH(pointAp,pt_k,ik)
+         call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do ! ik
       ! k negativo (es simétrico)
-         Ak(1:size(Ak,1),1:size(Ak,2),Nmax+2:2*nmax) = &
-         Ak(1:size(Ak,1),1:size(Ak,2),Nmax:2:-1)
+         Ak(1:tam,1:tam,Nmax+2:2*nmax) = &
+         Ak(1:tam,1:tam,Nmax:2:-1)
+!     k0 = min(int(vecNK(J)*SpliK),nmax); k0 = 2*nmax-(k0-2)
+!        Ak(1:tam,1:tam,k0:2*nmax) = &
+!        Ak(1:tam,1:tam,k0-2:2:-1)
       end if!sh
      
       ! matriz IBEM 
@@ -751,16 +755,17 @@
       if (any(isnan(real(trac0vec)))) then ! NAN is not equal even to itself
       stop "891 valio madres el ibem"; end if!
       !#< b
+      !call showMNmatrixZ(Mi,1, trac0vec," phi ",6)
       if (verbose .ge. 2) then  
          call chdir(trim(adjustl(rutaOut))) 
          write(arg,'(a,I0)') 'phi',currentiFte
          CALL chdir(trim(arg))
          write(titleN,'(a,I0,a)')'n_phi_',J,'_E.pdf'
          call drawPHI(titleN,3)
-                          if (n_con_sub .gt. 0) then
-                            write(titleN,'(a,I0,a)')'n_phi_',J,'_R.pdf'
-                            call drawPHI(titleN,-3)
-                          end if!
+         if (n_con_sub .gt. 0) then
+            write(titleN,'(a,I0,a)')'n_phi_',J,'_R.pdf'
+            call drawPHI(titleN,-3)
+         end if!
          if (verbose .ge. 3) then 
            call showMNmatrixZ(Mi,1, trac0vec," phi ",6)
            write(titleN,'(a,I0,a)')'n_phiVal_',J,'.pdf'
@@ -896,15 +901,21 @@
       if (onlythisJ) then
           print*,"";print*,"Rultados en puntos receptores: ------"
           do iP_x = 1,nPts
-           if (.not. allpoints(iP_x)%isSabana) then
+           if ((.not. allpoints(iP_x)%isSabana) .and. &
+               (.not. allpoints(iP_x)%guardarMovieSiblings)) then
             print*,"ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"] ", &
             "n = [",allpoints(iP_x)%normal%x,",",allpoints(iP_x)%normal%z,"]"
             
             print*,"reg",allpoints(iP_x)%region," layer",allpoints(iP_x)%layer
             if (allpoints(iP_x)% guardarMovieSiblings) then
+            if (PSV) then
             print*,"   W=",allpoints(iP_x)%Wmov(J,1,1:npixX,currentiFte)
             print*,"   U=",allpoints(iP_x)%Wmov(J,2,1:npixX,currentiFte)
+            else !SH
+            print*,"   V=",allpoints(iP_x)%Wmov(J,3,1:npixX,currentiFte)
+            end if
             else
+            if (PSV) then
             print*,"   W=",allpoints(iP_x)%resp(J,currentiFte)%W
             print*,"   U=",allpoints(iP_x)%resp(J,currentiFte)%U
             print*,"   Tz=",allpoints(iP_x)%resp(J,currentiFte)%Tz
@@ -912,7 +923,7 @@
             print*,"   sxx=",allpoints(iP_x)%resp(J,currentiFte)%sxx
             print*,"   szx=",allpoints(iP_x)%resp(J,currentiFte)%szx
             print*,"   szz=",allpoints(iP_x)%resp(J,currentiFte)%szz
-             
+            
             ! a polares locales y guardar:
             allpoints(iP_x)%sinT = (980 - allpoints(iP_x)%center%z)/5.5
             allpoints(iP_x)%cosT = (10 - allpoints(iP_x)%center%x)/5.5
@@ -923,6 +934,10 @@
             outvar(iP_x,3) = allpoints(iP_x)%resp(J,currentiFte)%sxx
             outvar(iP_x,4) = allpoints(iP_x)%resp(J,currentiFte)%szx
             outvar(iP_x,5) = allpoints(iP_x)%resp(J,currentiFte)%szz
+            else !SH
+            print*,"   V=",allpoints(iP_x)%resp(J,currentiFte)%V
+            print*,"   Ty=",allpoints(iP_x)%resp(J,currentiFte)%Ty
+            end if
             
 !           outvar(iP_x,3) = abs( &
 !            allpoints(iP_x)%sinT **2 * allpoints(iP_x)%resp(J,currentiFte)%sxx + &
@@ -932,11 +947,12 @@
             end if ! guardarMovieSiblings
            end if ! isSabana
           end do !iP_x
-          
+      if (PSV) then    
       open(169,FILE= 'outvar.m',action="write",status="replace")
       write(arg,'(a)') "out"
       call scripToMatlabMNmatrixZ(nPts-1,5,outvar(2:nPts,1:5),arg,169)
       close(169)
+      end if
       end if! onlythisJ
       
       
@@ -946,10 +962,16 @@
         call chdir(trim(adjustl(rutaOut)))
         write(arg,'(a,I0)') 'phi',currentiFte
         CALL chdir(trim(arg))
+        if (PSV) then
         write(tt,'(a,I0,a)') "W_eta",J,".pdf"
         call plot_at_eta(frecIni,tt)
         write(tt,'(a,I0,a)') "U_eta",J,".pdf"
         call plot_at_eta(frecIni,tt)
+        else
+!       print*,"print at eta SH not implemented line966"
+        write(tt,'(a,I0,a)') "V_eta",J,".pdf"
+        call plot_at_eta(frecIni,tt)
+        end if
         CALL chdir("..");CALL chdir("..")
         if ((onlythisJ .eqv. .true.) .and. (currentiFte .eq. nFuentes))then 
           print*,""
@@ -1529,8 +1551,8 @@
       use resultVars, only : Punto 
       use glovars, only : verbose
       use Gquadrature, only: Gqu_n => Gquad_n, & 
-                             Gqu_t => Gqu_t_8, & 
-                             Gqu_A => Gqu_A_8
+                             Gqu_t => Gqu_t_30, & 
+                             Gqu_A => Gqu_t_30
       implicit none
       real*8, dimension(2) :: A,B
       real*8, dimension(:), pointer :: G_c
@@ -1816,7 +1838,7 @@
 !#define ver 1
       ! esta función es llamada con cada profundidad donde hay
       ! por lo menos una fuente.
-      use gloVars, only: z0, plotFKS,UI,UR,outpf => PrintNum,PWfrecReal
+      use gloVars, only: z0, plotFKS,UI,UR,PWfrecReal
       use resultVars, only : pota,Punto,nZs,MecaElem,FFres
       use refSolMatrixVars, only : B,Ak
       use waveNumVars, only : NMAX,k_vec,dk,vecNK,SpliK,OME!,DFREC
@@ -1837,6 +1859,15 @@
           integer, intent(in)          :: e,ik
           complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
         end function PSVdiffByStrata
+        
+        function SHdiffByStrata(coefOndas_SH,z_i,e,cOME_i,k,ik)
+          use soilvars, only:N
+          complex*16, dimension(1:3) :: SHdiffByStrata
+          real*8, intent(in)           :: z_i,k
+          complex*16, intent(in)       :: cOME_i  
+          integer, intent(in)          :: e,ik
+          complex*16, dimension(2*N+1),intent(in) :: coefOndas_SH
+        end function SHdiffByStrata
         
         subroutine  eGAeNU(i_zF,ik,pXI,dj)
         use resultVars, only : Punto
@@ -1862,7 +1893,7 @@
       logical :: auxLogic ,porLoMenosUnoEsEstr,isPW
       integer :: ik,tam,itabla_z,itabla_x,iMec,mecS,mecE,&
                  nXis,n_Xs,iXi,dj,pos,ne!,i_Fuente,i_FuenteFinal
-      type(MecaElem)  :: Meca_diff, SHdiffByStrata
+!     type(MecaElem)  :: Meca_diff, SHdiffByStrata
 #ifdef ver
       character(LEN=32) :: arg
       real :: result,lastresult
@@ -1919,25 +1950,17 @@
             pt_k => k; pt_come_i => cOME!                                        ·a
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
             pt_ipivA => ipivA; pt_workA => workA!                                ·
-            call globalmatrix_SH(pointA,pt_k,pt_come_i)!                         ·p
+            call globalmatrix_SH(pointA,pt_k,0)!                         ·p
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
             call SHvectorB_ondaplana(B(:,0),pxi%gamma)!
             B(:,0) = matmul(Ak(:,:,0),B(:,0))!                                   ·a
-          else!  P-SV                                                            ·n
-!           if (PWfrecReal) then
-!           if(Po(iFte)%PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!        ·a
-!           if(Po(iFte)%PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!        ·
-!           else
-!           if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/beta(N+1))*sin(pXi%gamma)!  ·a
-!           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alfa(N+1))*sin(pXi%gamma)
-!           end if        
+          else!  P-SV                                                            ·n        
             tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
             pt_k => k; pt_come_i => cOME!                                        ·
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
             pt_ipivA => ipivA; pt_workA => workA!                                ·
             call gloMat_PSV(pointA,pt_k,0)!                                      ·
-!           print*,sum(pointA)," line1779"
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
             call PSVvectorB_ondaplana(B(:,0),pxi%gamma)!                         ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
@@ -1950,11 +1973,11 @@
         if (dir_j .eq. 2) then                                                   !
          tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
          do ik = 1,pos+1                                                            !n
-           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !d
+           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik),ik)             !d
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !a
          end do                                                                  !                                     
          do ik = ne,2*NMAX                                                       !c
-           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik))             !i
+           call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik),ik)             !i
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !l
          end do                                                                  !i
         else!  .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .     !n        
@@ -2016,10 +2039,12 @@
       if (isPW) then ! onda plana·············
           if (dir_j .eq. 2) then!                                               ·
 !           if(Po(iFte)%PW_pol .eq. 3) k = OME/beta0(N+1)*sin(pXi%gamma)!       ·
-                 Meca_diff = SHdiffByStrata(B(:,0), &!                          ·o
-                             p_X%center%z, p_X%layer, & !                       ·n
-                             cOME,k,mecS,mecE,outpf) !                          ·d
-                 savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) !          ·a
+!                Meca_diff = SHdiffByStrata(B(:,0), &!                          ·o
+!                            p_X%center%z, p_X%layer, & !                       ·n
+!                            cOME,k,mecS,mecE,outpf) !                          ·d
+!                savedauxK(1,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE) !          ·a
+                 savedauxK(1,1:3) = SHdiffByStrata(B(:,0), & 
+                              p_X%center%z, p_X%layer,cOME,k,0)!
           else !                                                                ·
 !           if(Po(iFte)%PW_pol .eq. 1) k = OME/beta0(N+1)*sin(pXi%gamma)!       ·p
 !           if(Po(iFte)%PW_pol .eq. 2) k = OME/alfa0(N+1)*sin(pXi%gamma)!       ·l
@@ -2030,10 +2055,12 @@
       else ! onda plana incidente / onda cilíndrica circular ····················
         do ik = 1,pos+1                                                         !
           if (dir_j .eq. 2) then !SH                                            !
-              Meca_diff = SHdiffByStrata(B(:,ik), &                             !
-                             p_X%center%z, p_X%layer, &                         !o
-                             cOME,k_vec(ik),mecS,mecE,outpf)                    !n
-              savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)              !d
+!             Meca_diff = SHdiffByStrata(B(:,ik), &                             !
+!                            p_X%center%z, p_X%layer, &                         !o
+!                            cOME,k_vec(ik),mecS,mecE,outpf)                    !n
+!             savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)              !d
+              savedauxK(ik,1:3) = SHdiffByStrata(B(:,ik), & 
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)
           else !PSV                                                             !a
               savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
                               p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !i
@@ -2041,10 +2068,12 @@
         end do ! ik                                                             !i
         do ik = ne,2*Nmax                                                       !n
           if (dir_j .eq. 2) then !SH                                            !d
-              Meca_diff = SHdiffByStrata(B(:,ik), &                             !r
-                             p_X%center%z, p_X%layer, &                         !i
-                             cOME,k_vec(ik),mecS,mecE,outpf)                    !c
-             savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)               !a
+!             Meca_diff = SHdiffByStrata(B(:,ik), &                             !r
+!                            p_X%center%z, p_X%layer, &                         !i
+!                            cOME,k_vec(ik),mecS,mecE,outpf)                    !c
+!            savedauxK(ik,mecS:mecE) = Meca_diff%Rw_SH(mecS:mecE)               !a
+             savedauxK(ik,1:3) = SHdiffByStrata(B(:,ik), & 
+                                 p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)
           else !PSV                                                             !
              savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
                                  p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)     !
@@ -2644,207 +2673,40 @@
 !            stop "gloMat_PSV"
       end subroutine gloMat_PSV
       
-!     ! Calcular para +k y -k al mismo tiempo. Se ahorran algunas operaciones
-!     subroutine globalmatrix_PSV(this_A,this_An,k,cOME_i)
-!     use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-!     use gloVars, only : UI,UR,Z0
-!     use debugStuff
-!     implicit none
-!     
-!     complex*16,intent(inout),dimension(:,:),pointer :: this_A,this_An
-!     real*8,     intent(in),pointer     :: k
-!     complex*16, intent(in),pointer     :: cOME_i  
-!     
-!     real*8     :: z_i
-!     complex*16, dimension(2,4) :: subMatDp,  subMatDn, & 
-!                                   subMatSp,  subMatSn, &
-!                                  subMatD0p, subMatD0n, & 
-!                                  subMatS0p, subMatS0n
-!     complex*16, dimension(4,4) :: diagMat
-!     complex*16 :: gamma,nu,xi
-!     complex*16 :: egammaN,enuN,egammaP,enuP
-!     integer    :: i,iR,iC,e,bord
-!     complex*16 :: mink_zp,mink_zn
-!         iR= 0
-!         iC= 0 
-!         mink_zp = -k*UR ! porque armamos matrices para +k y para -k al mismo tiempo.
-!         mink_zn =  k*UR
-!     !la matriz global se llena por columnas con submatrices de cada estrato
-!     i=1
-!     if (Z(0) .lt. 0.0) then 
-!       i = 0 !Half-Space por arriba de z=0 
-!       iR= -2
-!       iC= -2
-!     end if
-!     DO e = i,N+1
-!         ! algunas valores constantes para todo el estrato
-!         gamma = sqrt(cOME_i**2.0_8/ALFA(e)**2.0_8 - k**2.0_8)
-!         nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-!         ! Se debe cumplir que la parte imaginaria del número de onda 
-!         ! vertical debe ser menor que cero. La parte imaginaria contri-
-!         ! buye a tener ondas planas inhomogéneas con decaimiento expo-
-!         ! nencial a medida que z es mayor que cero.
-!         if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
-!         if(aimag(nu).gt.0.0)nu= conjg(nu)
-!         
-!         xi = k**2.0 - nu**2.0 
-!         ! en fortran los elementos se indican por columnas:
-!         subMatD0p = RESHAPE((/ -gamma, mink_zp, mink_zp,nu,& 
-!                                gamma, mink_zp, mink_zp,-nu /), &
-!                          (/ 2,4 /))
-!         subMatD0p = subMatD0p * UI
-!         
-!         subMatD0n = RESHAPE((/ -gamma, mink_zn, mink_zn,nu,& 
-!                                gamma, mink_zn, mink_zn,-nu /), &
-!                          (/ 2,4 /))
-!         subMatD0n = subMatD0n * UI
-!         
-!         subMatS0p = RESHAPE((/ xi,-2.0*k*gamma,-2.0*k*nu,-xi,& 
-!                              xi,2.0*k*gamma,2.0*k*nu,-xi /),&
-!                          (/2,4/)) 
-!         subMatS0p = amu(e) * subMatS0p 
-!         
-!         subMatS0n = RESHAPE((/ xi, 2.0*k*gamma, 2.0*k*nu,-xi,& 
-!                              xi,-2.0*k*gamma,-2.0*k*nu,-xi /),&
-!                          (/2,4/)) 
-!         subMatS0n = amu(e) * subMatS0n 
-!         
-!         ! la profundidad z de la frontera superior del estrato
-!!         z_i = Z(e)   ! e=1  ->  z = z0 = 0
-!!         z_f = Z(e+1) ! e=1  ->  z = z1 
-!       do bord = 0,1
-!         if ((e .eq. 0) .and. (bord .eq. 0)) cycle
-!         if (e+bord > N+1) then ! si 1+0;1+1;2+0;[2+1] > 2
-!           exit
-!         end if                           
-!         ! la profundidad z de la frontera superior del estrato
-!               z_i = Z(e+bord)   ! e=1 , bord=0  ->  z = z0 = 0
-!                                 ! e=1 , bord=1  ->  z = Z1 = h1
-!         !downward waves
-!         !  bord=0  ... 0 | bord=1  ... h(e)=Z(e+1)-Z(e)
-!         !        -> 1    |       -> exp(-UI * nu * h(e))
-!         if (e /= 0) then !(radiation condition upper HS)
-!           egammaN = exp(-UI * gamma * (z_i-Z(e))) 
-!           enuN = exp(-UI * nu * (z_i-Z(e)))       
-!         else
-!           egammaN = Z0
-!           enuN = Z0
-!         end if
-!         !upward waves    
-!         if (e /= N+1) then !(radiation condition)
-!           egammaP = exp(UI * gamma * (z_i-Z(e+1))) !
-!           enuP = exp(UI * nu * (z_i-Z(e+1)))
-!         else
-!           egammaP = Z0
-!           enuP = Z0
-!         end if
-!           !la matrix diagonal
-!        diagMat = RESHAPE((/ egammaN, Z0, Z0, Z0, & 
-!                             Z0,    enuN, Z0, Z0, & 
-!                             Z0, Z0, egammaP, Z0, & 
-!                             Z0, Z0, Z0, enuP /), &
-!                          (/ 4,4 /))
-!         ! desplazamientos
-!         subMatDp = matmul(subMatD0p,diagMat)
-!         subMatDn = matmul(subMatD0n,diagMat)
-!         ! esfuerzos
-!         subMatSp = matmul(subMatS0p,diagMat)
-!         subMatSn = matmul(subMatS0n,diagMat)
-!       !ensamble de la macro columna i
-!         !evaluadas en el borde SUPERIOR del layer i
-!         if (bord == 0 .AND. e /= 0 ) then 
-!          if (e /= N+1) then !(radiation condition)
-!           if (e/=i) then !(only stress bound.cond. in the surface
-!            this_A( iR-1 : iR   , iC+1 : iC+4 ) = -subMatDp
-!           end if
-!            this_A( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatSp
-!          else
-!          if (e/=i) then !(only stress bound.cond. in the surface
-!            this_A( iR-1 : iR   , iC+1 : iC+2 ) = -subMatDp(:,1:2)
-!          end if
-!            this_A( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatSp(:,1:2)
-!           ! exit
-!          end if
-!         end if
-!         
-!         !evaluadas en el borde INFERIOR del layer i
-!         if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
-!          if (e /= 0) then !(radiation condition upward)
-!           ! ambas ondas
-!           this_A( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatDp
-!           this_A( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatSp
-!          else
-!           ! solo onda hacia arriba
-!           this_A( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatDp(:,3:4)
-!           this_A( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatSp(:,3:4)
-!          end if
-!         end if
-!        !
-!     if (associated(this_An)) then
-!         if (bord == 0 .AND. e /= 0 ) then 
-!          if (e /= N+1) then !(radiation condition)
-!           if (e/=i) then !(only stress bound.cond. in the surface
-!           this_An( iR-1 : iR   , iC+1 : iC+4 ) = -subMatDn
-!           end if
-!           this_An( iR+1 : iR+2 , iC+1 : iC+4 ) = -subMatSn
-!          else
-!          if (e/=i) then !(only stress bound.cond. in the surface
-!           this_An( iR-1 : iR   , iC+1 : iC+2 ) = -subMatDn(:,1:2)
-!          end if
-!           this_An( iR+1 : iR+2 , iC+1 : iC+2 ) = -subMatSn(:,1:2)
-!          end if
-!         end if
-!         !evaluadas en el borde INFERIOR del layer i
-!         if (bord == 1 .AND. e /= N+1 ) then ! cond de radiación en HS
-!          if (e /= 0) then !(radiation condition upward)
-!           ! ambas ondas
-!           this_An( iR+3 : iR+4 , iC+1 : iC+4 ) = subMatDn
-!           this_An( iR+5 : iR+6 , iC+1 : iC+4 ) = subMatSn
-!          else
-!           ! solo onda hacia arriba
-!           this_An( iR+3 : iR+4 , iC+3 : iC+4 ) = subMatDn(:,3:4)
-!           this_An( iR+5 : iR+6 , iC+3 : iC+4 ) = subMatSn(:,3:4)
-!          end if
-!         end if
-!     end if
-!       end do !bord loop del borde i superior o nferior
-!         iR= iR+4 
-!         iC= iC+4
-!     END DO !{e} loop de las macro columnas para cada estrato
-!     end subroutine globalmatrix_PSV
       
-      subroutine globalmatrix_SH(this_A,k,cOME_i)
+      subroutine globalmatrix_SH(this_A,k,ik)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
       use gloVars, only : UI,UR,Z0
       use debugStuff  
+      use waveNumVars, only : nu_E
       implicit none
       
       complex*16,    intent(inout), dimension(:,:),pointer :: this_A
       real*8,     intent(in),pointer     :: k
-      complex*16, intent(in),pointer     :: cOME_i  
+      integer :: ik
+!     complex*16, intent(in),pointer     :: cOME_i  
       
       real*8     :: z_i
       complex*16, dimension(1,2) :: subMatD, subMatS, subMatD0, subMatS0
       complex*16, dimension(2,2) :: diagMat
       complex*16 :: nu,enuN,enuP
       integer    :: i,iR,iC,e,bord
-          iR= 0
-          iC= 0 
-      !la matriz global se llena por columnas con submatrices de cada estrato
-      i = 1
-      if (Z(0) .lt. 0.0) then 
-        i = 0 !HS arriba (no free surface)
-        iR= -1
-        iC= -1
+      this_A = 0
+      z_i = k ! (nada mas para que no chiste)
+      iR= 0;iC= 0;i=1
+      if (Z(0) .lt. 0.0) then !Half-Space por arriba de z=0 
+        i = 0;iR= -1; iC= -1
       end if
+      
       DO e = i,N+1!cada estrato
+          nu = nu_E(ik,e)!; print*,e,N,nu
           ! algunas valores constantes para todo el estrato
-          nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+!         nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
           ! Se debe cumplir que la parte imaginaria del número de onda 
           ! vertical debe ser menor que cero. La parte imaginaria contri-
 !         ! buye a tener ondas planas inhomogéneas con decaimiento expo-
           ! nencial a medida que z es mayor que cero.
-          if(aimag(nu).gt.0.0)nu= conjg(nu)
+!         if(aimag(nu).gt.0.0)nu= conjg(nu)
 
           ! en fortran los elementos se indican por columnas:
           subMatD0 = RESHAPE((/ UR,UR /), (/ 1,2 /))
@@ -2918,8 +2780,9 @@
           iR= iR+2 
           iC= iC+2
       END DO !{e} loop de las macro columnas para cada estrato
-!         call showMNmatrixZ(2*N+2,2*N+2,this_A,"Ash  ",6) 
+!         call showMNmatrixZ(size(this_A,1),size(this_A,2),this_A,"Ash  ",6) 
 !         stop 5248
+!     print*,"glomat",ik,"line2789"
       end subroutine globalmatrix_SH
       
       subroutine inverseA(A,ipiv,work,n)
@@ -3836,15 +3699,16 @@
       end subroutine SHvectorB_ondaplana
       
       
-      subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
+      subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k,ik)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA,RHO,NPAR
       use gloVars, only : UR,UI,PI,Z0
 !     use debugStuff
       use resultvars, only : Punto
       use sourceVars, only: Po,iFte=>currentiFte! use sourceVars, only : tipofuente!,PW_theta
+      use waveNumVars, only : nu_E
       implicit none
       
-      integer, intent(in) :: i_zF,tam
+      integer, intent(in) :: i_zF,tam,ik
       complex*16,    intent(inout), dimension(tam) :: this_B
       real*8,     intent(in)    :: k
       complex*16, intent(in)    :: cOME
@@ -3855,13 +3719,13 @@
       logical, pointer :: fisInterf
       integer :: iIf,nInterf, el_tipo_de_fuente
       real    :: SGNz
-      complex*16 :: nu,DEN,omeBet, argum,sincmod
+      complex*16 :: nu,DEN, argum,sincmod
       real*8     :: errT = 0.0001_8
       ! una para cada interfaz (la de arriba [1] y la de abajo [2])
       real*8,     dimension(2) :: z_loc
       complex*16, dimension(2) :: G22,S22,enuz,nuz,sincNu
       real*8 :: a
-      
+      argum = cOME ! (ana mas para que no chiste)
       this_B = Z0
       sincNu = Z0
       e_f => pXi%layer
@@ -3882,9 +3746,10 @@
       
       G22=Z0;S22=z0 
       DEN = (4.0*AMU(e_f)*UI*PI)
-      omeBet = cOME**2.0/BETA(e_f)**2.0
-      nu = sqrt(omeBet - k**2.0)
-      if(aimag(nu).gt.0.0_8)nu= conjg(nu)
+!     omeBet = cOME**2.0/BETA(e_f)**2.0
+!     nu = sqrt(omeBet - k**2.0)
+!     if(aimag(nu).gt.0.0_8)nu= conjg(nu)
+      nu = nu_E(ik,e_f)
       
       do iIf = 1,2
           enuz(iIf) = exp(-UI*nu*ABS(z_loc(iIf)))
@@ -3982,43 +3847,31 @@
       implicit none
       
       complex*16, dimension(1:5) :: PSVdiffByStrata
-!     type (MecaElem)              :: PSVdiffByStrata
       real*8, intent(in)           ::  z_i,k
       complex*16, intent(in)       :: cOME_i  
-      integer, intent(in)          :: e,ik!,outpf,mecStart,mecEnd
+      integer, intent(in)          :: e,ik
       complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
       complex*16 :: gamma,nu,xi,eta
       complex*16 :: egammaN,enuN,egammaP,enuP
       complex*16, dimension(2,4) :: subMatD
       complex*16, dimension(3,4) :: subMatS
-!     complex*16, dimension(4,4) :: diagMat
       complex*16, dimension(1:4) :: coeffsPSV
-!     complex*16, dimension(1:2) :: resD
-!     complex*16, dimension(1:3) :: resS
-      integer :: i !#< b
-!     if (verbose > 4) then
-!      write(PrintNum,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
-!                   "PSVdiffByStrata at w:", & 
-!                   real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
-!     end if !#> 
+      integer :: i 
+      
       PSVdiffByStrata = 0
       if (ik .ne. 0) then
        gamma = gamma_E(ik,e)
        nu = nu_E(ik,e)
-       
-      xi = k**2.0 - nu**2.0
-      eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
-      else
+       xi = k**2.0 - nu**2.0
+       eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+      else !ik = 0
        gamma = sqrt(UR*OME**2.0_8/ALFA0(e)**2.0_8 - k**2.0_8)
        nu = sqrt(UR*OME**2.0_8/BETA0(e)**2.0_8 - k**2.0_8)
        if(aimag(gamma).gt.0.0)gamma = conjg(gamma)
        if(aimag(nu).gt.0.0)nu= conjg(nu)
-       
-      xi = k**2.0 - nu**2.0
-      eta = 2.0*gamma**2.0 - OME**2.0 / BETA0(e)**2.0
+       xi = k**2.0 - nu**2.0
+       eta = 2.0*gamma**2.0 - OME**2.0 / BETA0(e)**2.0
       end if
-!     print*,"ik,gamma,nu,xi,eta",ik,gamma,nu,xi,eta
-!     print*,e
       !downward waves
         if (e /= 0) then !(radiation condition upper HS)
           egammaN = exp(-UI * gamma * (z_i-Z(e))) 
@@ -4037,11 +3890,6 @@
         end if
           
       !la matrix diagonal
-!        diagMat = RESHAPE((/ egammaN, Z0, Z0, Z0, & 
-!                             Z0,    enuN, Z0, Z0, & 
-!                             Z0, Z0, egammaP, Z0, & 
-!                             Z0, Z0, Z0, enuP /), &
-!                          (/ 4,4 /))
       !coeficientes de las ondas en el estrato
       i = 0
       if (z(0) .lt. 0.0) i = 2
@@ -4059,14 +3907,8 @@
       ! desplazamientos
         ! {W}
         ! {U}
-!       subMatD = RESHAPE((/ -gamma,-k*UR,-k*UR,nu, & 
-!                             gamma,-k*UR,-k*UR,-nu /), &
-!                          (/ 2,4 /))
-!       subMatD = UI * subMatD
         subMatD = subMatD0(1:2,1:4,e,ik)
         
-!       subMatD = matmul(subMatD,diagMat)
-!       resD = matmul(subMatD, coeffsPSV)  ! Pdown Sdown Pup Sup
         subMatD(:,1) = subMatD(:,1)*egammaN*coeffsPSV(1)
         subMatD(:,2) = subMatD(:,2)*enuN*coeffsPSV(2)
         subMatD(:,3) = subMatD(:,3)*egammaP*coeffsPSV(3)
@@ -4077,12 +3919,6 @@
         
        
       ! esfuerzos
-!       subMatS = RESHAPE((/ xi,      -2.0*k*gamma,     eta,     &
-!                         -2.0*k*nu,     -xi,        2.0*k*nu,   &
-!                          xi,       2.0*k*gamma,     eta,       &
-!                          2.0*k*nu,     -xi,       -2.0*k*nu /),&
-!                          (/3,4/))      
-!       subMatS = amu(e) * subMatS
         subMatS = subMatS0(1:3,1:4,e,ik)
         subMatS(:,1) = subMatS(:,1)*egammaN*coeffsPSV(1)
         subMatS(:,2) = subMatS(:,2)*enuN*coeffsPSV(2)
@@ -4109,17 +3945,17 @@
 !       end if
       end function PSVdiffByStrata
       
-      function SHdiffByStrata(coefOndas_SH,  & 
-                               z_i,e,cOME_i,k,mecStart,mecEnd,outpf)
+      function SHdiffByStrata(coefOndas_SH,z_i,e,cOME_i,k,ik)
       use soilVars !N,Z,AMU,BETA,ALFA,LAMBDA
-      use gloVars, only : UI,UR,Z0,verbose
-      use resultVars, only : MecaElem
+      use gloVars, only : UI,UR,Z0
+      use waveNumVars, only : nu_E,ome
+!     use resultVars, only : MecaElem
+      
       implicit none
-      type (MecaElem)              :: SHdiffByStrata
-      real*8, intent(in)           :: z_i
-      real*8, intent(in)           :: k
+      complex*16, dimension(1:3)   :: SHdiffByStrata
+      real*8, intent(in)           :: z_i,k
       complex*16, intent(in)       :: cOME_i  
-      integer, intent(in)          :: e,outpf,mecStart,mecEnd
+      integer, intent(in)          :: e,ik
       complex*16, dimension(2*N+1),intent(in) :: coefOndas_SH
       complex*16 :: nu
       complex*16 :: enuN,enuP
@@ -4129,26 +3965,27 @@
       complex*16, dimension(2,1) :: coeffsSH
       complex*16, dimension(1,1) :: resDsh
       complex*16, dimension(2,1) :: resSsh
-      integer :: i
-      
-      SHdiffByStrata%Rw_sh(1:3) = z0!#< b
-      if (verbose > 4) then
-       write(outpf,'(a,F7.3,a,F12.7,a,F10.2,a,I0)') & 
-                    "SHdiffByStrata at w:", & 
-                    real(cOME_i),"k=",k," z_i{",z_i,"} e=",e
-      end if !#> 
+      integer :: i 
+      SHdiffByStrata = z0
       ! algunas valores constantes para todo el estrato
-      nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
-      if(aimag(nu).gt.0.0)nu= conjg(nu)
+      !nu = sqrt(cOME_i**2.0_8/BETA(e)**2.0_8 - k**2.0_8)
+      !if(aimag(nu).gt.0.0)nu= conjg(nu)
+      if (ik .ne. 0) then
+       nu = come_i ! (nada mas para que no chiste)
+       nu = nu_E(ik,e)
+      else ! ik = 0
+       nu = sqrt(UR*OME**2.0_8/BETA0(e)**2.0_8 - k**2.0_8)
+       if(aimag(nu).gt.0.0)nu= conjg(nu)
+      end if
           !downward waves
           if (e /= 0) then !(radiation condition upper HS)
-            enuN = exp(-UI * nu * abs(z_i-Z(e)))
+             enuN = exp(-UI * nu * (z_i-Z(e)))! enuN = exp(-UI * nu * abs(z_i-Z(e)))
           else
             enuN = Z0
           end if
           !upward waves 
           if (e /= N+1) then !(radiation condition)
-            enuP = exp(-UI * nu * abs(z_i-Z(e+1)))
+            enuP = exp(UI * nu * (z_i-Z(e+1)))! enuP = exp(-UI * nu * abs(z_i-Z(e+1)))
           else
             enuP = Z0
           end if
@@ -4171,22 +4008,22 @@
         end if
         
       ! desplazamientos
-      if (mecStart .eq. 1)then
+!     if (mecStart .eq. 1)then
         subMatDsh = RESHAPE((/ UR,UR /), (/ 1,2 /))
         subMatDsh = matmul(subMatDsh,diagMatSH)
         resDsh = matmul(subMatDsh, coeffsSH)
-        SHdiffByStrata%Rw_sh(1) = resDsh(1,1) !V
-      end if ! desplazamientos
+        SHdiffByStrata(1) = resDsh(1,1) !V
+!     end if ! desplazamientos
       
       ! esfuerzos
-      if (mecEnd .eq. 3) then
+!     if (mecEnd .eq. 3) then
         subMatSsh = RESHAPE((/ -UI*nu,-UI*k,UI*nu,-UI*k/),(/2,2/)) 
         subMatSsh = amu(e) * subMatSsh
         subMatSsh = matmul(subMatSsh,diagMatSH)
         resSsh = matmul(subMatSsh, coeffsSH)
-        SHdiffByStrata%Rw_sh(2) = resSsh(1,1) !s32
-        SHdiffByStrata%Rw_sh(3) = resSsh(2,1) !s12
-      end if ! esfuerzos
+        SHdiffByStrata(2) = resSsh(1,1) !s32
+        SHdiffByStrata(3) = resSsh(2,1) !s12
+!     end if ! esfuerzos
           
       end function SHdiffByStrata
       
@@ -7601,10 +7438,12 @@
       call filmod('DELETE')
       CALL SETPAG('DA4L')
       CALL SETFIL(trim(tt))
+      call errmod ("all", "off")
         do iP = 1,nIpts; if (allpoints(iP)%isSabana) then
            alguno = .true.
            if (tt(1:1) .eq. 'W') BP = allpoints(iP)%resp(J,currentiFte)%W
            if (tt(1:1) .eq. 'U') BP = allpoints(iP)%resp(J,currentiFte)%U
+           if (tt(1:1) .eq. 'V') BP = allpoints(iP)%resp(J,currentiFte)%V
            chNa = abs(BP)
            if (chNa .eq. chNa+1) then; BP = 0; warning = .true.; end if
 !          print*,iP,BP
@@ -7643,4 +7482,3 @@
         end if
         end if        
       end subroutine plot_at_eta
-

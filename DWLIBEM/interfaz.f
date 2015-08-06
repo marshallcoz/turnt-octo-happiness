@@ -11,10 +11,11 @@
 !         complex*16, intent(in),pointer     :: cOME_i 
         end subroutine gloMat_PSV
         
-        subroutine globalmatrix_SH(this_A,k,cOME_i)
+        subroutine globalmatrix_SH(this_A,k,ik)
           complex*16,    intent(inout), dimension(:,:),pointer :: this_A
           real*8,     intent(in),pointer     :: k
-          complex*16, intent(in),pointer     :: cOME_i 
+          integer :: ik
+!         complex*16, intent(in),pointer     :: cOME_i 
         end subroutine globalmatrix_SH
         
         subroutine inverseA(A,ipiv,work,n)
@@ -63,10 +64,10 @@
           type(Punto),intent(in),target    :: pXi
         end subroutine PSVvectorB_force
         
-        subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k)
+        subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k,ik)
           use resultvars, only : Punto
           use soilVars, only : N
-          integer, intent(in) :: i_zF,tam
+          integer, intent(in) :: i_zF,tam,ik
           complex*16, intent(inout), dimension(tam) :: this_B
           real*8,     intent(in)    :: k
           complex*16, intent(in)    :: cOME
@@ -118,4 +119,3 @@
       complex*16, intent(in)  :: cOME
       end subroutine fill_diffbyStrata
       
-

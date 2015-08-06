@@ -254,7 +254,7 @@
 
       module Gquadrature
         real :: WLmulti ! una o dos longitudes de onda
-        integer, parameter :: Gquad_n = 8
+        integer, parameter :: Gquad_n = 30
       ! ##############################
       ! # Para cambiar Num de puntos #
       ! # actualizar encabezado de   #
@@ -2897,6 +2897,10 @@
       if (comp .eq. -2) phi(1:tam) = real(real(trac0vec(2*initial+2:2*final:2)),4)
       if (comp .eq. -3) phi(1:tam) = real(real(trac0vec(initial:final)),4)
       maxPhi = maxval(abs(phi(1:tam)))
+!     print*,"maxPhi=",maxPhi
+!     print*,"initial=",initial
+!     print*,"final=",final
+!     print*,"trac0vec=",trac0vec
       write(mr,'(EN18.2)') maxPhi
       phi = phi / maxphi
       
@@ -3016,5 +3020,4 @@
       call disfin()
       end subroutine drawPHI
       end module ploteo10pesos
-
 

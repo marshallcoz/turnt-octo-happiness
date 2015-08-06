@@ -19,7 +19,7 @@ Superficie (x,y)ini - (x,y)fin en metros     TD
 1.0  <- escala:n    
 Inclusion properties
 Alfa(m/s) Beta(m/s) Dens(T/m3) 
-0.2   0.1   1.0
+0.2 0.1   1.0
 Cualquier receptor dentro de esta superficie está en el aire
 0    N segmentos 
 1.0 1.0  <- escala:x escala:y
