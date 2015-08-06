@@ -190,7 +190,8 @@
          BP => BouPoints
          call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.,.false.,.true.)
        end do !
-         
+       currentiFte = 0
+       
        write(extension,'(a)') 'PDF'
        BP => BouPoints
        write(titleN,'(a)') '0___SensorsA.pdf'
@@ -312,6 +313,7 @@
          ! borr´e facamp
          
          call chdir(trim(adjustl(rutaOut)))
+         if (makeVideo) call loadG_fotogramas
       do currentiFte = 1,nfuentes
            print*,"fuente=,",currentiFte
            write(arg,'(a,I0)') 'traces',currentiFte
@@ -323,7 +325,7 @@
            CALL chdir("..")
            
            if (makeVideo) then 
-             call loadG_fotogramas
+             !call loadG_fotogramas
              write(arg,'(a,I0)') 'video',currentiFte
              CALL chdir(trim(arg))
              if (PSV .and. vivaChurubusco) call Churubusco(.false.)
@@ -337,7 +339,7 @@
              if (PSV) call CINETECA
              CALL chdir("..")
            end if!
-         end do
+      end do
          stop "done"
         end if ! load 
       end if! argument
@@ -453,8 +455,8 @@
          tam = size(Ak,1)
 !      print*,"vecNK(J)=",vecNK(J)
 !      print*,"   pos",min(int(vecNK(J)*SpliK),nmax)+1," neg", 2*nmax-((min(int(vecNK(J)*SpliK),nmax))-2) 
-         
-       do ik = 1,min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J) ! k positivo (Aorig -> nmax+1)
+       k0 = min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J)  
+       do ik = 1,k0 !vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)            
 !        print*,ik, 2*nmax - (ik-2)   
@@ -462,7 +464,6 @@
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
        end do ! ik
        
-       k0 = min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J)
        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
        call parImpar_gloMat ! k negativo
        
@@ -480,14 +481,16 @@
       if (SH) then
          !Ak = Z0
          tam = size(Ak,1)
-         print*,"N=",N," tam=",tam
-      Do ik = 1,min(int(vecNK(J)*SpliK),nmax)+1!nmax+1
+         !print*,"N=",N," tam=",tam
+         k0 = min(int(vecNK(J)*SpliK),nmax)+1
+      Do ik = 1,k0!nmax+1
       ! k positivo
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)
          call globalmatrix_SH(pointAp,pt_k,ik)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do ! ik
+      call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA) 
       ! k negativo (es simétrico)
          Ak(1:tam,1:tam,Nmax+2:2*nmax) = &
          Ak(1:tam,1:tam,Nmax:2:-1)
@@ -498,46 +501,50 @@
      
       ! matriz IBEM 
       if (workboundary) then
+      currentiFte = 0
       do dir= 1,3 !x,y,z direction of force application
         if(dir .eq. 2) then
          if(skipdir(dir)) cycle
         else ! 1 o 3
          if(skipdir(1) .and. skipdir(3)) cycle
         end if! dir
-      !********(campo difractda en medio estratificado)*********************
+      if (verbose .ge. 2) print*,""
+      if (verbose .ge. 2) print*,'********(campo difractda en medio estratificado)*********************'
          do iz = 1,nZs !por cada Z de fuentes en tabla de segmentos tipo 0 y 1
            if (thereisavirtualsourceat(iz)) then ! (ipxi = 1,n_top_sub)
              call diffField_at_iz(iz,dir,J,cOME)
            end if 
          end do !iz
-      !********(campo refractado en inclusión y FF de inclusion (columnas xi=d2))***  
+      if (verbose .ge. 2) print*,'********(campo refractado en inclusión y FF de inclusion (columnas xi=d2))***' 
          if (n_con_sub .gt. 0) then 
-           do iPxi = n_top_sub +1, n_top_sub + n_con_sub
+           do iPxi = n_top_sub +1, n_top_sub + n_con_sub 
              call reffField_by_(iPxi,dir,cOME)
            end do ! iPxi
          end if !n_cont
-      !********(frontera libre en inclusión (columnas de xi=d1))*****************
+      if (verbose .ge. 2) print*,'********(frontera libre en inclusión (columnas de xi=d1))*****************'
          if (n_val_sub .gt. 0) then
            do iPxi = n_top_sub + n_con_sub +1, n_top_sub + n_con_sub + n_val_sub
              call reffField_by_(iPxi,dir,cOME)
            end do ! iPxi
          end if !n_vall
-      !*****(funcions de Green de desplazamiento en la región R)*****************
+      if (verbose .ge. 2) print*,'*****(funcions de Green de desplazamiento en la región R)*****************'
          call GreenReg_R(J,dir,cOME)
       end do !dir
       
       ! guardar la matriz ibem para que no se estropee al invertir distintas fuentes
       ibemMatS = ibemMat
-      end if
+      end if !workboundary
 !     campo incidente 
-       do currentiFte = 1,nFuentes
-       call makeGANU0
+       do currentiFte = 1,nFuentes !para cada una de las incidencias
+       if (verbose .ge. 2) print*,'*****( Incidencia )*************************************'
+       call makeGANU0 !gamma y nu con el número de onda de ésta incidencia plana
        if (workboundary) then
-         ibemMat = ibemMatS
+         ibemMat = ibemMatS !guardada por si hay varias incidencias
          trac0vec = 0
        end if
        
        do dir= 1,3 !x,y,z direction of force application
+!       print*,"dir=",dir
         if(dir .eq. 2) then
            if(skipdir(dir)) cycle
         else ! 1 o 3
@@ -546,14 +553,13 @@
         if(.not. skipdir(dir)) then 
            if (Po(currentiFte)%region .eq. 1) then
               call diffField_at_iz(0,dir,J,cOME)
-           else
+           else ! Po en región 2
               if (workboundary) then
                  call termIndepR(dir,cOME)
               end if
            end if
         end if
        end do !dir 
-       
        if (workboundary) then
       if (PSV) then 
       ik = 2
@@ -644,12 +650,12 @@
       do iP_x = 1,nIpts !cada receptor X 
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
-!           iPhi_F = (n_top_sub + n_con_sub) * 2
+            iPhi_F = (n_top_sub + n_con_sub) * 2
             ipxi_I = 1
             ipxi_F =  n_top_sub + n_con_sub
           else if (allpoints(iP_x)%region .eq. 2) then !'incl'
             iPhi_I = (n_top_sub + n_con_sub) * 2 + 1
-!           iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
+            iPhi_F = (n_top_sub + 2* n_con_sub + n_val_sub) * 2
             ipxi_I =  n_top_sub + 1
             ipxi_F =  n_top_sub + n_con_sub + n_val_sub
           else ! 'void'
@@ -663,9 +669,9 @@
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! por fzas verticales:
             iPhi = iPhi + 2
           end do         
-          if(i .eq. 1) allpoints(iP_x)%resp(J,currentiFte)%W = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
+          if(i .eq. 1) allpoints(iP_x)%resp(J,currentiFte)%W = sum(trac0vec * auxGvector) + &!sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%W
-          if(i .eq. 2) allpoints(iP_x)%resp(J,currentiFte)%U = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
+          if(i .eq. 2) allpoints(iP_x)%resp(J,currentiFte)%U = sum(trac0vec * auxGvector) + &!sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%U
         end do !i
         
@@ -925,6 +931,7 @@
             print*,"   szz=",allpoints(iP_x)%resp(J,currentiFte)%szz
             
             ! a polares locales y guardar:
+            print*," Aguas con la transf de coordenadas lin929"
             allpoints(iP_x)%sinT = (980 - allpoints(iP_x)%center%z)/5.5
             allpoints(iP_x)%cosT = (10 - allpoints(iP_x)%center%x)/5.5
             
@@ -1230,6 +1237,7 @@
              PX => boupoints(abs(pota(itabla_z, itabla_x)))
           end if
         else
+          if (i_Fuente .eq. 0) stop "i_fuente = 0 en asociar"
           PX => Po(i_Fuente)
         end if
       end subroutine asociar
@@ -1972,6 +1980,10 @@
         B(:,pos:ne) = 0                                                           !
         if (dir_j .eq. 2) then                                                   !
          tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !o
+         if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) return
+         
+         ! si la fuente está sobre una interfaz ...............
+!        if (pXi%isOnInterface) then
          do ik = 1,pos+1                                                            !n
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik),ik)             !d
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !a
@@ -1980,6 +1992,15 @@
            call SHvectorB_force(i_zF,B(:,ik),tam,pXi,cOME,k_vec(ik),ik)             !i
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !l
          end do                                                                  !i
+!        else ! la fuente está entre interfaces ..............
+!          do ik = 1,pos+1
+!            stop 1990
+!            call eGAeNU(i_zF,ik,pXI,dj)
+!          end do!                                                                 
+!          do ik = ne,2*NMAX
+!            call eGAeNU(i_zF,ik,pXI,dj)
+!          end do
+!        end if
         else!  .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .     !n        
          tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !d
          if ((i_zF .eq. 0) .and. (pXi%region .eq. 2)) return         
@@ -2097,7 +2118,7 @@
         do iXi = 1,nXis
           if (i_zF .ne. 0) then ! fuentes virtuales con igual Z
             itabla_x = 2 + pota(i_zF,1) + iXi
-            call asociar(pXi, iFte, i_zF, itabla_x)
+            call asociar(pXi, 0, i_zF, itabla_x)
             xf => pXi%center%x
           end if! i_zF ne 0
 #ifdef ver
@@ -2185,7 +2206,7 @@
 !            print*, 'n=',sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = sum(auxK(1:pos+1,iMec))+sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = auxK(1,iMec)*dk
-!            print*,auxK(1,iMec)
+!            print*,auxK(1,iMec);stop
              
 #ifdef ver
        call ETIME(tarray, result)                                           !
@@ -2400,8 +2421,7 @@
       subroutine makeGANU (J)
       use waveNumVars, only : vecNK,SpliK,nmax,cOME,k_vec, & 
          gamma=>gamma_E,nu=>nu_E,eta=>eta_E
-      use soilVars, only : ALFA,BETA,N!,alfa0,beta0
-!     use sourceVars, only : PoFte=>Po,iFte=>currentiFte!,PW_pol
+      use soilVars, only : ALFA,BETA,N
       
 !     use dislin
       implicit none
@@ -2419,21 +2439,10 @@
           omeAlf = cOME**2.0/ALFA(e)**2.0
           omeBet = cOME**2.0/BETA(e)**2.0
        
-!      ! de la onda plana
-!      ik = 0
-!      if(PoFte(iFte)%PW_pol .eq. 1) k = real(OME/beta0(e)*sin(PoFte(iFte)%gamma))
-!      if(PoFte(iFte)%PW_pol .eq. 2) k = real(OME/alfa0(e)*sin(PoFte(iFte)%gamma))
-!      gamma(ik,e) = sqrt(OME**2.0/ALFA0(e)**2.0 - k**2.0)
-!      nu(ik,e) = sqrt(OME**2.0/BETA0(e)**2.0 - k**2.0)
-!      if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
-!      if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
-!      eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
-       
        ! de ondas cilíndricas
        do ii = 1,2 ! los num de onda positivos, negativos
        do ik = ikI(ii),ikF(ii) !  todos los num de onda
           k = k_vec(ik)
-!         print*,ii,ik,k
           ! algunas valores constantes para todo el estrato          
           gamma(ik,e) = sqrt(omeAlf - k**2.0)
           nu(ik,e) = sqrt(omeBet - k**2.0)
@@ -2455,9 +2464,8 @@
       use waveNumVars, only : come,ome, & 
          gamma=>gamma_E,nu=>nu_E,eta=>eta_E
       use soilVars, only : N,alfa0,beta0,alfa,beta
-      use sourceVars, only : PoFte=>Po,iFte=>currentiFte!,PW_pol
+      use sourceVars, only : PoFte=>Po,iFte=>currentiFte
       use glovars, only: Ur,PWfrecReal
-!     use dislin
       implicit none
       integer :: e,ik
       real*8  :: k
@@ -2477,16 +2485,7 @@
         k = real(cOME/alfa(e)*sin(PoFte(iFte)%gamma))
         end if
       end if
-       !
-!      print*,e
-!      print*,ome
-!      print*,come
-!      print*,alfa0(e)
-!      print*,beta0(e)
-!      print*,k
        if (PWfrecReal) then
-!      print*,sqrt(UR*OME**2.0/ALFA0(e)**2.0 - k**2.0)
-       
        gamma(ik,e) = sqrt(UR*OME**2.0/ALFA0(e)**2.0 - k**2.0)
 !      print*,gamma(ik,e),"gamma(ik,e)"
        nu(ik,e) = sqrt(UR*OME**2.0/BETA0(e)**2.0 - k**2.0)
@@ -2501,15 +2500,6 @@
        if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
        eta(ik,e) = 2.0*gamma(ik,e)**2.0 - cOME**2.0 / BETA(e)**2.0
        end if
-       
-!      if(PoFte(iFte)%PW_pol .eq. 1) k = real(OME/beta0(e)*sin(PoFte(iFte)%gamma))
-!      if(PoFte(iFte)%PW_pol .eq. 2) k = real(OME/alfa0(e)*sin(PoFte(iFte)%gamma))
-!      gamma(ik,e) = sqrt(OME**2.0/ALFA0(e)**2.0 - k**2.0)
-!      nu(ik,e) = sqrt(OME**2.0/BETA0(e)**2.0 - k**2.0)
-!      if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
-!      if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
-!      eta(ik,e) = 2.0*gamma(ik,e)**2.0 - OME**2.0 / BETA0(e)**2.0
-!      print*,e,gamma(ik,e),nu(ik,e),eta(ik,e)," L2143"
        end do
        end subroutine makeGANU0
        
@@ -2806,60 +2796,13 @@
       if(info .ne. 0) stop "inverseA :Problem at inverse of matrix "
       end subroutine inverseA
       
-!     ! los elementos de la inversa de la matrix global
-!     ! tienen tendencia asintótica lineal después para 
-!     ! k muy grande. Se interpola linealmente
-!     subroutine inter_gloMat(k0,k1,k2)
-!     use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
-!     use waveNumVars, only : NMAX
-!     use fitting
-!     implicit none
-!     integer      ::  k0, k1, k2
-!     complex*16   :: vk0,vk1,vk2
-!     integer :: r,c,ik,tam
-!     real*8,dimension(k2-k0+1) :: vecX
-!     tam = size(Ak,1)
-!     print*,k0,k1,k2!;stop
-!     vecX = (/(ik,ik=k0,k2)/)
-!     do r=1,tam
-!     do c=1,tam
-!     vk0 = Ak(r,c,k0)
-!     vk1 = Ak(r,c,k1)
-!     vk2 = Ak(r,c,k2)
-!     print*,""
-!     print*,1.0_8*k0, vk0
-!     print*,1.0_8*k1, vk1
-!     print*,1.0_8*k2, vk2
-!     if (abs(vk0) .lt. 1E-020) then
-!     Ak(r,c,k0+1:k2) = 0
-!     cycle
-!     end if
-!     
-!     Ak(r,c,k0+1:k2) =  Zpolyfit(vx,vy,d) ! complex*16, dimension(d+1)
-!     
-!     call spline3p(vecX, & ! vector x [real*8]
-!                   Ak(r,c,k0:k2), & ! vector interpolado [complex*16]
-!                   k1-k0, & ! n puntos [x0 ... x1-1]
-!                   k2-k1+1, & !        [x1 ...  x2 ]
-!                   1.0_8*k0, vk0, &  !x0,y0
-!                   1.0_8*k1, vk1, &  !x1,y1
-!                   1.0_8*k2, vk2 )   !x2,y2
-!     
-!     do ik=1,k2-k0+1
-!     print*,ik,vecX(ik),Ak(r,c,int(vecX(ik)))
-!     end do
-!     end do !c
-!     end do !r
-!     stop "inter_gloMat"
-!     end subroutine inter_gloMat
-      
-      
       subroutine intrplr_gloMat(k0,n,pt_cOME_i,pt_ipivA,pt_workA)
       use refSolMatrixVars, only : Ak !Ak(#,#,ik:2*nmax)
       use waveNumVars, only : k_vec, NMAX
       use fitting
       use soilvars, only:alfa,beta,Nestr => N
       use waveNumVars, only : gamma=>gamma_E,nu=>nu_E
+      use sourceVars, only  : PSV
       implicit none
       interface
       include 'interfaz.f'
@@ -2904,7 +2847,11 @@
               if(aimag(gamma(ik,e)).gt.0.0_8)gamma(ik,e) = conjg(gamma(ik,e))
               if(aimag(nu(ik,e)).gt.0.0_8)nu(ik,e)=conjg(nu(ik,e))
             end do ! e
+         if (PSV) then
          call gloMat_PSV(pointAp,pt_k,ik)
+         else
+         call globalmatrix_SH(pointAp,pt_k,ik)
+         end if
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
       end do
       
@@ -3038,11 +2985,11 @@
 !     stop "parImpar_gloMat"
       end subroutine parImpar_gloMat
       
-! G_stra - term indep
+! G_stra - termIndPSV
       subroutine PSVvectorB_ondaplana(this_B,gamma)
       use soilvars, only : n,lambda0,amu0,lambda,amu,alfa0,beta0,Z,beta,alfa
       use glovars, only:UI,z0,PWfrecReal
-      use sourceVars, only: Po,iFte=>currentiFte! PW_pol
+      use sourceVars, only: Po,iFte=>currentiFte
       use waveNumVars, only : cOME,ome
       use debugStuff
       implicit none
@@ -3174,6 +3121,7 @@
       if (e_f .ne. N+1)  z_loc(2) = Z(e_f+1) - z_f !upward (+)
       
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
+      if  ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "PSVvectorB_force iFte=0"
       if (i_zF .eq. 0) el_tipo_de_fuente = Po(iFte)%tipofuente 
       
       DEN = 4.0*PI*RHO(e_f)*cOME**2.0
@@ -3518,12 +3466,13 @@
 !      print*,CoefparGa(:,1,10,1,1);stop "PSVMatAporGaNU"
       end subroutine PSVMatAporGaNU
       
+      ! ****  la fuente cilíndrica está entre interfaces de los estratos ****
       subroutine  eGAeNU(i_zF,ik,pXI,dj) 
       !hacer sincGamma y sincNu para cada interfaz y devolver B final
         use waveNumVars, only : k_vec,gamma_E,nu_E!cOME,
         use resultVars, only : Punto
         use soilVars
-        use sourceVars, only: Po,iFte=>currentiFte!use sourceVars, only: tipofuente
+        use sourceVars, only: Po,iFte=>currentiFte
         use glovars, only : UR,UI
         use refSolMatrixVars, only : B, CoefparGa, CoefparNu
         implicit none
@@ -3534,7 +3483,7 @@
         logical, pointer :: fisInterf
         integer :: iIf
         complex*16 :: gamma,nu,argum,sincmod
-!       complex*16 :: omeAlf,omeBet
+        
       ! una para cada interfaz (la de arriba [1] y la de abajo [2])
         real*8,     dimension(2) :: z_loc
         complex*16, dimension(2) :: egamz,enuz,gamz,nuz
@@ -3553,10 +3502,11 @@
       if (e_f .ne. N+1)  z_loc(2) = Z(e_f+1) - z_f !upward (+) (interfaz de abajo )
       
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
+      if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "eGAeNU iFte=0"
       if (i_zF .eq. 0) el_tipo_de_fuente = Po(iFte)%tipofuente 
       gamma = gamma_E(ik,e_f)
       nu = nu_E(ik,e_f)
-          
+      
       do iIf = 1,2
           egamz(iIf) = exp(-UI*gamma*ABS(z_loc(iIf)))
           enuz(iIf) = exp(-UI*nu*ABS(z_loc(iIf)))
@@ -3606,19 +3556,17 @@
       end subroutine  eGAeNU
       
       
+
+! G_stra - termIndSH
       subroutine SHvectorB_ondaplana(this_B,gamma)
       use soilvars, only : n,amu0,amu,beta0,Z,beta
       use glovars, only:UR,UI,z0,PWfrecReal
-!     use sourceVars, only: Po!,iFte=>currentiFte! PW_pol
       use waveNumVars, only : cOME,ome
       use debugStuff
       implicit none
       complex*16, intent(inout), dimension(1:4*N+2) :: this_B
-!     complex*16, intent(in)    :: come ! no trae amortiguamiento
       real*8, intent(in) :: gamma
       integer :: i,e
-!     real*8,dimension(1:2) :: theta
-!     complex*16 :: kx,kz,U,W,c,la,am
       complex*16 :: kx,kz,V,am,c
       real*8 :: z_loc
       !     Colocamos la onda incindente en la interfaz
@@ -3632,70 +3580,32 @@
         c = beta(N+1) !SV
         end if
       
-!     if (Po(iFte)%PW_pol .eq. 1) then
-!       if (PWfrecReal) then
-!       c = beta0(N+1) !SV
-!       else
-!       c = beta(N+1) !SV
-!       end if
-!       theta(1) = cos(gamma)
-!       theta(2) = sin(gamma)
-!     elseif (Po(iFte)%PW_pol .eq. 2) then 
-!       if (PWfrecReal) then
-!       c = alfa0(N+1) !SV
-!       else
-!       c = alfa(N+1) !SV
-!       end if
-!       theta(1) = sin(gamma)
-!       theta(2) = -cos(gamma)
-!     end if
-      !
       if (PWfrecReal) then
       kx = ome/c * sin(gamma)
       kz = ome/c * cos(gamma)
-!     la = LAMBDA0(N+1)
       am = AMU0(N+1)
       else
       kx = come/c * sin(gamma)
       kz = come/c * cos(gamma)
-!     la = LAMBDA(N+1)
       am = AMU(N+1)
       end if
-!     U = (theta(1))* exp(UI * kz * (z_loc))
-!     W = (theta(2))* exp(UI * kz * (z_loc))
       V = UR * exp(UI * kz * (z_loc))
       
       i=0
-!     this_B(1:4*N+2) = Z0 
       this_B(1:2*N+1) = Z0 
       if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
-!       i = 2  
         i = 1                                                !
-!       this_B(1+4*(e-1)-2 + i) = W !  w                     !
-!       this_B(1+4*(e-1)-1 + i) = U !  u                     !
         this_B(1+2*(e-1)-1 + i) = V !  v                     !
       end if                                                 !  
       ! ······················································
       ! Desplazamientos en la frontera de la región de la fuente....
       if (e .ne. 1) then                                     ! 
-!       this_B(1+4*(e-1)-2 + i) = W !  w                     !
-!       this_B(1+4*(e-1)-1 + i) = U !  u                     !
         this_B(1+2*(e-1)-1 + i) = V !  v                     !
       end if                                                 !
       !.......................................................
-      
       ! Tracciones en la frontera de la región de la fuente.........
-!     this_B(1+4*(e-1)   + i) = UI * ( &                           !
-!                           ( W * kz * (la + 2.0 * am)) & !
-!                         - ( U * kx * la)) ! szz           !
-!     this_B(1+4*(e-1)+1 + i) = UI * am &                      !
-!                         * ( kz * U - kx * W ) ! szx              !
-!     !                   sxx = UI * ( &                           !
-!     !                   - ( U * kx * (LAMBDA(e) + 2.0*AMU(e))) & !
-!     !                   + ( W * kz * LAMBDA(e)))                 !
       this_B(1+2*(e-1)   + i) = UI * am * V * (- kx * 0 + kz * 1)
       !............................................................!
-!     call showMNmatrixZ(4*N+2,1, this_B ,"  B  ",6)
       end subroutine SHvectorB_ondaplana
       
       
@@ -3734,12 +3644,14 @@
       nInterf = 2
       if (fisInterf) then
          nInterf = 1
+         go to 459
       end if 
       z_loc(1:2) = 0.0_8
       if (e_f .ne. 0) z_loc(1) = Z(e_f) - z_f !downward (-)
       if (e_f .ne. N+1) z_loc(2) = Z(e_f+1) - z_f !upward (+)
       
       el_tipo_de_fuente = 2 ! fuente segmento (para ibem)
+      if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "SHvectorForce iFte=0"
       if (i_zF .eq. 0) el_tipo_de_fuente = Po(iFte)%tipofuente !(puntual u onda plana)
       !  0  puntual 
       !  2  segmento
@@ -3763,7 +3675,7 @@
       ! ahora estamos involucrando información del receptor en el vector de fuente
       ! en particular, si el receptor (la interfaz) está arriba o abajo de la fuente.
       
-        a = pxi%length * 0.5_8 ! 2a=lenght
+        A = pxi%length * 0.5_8 ! 2a=lenght
         cose => pxi%cosT
         seno => pxi%sinT
       
@@ -3780,7 +3692,7 @@
       end if !fuente tipo 2
       
       ! en cada interfaz (1 arriba) y (2 abajo)
-      do iIf = 1, nInterf
+      do iIf = 1,2! nInterf
           if (abs(z_loc(iIf)) > errT ) then
             SGNz = real(z_loc(iIf) / ABS(z_loc(iIf)),4)
           else
@@ -3790,12 +3702,11 @@
           G22(iIf) = UR/DEN * sincNu(iIf) / nu
           S22(iIf) = -UR / (4.0_8*pi) * sincNu(iIf) * SGNz
           
-          
-          if (fisInterf) then
-            S22(1) = + cmplx(1.0 / (2.0 * PI ),0.0,8)
-            G22(1) = 0
-          end if
-      end do !iIf
+      end do !iIf interf    
+  459 if (fisInterf) then
+          S22(1) = + cmplx(1.0 / (2.0 * PI ),0.0,8)
+          G22(1) = 0
+      end if
       
       ! El vector de términos independientes genera el campo difractado
       if (z(0) .gt. 0.0) then !--------------------------
@@ -3826,6 +3737,8 @@
         end if
        end if
       end if
+!     print*,"e_f=",e_f
+!     print*,this_B;stop 3759
       end subroutine SHvectorB_force
       
       FUNCTION SINCMOD(ARG,ARGZ)  
@@ -4037,7 +3950,7 @@
       use resultvars, only : Punto,FFres
       use sourceVars, only: Po,iFte=>currentiFte!tipofuente, PW_pol
       use waveNumVars, only : OME
-      use Gquadrature, only : Gquad_n
+      use Gquadrature, only : Gquad_n      
       implicit none
       interface
         subroutine greenexPSV(greenex,dir_j,p_X,pXi,estrato,cOME)
@@ -4085,6 +3998,7 @@
       xf => one; zf => one
       
       if (i_zF .eq. 0) then ! es la fuente real
+       if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "FFPSV iFte=0"
        el_tipo_de_fuente = Po(iFte)%tipofuente !(puntual:0 u onda plana:1)
 !      if (p_X%region .eq. pXI%region) then
          if (pXi%region .eq. 2) then
@@ -4179,7 +4093,7 @@
         if ((pXi%isboundary .eqv. .true.) .and. & 
             (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
 
-        ! para campo cercano por fuente virtual
+        ! para campo cercano por fuente virtual (segmento)
         if ((el_tipo_de_fuente .eq. 2) .and. & 
             (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
         ! si fuente real y cilindrica entonces no
@@ -4487,6 +4401,7 @@
       if (p_x%layer .eq. pXi%layer) estratosIguales = .true.
       if (pXi%isOnInterface .eqv. .false.)noEstaEnInterfaz = .true.
       el_tipo_de_fuente = 2 ! fuente segmento para IBEM
+      if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "FFSH iFte=0"
       if (i_zF .eq. 0) el_tipo_de_fuente = Po(iFte)%tipofuente !(puntual u onda plana) 
       if (i_zF .eq. -2) then !(campo refractado en frontera d2R y d1R) 
         estratosIguales = .true.
@@ -4645,9 +4560,10 @@
       ! aquí siempre la fuente es la fuente real.
       ! esta función se ejecuta se ejecuta tantas veces como las necesarias para llenar trac0vec
       nf(1) = pXi%normal%x
-      nf(2) = 0!pXi%normal%y
+      nf(2) = 1!pXi%normal%y
       nf(3) = pXi%normal%z
       ! si es onda plana no importa nf conque sea unitario.
+      if (iFte .eq. 0) stop "fill_termindep iFte=0"
       if (Po(iFte)%tipofuente .eq. 1) nf(1:3) = 1 ! fuente real y onda plana
       
       if (pXi%region .eq. 2) then 
@@ -4696,7 +4612,7 @@
       end subroutine fill_termindep
       
       subroutine termIndepR(dir_j,cOME)
-      use sourceVars, only : Po,iFte=>currentiFte!,tipofuente
+      use sourceVars, only : Po,iFte=>currentiFte
       use resultvars, only : trac0vec,Punto,FFres,& 
             boupoints,n_con_sub,n_top_sub,n_val_sub
       implicit none
@@ -4713,19 +4629,21 @@
 !     do iPo =1,nFuentes
 !     print*,",ipo",ipo
       nf(1) = Po(iFte)%normal%x
-      nf(2) = 0!Po(iFte)%normal%y
+      nf(2) = 1!Po(iFte)%normal%y
       nf(3) = Po(iFte)%normal%z
-!     print*,nf
+!     print*,"nf=",nf
+      if (iFte .eq. 0)  stop "termIndR iFte=0"
       if (Po(iFte)%tipofuente .eq. 1) nf(1:3) = 1 ! fuente real y onda plana
       
       if (dir_j .eq. 2) then ! SH
-        stop "termIndepR _ falta"
+        stop "termIndepR _ falta line4637"
       else !PSV
-        do ip_X = n_top_sub + n_con_sub + 1, n_top_sub + n_con_sub + n_val_sub
+        do ip_X = n_top_sub + 1, n_top_sub + n_con_sub + n_val_sub
           nullify(p_X)
           p_X => boupoints(ip_X)
 !         print*,ip_x,p_x%center,p_x%tipoFrontera
           call FFpsv(0,FF,dir_j,p_X,Po(iFte),cOME,3,5)
+!         print*,FF
       !  | Tx |
       !  | Tz |
         trac0vec((p_x%boundaryIndex *2 - (1 - 0))+ 2* n_con_sub) = &
@@ -4735,7 +4653,7 @@
         trac0vec((p_x%boundaryIndex *2 - (1 - 1))+ 2* n_con_sub) - (FF%Tz * nf(dir_j))
         end do
       end if !dir_j
-      
+!     PRINT*,trac0vec
       end subroutine termIndepR
 !#< r IBEM - reg E        !#>
       subroutine fill_ibemMat(i_zF,auxK,come,mecS,mecE,p_x,pXi,dir_j)
@@ -4855,11 +4773,13 @@
       real*8 :: nf(3)
       logical :: PW
       nf(1) = pXi%normal%x
-      nf(2) = 0!pXi%normal%y
+      nf(2) = 1!pXi%normal%y
       nf(3) = pXi%normal%z
+!     print*,i_zf,dir_j
       mecaElemEnd = 2 !PSV
       if (dir_j .eq. 2) mecaElemEnd = 1 !SH
       if (i_zF .eq. 0) then
+        if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "fill_diffbyStra iFte=0"
         if (PoFte(iFte)%tipofuente .eq. 1) nf(1:3) = 1.0 !fuente real y onda plana
         if (abs(nf(dir_j)) .lt. 0.0001) return !fuente real fuerza; componente nulo
       end if
@@ -4962,7 +4882,8 @@
       if (dir_j .eq. 2) then ! SH
        call FFsh(i_zf,FF,p_X,pXi,cOME,1,3) !incidencia directa
        if(i_zf .eq.0) then
-!         p_x%W(J,3) = p_x%W(J,3) + (auxk(1,1) + FF%V) * nf(dir_j) ! V
+!         print*,p_x%resp(J,iFte)%V,auxk(1,1),FF%V,nf(dir_j);stop 4898
+          if (pXi%region .ne. p_x%region) return
           p_x%resp(J,iFte)%V = p_x%resp(J,iFte)%V + (auxk(1,1) + FF%V) * nf(dir_j) ! V
           !                     s12                       s32
           p_x%resp(J,iFte)%Ty = ((auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + &
@@ -4977,7 +4898,7 @@
       else !PSV
        call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,5)  !incidencia directa       
        if(i_zf .eq.0) then
-        if (pXi%region .ne. p_x%region) return
+         if (pXi%region .ne. p_x%region) return
          p_x%resp(J,iFte)%W = p_x%resp(J,iFte)%W + (auxK(1,1) + FF%W) * nf(dir_j) !W
          p_x%resp(J,iFte)%U = p_x%resp(J,iFte)%U + (auxK(1,2) + FF%U) * nf(dir_j) !U
          p_x%resp(J,iFte)%Tz = p_x%resp(J,iFte)%Tz + &
@@ -5189,7 +5110,7 @@
       use glovars, only: makeVideo
       use peli, only : coords_Z,coords_X,fotogramas_Region
       use meshVars, only : npixX,npixZ
-      use sourceVars, only : Po,nFuentes,iFte=>currentiFte
+      use sourceVars, only : Po,nFuentes,currentiFte
       use soilvars, only : N
       implicit none
       interface
@@ -5197,7 +5118,7 @@
       end interface
       integer, intent(in) :: Jfrec,dir_j
       complex*16, intent(in)  :: cOME
-      integer :: iP_x,iPXi
+      integer :: iP_x,iPXi,iFte
       type(Punto), pointer :: p_X,pXi,p_Xmov
       integer :: i,j,iPo
       type(Punto),target :: p_xaux
@@ -5209,7 +5130,7 @@
         if (p_x%isboundary) stop "GreenReg_R: p_x is boundary "
         if (p_x%region .ne. 2) cycle !'incl'
         ! para todas las fuentes en la región R
-      do iPXi = n_top_sub+1,nBpts ! las fuentes de la región R
+      do iPXi = n_top_sub+1,nBpts ! las fuentes virtual en la región R
         pXi => boupoints(iPXi)
         if (dir_j .eq. 2) then ! SH
          call FFsh(-1,FF,p_X,pXi,cOME,1,3)
@@ -5227,13 +5148,15 @@
         end if !dir_j
       end do !iPXi
       
-      ! y la fuente real
+      ! y la fuente real (para cada una de ellas)
       do iPo = 1,nfuentes
-      if (Po(iPo)%region .eq. 2) then
+      if (Po(iPo)%region .eq. 2) then ! la fuente real en la región R
       pXi => Po(iPo)
       nf(1) = pXi%normal%x
-      nf(2) = 0!pXi%normal%y
+      nf(2) = 1!pXi%normal%y
       nf(3) = pXi%normal%z
+      iFte = iPo; currentiFte = iFte
+!     print*,"iFte=",iFte
       if (dir_j .eq. 2) then ! SH
        call FFsh(0,FF,p_X,pXi,cOME,1,3)
           p_x%resp(Jfrec,iFte)%V = p_x%resp(Jfrec,iFte)%V + (FF%V) * nf(dir_j) ! V
@@ -5251,6 +5174,7 @@
       end if !dir_j
       end if !Po 2
       end do !iPo
+      currentiFte = 0
       end do !iP_x
       
       if (makeVideo) then
@@ -5262,9 +5186,9 @@
             p_xaux%center%z = coords_Z(i)
 !     print*,""
 !     print*,"this is mov incl",j,i," (",p_xaux%center%x,",",p_xaux%center%z,")"
-            p_xaux%normal%x = 1.0_8 !
+!           p_xaux%normal%x = 1.0_8 !
 !           p_xaux%normal%y = 1.0_8 !  no se usan 
-            p_xaux%normal%z = 1.0_8 !
+!           p_xaux%normal%z = 1.0_8 !
             p_xaux%region = 2; p_xaux%layer = N+2 !'incl'
             p_xaux%boundaryindex = -10000
             p_xaux%isOD = .false.
@@ -5289,10 +5213,10 @@
             do iPo = 1,nfuentes
               if (Po(iPo)%region .eq. 2) then
                 pXi => Po(iPo)
-                
                 nf(1) = pXi%normal%x
-                nf(2) = 0!pXi%normal%y
+                nf(2) = 1!pXi%normal%y
                 nf(3) = pXi%normal%z
+                iFte = iPo; currentiFte = iFte
                 if (abs(nf(dir_j)) .lt. 0.0001) cycle
                 if (dir_j .eq. 2) then ! SH
                   call FFsh(0,FF,p_Xmov,pXi,cOME,1,1)
@@ -5304,6 +5228,7 @@
                 end if !dir_j
               end if ! Po 2
             end do ! iPo
+            currentiFte = 0
           end if ! si 
         end do !j
       end do !i
@@ -5342,7 +5267,7 @@
 !      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
 !      close(421)
 !      CALL chdir("..")
-      
+      if (iFte .eq. 0) stop "overDertSys iFte=0"
       
       do iP_x = 1,nIpts  !cada receptor X
       p_X => allpoints(iP_x) 
@@ -5555,6 +5480,7 @@
       character(LEN=100) :: nam
 !     real*8 :: factor
       if (verbose .ge. 1) print*,"frec -> time"
+      if (iFte .eq. 0) stop "crepa_four_fotogr iFte=0"
 !     factor = sqrt(1.0*nT)
       mecS = 3; mecE = 2; if (PSV) mecS =1; if (SH) mecE =3
       if (saveG .eqv. .true.) then
@@ -5608,7 +5534,7 @@
       use waveVars, only : Uo,Dt
 !     use soilVars, only : Qq
       use wavelets
-      use sourceVars, only : nFuentes!iFte=>currentiFte
+      use sourceVars, only : nFuentes 
       use dislin
       implicit none
       integer :: i,ix,iz,imec,mecS,mecE,iFte
@@ -5628,7 +5554,7 @@
       do imec = mecS,mecE
       do iz=1,npixZ
       do ix=1,npixX
-      do i=1,nT
+      do i=1,nT      
          read(6375) fotogramas(iz,ix,i,imec,iFte)
       end do
           p_fot => fotogramas(iz,ix,1:nT,imec,iFte)
@@ -5651,7 +5577,7 @@
       end do !imec
       close(6375)
       CALL chdir("..")
-      end do
+      end do !iFte
 !     CALL chdir("..")
       end subroutine loadG_fotogramas
       
@@ -6242,7 +6168,7 @@
       end subroutine makeSabana
       
 
-      subroutine F_K_exp(XF)
+      subroutine F_K_exp(XF) !calc y graf de FK y CK a partir de sábana de sensores
       use waveNumVars, only : NFREC,dfrec,omei
       use soilvars, only : Qq
       use glovars
