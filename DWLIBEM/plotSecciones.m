@@ -1,13 +1,16 @@
 %% graficar Secciones del tunel
-cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/DWLIBEM/Workdir/outs/traces1'
-geom = load('Geom1.txt','-ascii');
+%cd '/Users/marshall/Documents/DOC/coco/turnt-octo-happiness/DWLIBEM/Workdir/outs/traces1'
+cd '/Users/marshall/Documents/DOC/unit6/DWNIBEM2D/tunel_en_medio_estratificado/outs_alb20.095/traces3'
+geom = load('Geom3.txt','-ascii');
 nlines = size(geom,1);
-dat = load('Secciones1.txt','-ascii');
+dat = load('Secciones3.txt','-ascii');
 
-nsecciones = 2;
+%%
+nsecciones = 16;
 npersec = 6;
-dt = 0.0014796;
-ntmax = 10;
+dt = 0.0029326;
+ntini = 47;
+ntmax = 48;
 
 coord = dat(:,1:2);
 nptstime = (size(dat,2)-2)/2;
@@ -17,7 +20,7 @@ srt = dat(:,3+nptstime:end);
 %%
 j = 1:npersec;
 for i=1:nsecciones
-    for t = 1:ntmax
+    for t = ntini:ntmax
     hfig = figure('Name',['Seccion ' num2str(i) ' t' num2str(t*dt)]);
     set(gcf,'PaperPositionMode','auto')
     set(hfig, 'Position', [0 0 800 420])

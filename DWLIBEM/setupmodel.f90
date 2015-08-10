@@ -751,10 +751,10 @@
        Po(i)%sigGaus=sigGaus
        Po(i)%PW_pol=PW_pol
        Po(i)%tipoFuente=tipoFuente
-      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,I0,a,I0)') &
+      write(PrintNum,'(/,a,F8.2,a,F8.2,a,2x,a,F9.2,a,F9.2,a,I0,a,I0,a,L2)') &
       "   Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
       "n=[",Po(i)%normal%x,",",Po(i)%normal%z,&
-      "] r= ",Po(i)%region," e=",Po(i)%layer
+      "] r= ",Po(i)%region," e=",Po(i)%layer," intf=",Po(i)%isOnInterface
       end do
       READ(77,*);READ(77,*) t0
       close(77); CALL chdir("..")
@@ -1362,7 +1362,7 @@
       function tellisoninterface(zi)
       use soilVars, only : Z,N
       implicit none
-      real*8 ::  errT = 0.1_8
+      real*8 ::  errT = 0.0001 !0.01_8
       integer :: e
       real*8 :: zi
       logical :: tellisoninterface

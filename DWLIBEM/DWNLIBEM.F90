@@ -94,9 +94,11 @@
         print*,"usage DWNIBEM.out [option]"
         print*,""
         print*,"     -r        : Correr programa normal."
+        print*,"     -r FF       : Correr programa normal sólo en campo libre"
         print*,"     -g        : Solo imprimir geometría."
         print*,"     -a        : Solo Imprimir funcion de amplitud."
         print*,"     -f [frec] : Solo Ejecutar la frecuencia [frec]."
+        print*,"     -f [frec] FF : Solo Ejecutar la frecuencia [frec] en campo libre."
         print*,"     -L        : Cargar fotogramas de video/G.bin"
         print*,""
         stop 
@@ -127,12 +129,28 @@
             if (frecIni .gt. NFREC+1) stop "-f higher than NFREC+1 "
             frecEnd = frecIni
             onlythisJ = .true.
+            CALL get_command_argument(3, arg)
+            IF (LEN_TRIM(arg) .ne. 0) then
+              if(trim(arg) .eq. 'FF') then
+                print*,"Override: Only Free Field" 
+                write(PrintNum,'(a)') "Override: Only Free Field"
+                workBoundary = .false.
+              end if
+            end if
           else
             print*," "; print*," "
             print*,"no single frequency specified on argument -f"
             stop
           end if
-        end if
+        end if!
+        CALL get_command_argument(2, arg)
+            IF (LEN_TRIM(arg) .ne. 0) then
+              if(trim(arg) .eq. 'FF') then
+                print*,"Override: Only Free Field" 
+                write(PrintNum,'(a)') "Override: Only Free Field"
+                workBoundary = .false.
+              end if
+            end if
       end if !#>
       call checarWisdom(2*nfrec,2*nmax,NPTSTIME) ! FFTw
         nIpts=0; nMpts=0; nBpts = 0; iPtfin = 0; mPtfin = 0
@@ -455,18 +473,28 @@
          tam = size(Ak,1)
 !      print*,"vecNK(J)=",vecNK(J)
 !      print*,"   pos",min(int(vecNK(J)*SpliK),nmax)+1," neg", 2*nmax-((min(int(vecNK(J)*SpliK),nmax))-2) 
-       k0 = min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J) 
+!      k0 = min(int(vecNK(J)*SpliK),nmax)+1 !vecNK(J) 
 !      k0 = vecNK(J); 
-       do ik = 1,k0 !vecNK(J) ! k positivo (Aorig -> nmax+1)
+!      print*,"ik= 1:",k0
+       do ik = 1,vecNK(J) ! k positivo (Aorig -> nmax+1)
          pointAp => Ak(1:tam,1:tam,ik)
          pt_k => k_vec(ik)            
 !        print*,ik, 2*nmax - (ik-2)   
          call gloMat_PSV(pointAp,pt_k,ik)
+!        print*,ik,"A   =",sum(pointAp)
          call inverseA(pointAp,pt_ipivA,pt_workA,tam)
+!        print*,ik,"A-1 =",sum(pointAp)
        end do ! ik
-       
+       k0 = vecNK(J); 
        call intrplr_gloMat(k0,15,pt_cOME_i,pt_ipivA,pt_workA)         
+!      do ik = 1,min(int(vecNK(J)*SpliK),nmax)+1
+!        print*,ik,sum(Ak(1:tam,1:tam,ik))
+!      end do
+!      print*,"sum=",sum(Ak(1:tam,1:tam,1:min(int(vecNK(J)*SpliK),nmax)+1))
+!      stop
        call parImpar_gloMat ! k negativo
+       
+       
        
        ! Funciones de Green para propagar a la frontera de cada estrato
        ! (sin fase vertical, la fase vertical se agrega para cada fuente)
@@ -583,18 +611,18 @@
        
 !#< b
        call chdir(trim(adjustl(rutaOut)))
-        call chdir('matrices')
-!     print*,n_top_sub,"n_top_sub"
-!     print*,n_con_sub,"n_con_sub"
-!     print*,n_val_sub,"n_val_sub"
-!      write(arg,'(a,I0,a)') "outA",J,".m"
-!      open(421,FILE= trim(arg),action="write",status="replace")
-!      write(arg,'(a)') "BiSIN"
-!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-!      write(arg,'(a,I0)') "Mi",J
-!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-!      close(421)
-!      CALL chdir(".."); CALL chdir("..")
+       call chdir('matrices')
+      print*,n_top_sub,"n_top_sub"
+      print*,n_con_sub,"n_con_sub"
+      print*,n_val_sub,"n_val_sub"
+       write(arg,'(a,I0,a)') "outA",J,".m"
+       open(421,FILE= trim(arg),action="write",status="replace")
+       write(arg,'(a)') "BiSIN"
+       call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+       write(arg,'(a,I0)') "Mi",J
+       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+       close(421)
+       CALL chdir(".."); CALL chdir("..")
 !      stop 456
 !      
 !     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6);stop
@@ -653,6 +681,12 @@
       if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
       !#>
       do iP_x = 1,nIpts !cada receptor X 
+!         print*,""
+!         print*,allpoints(iP_x)%pointIndex," iP_x=(",allpoints(iP_x)%center,")"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%W," W"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%U," U"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%Tx," Tx"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%Tz," Tz"
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
             iPhi_F = (n_top_sub + n_con_sub) * 2
@@ -693,7 +727,11 @@
           if(l .eq. 5) allpoints(iP_x)%resp(J,currentiFte)%Tx = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%Tx
         end do !i
-        
+           
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%W," W"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%U," U"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%Tx," Tx"
+!         print*,allpoints(iP_x)%resp(J,currentiFte)%Tz," Tz"
         do i=7,9
           auxGvector = z0
           iPhi = iPhi_I 
@@ -1949,8 +1987,8 @@
        xf=>pXi%center%x;zf=>pXi%center%z;ef=>pXi%layer;intf=>pXi%isOnInterface
 #ifdef ver
        call ETIME(tarray, result)
-       print*,"pXI%center%x",pXi%center%x,"pXI%center%z",pXi%center%z,& 
-       "isboundary",pXi%isboundary, result
+       print*,"pXi: x",pXi%center%x,"z",pXi%center%z,& 
+       "isboundary",pXi%isboundary,"isOnInterface",intf, result
        lastresult = result
 #endif
       ! Si es la fuente real y es una onda plana no se usa el DWN. Se calcula para
@@ -1998,6 +2036,7 @@
            B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !l
          end do                                                                  !i
 !        else ! la fuente está entre interfaces ..............
+!        stop "fuerza entre interfaces no implementado para SH"
 !          do ik = 1,pos+1
 !            stop 1990
 !            call eGAeNU(i_zF,ik,pXI,dj)
@@ -2014,6 +2053,7 @@
          if (pXi%isOnInterface) then
            do ik = 1,pos+1                                                         !r
              call PSVvectorB_force(i_zF,B(:,ik),tam,pXi,dir_j,cOME,k_vec(ik),ik)   !i
+!            stop 2046
              B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !c
            end do                                                                  !a
            do ik = ne,2*NMAX                                                       !
@@ -2023,10 +2063,13 @@
          else ! la fuente está entre interfaces ..............
            do ik = 1,pos+1
              call eGAeNU(i_zF,ik,pXI,dj)
+!            print*,"Bik1=",B(:,ik)
+!            if (ik .eq. 443) stop
            end do!                                                                 
            do ik = ne,2*NMAX
              call eGAeNU(i_zF,ik,pXI,dj)
            end do
+!            print*,sum(B(:,1:pos+1)),sum(B(:,ne:2*nmax))
          end if
         end if                                                                   !
       end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·
@@ -2048,6 +2091,8 @@
        if (auxLogic .eqv. .false.) cycle
         ! (el primer receptor de la tabla --------| a esa profundidad) 
             call asociar(p_X, 0, itabla_z, 3)
+!           print*,"p_X: x",p_x%center%x,"z",p_x%center%z,& 
+!      "isboundary",p_x%isboundary,"isOnInterface",p_x%isoninterface;stop
 #ifdef ver 
        call ETIME(tarray, result)
        print*,"  p_x%center%z",p_x%center%z,"[m]  e=",p_X%layer
@@ -2090,6 +2135,7 @@
           else !PSV                                                             !a
               savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
                               p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !i
+!             print*,ik,"savedauxk(ik,1.+5)=",sum(savedauxk(ik,1:5))
           end if                                                                !l
         end do ! ik                                                             !i
         do ik = ne,2*Nmax                                                       !n
@@ -2103,8 +2149,16 @@
           else !PSV                                                             !
              savedauxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
                                  p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)     !
+!             print*,ik,"savedauxk(ik,1.+5)=",sum(savedauxk(ik,1:5))
           end if                                                                !
         end do ! ik                                                             !
+!       print*,"sum ik1=",sum(savedauxk(1:pos+1,1)) + sum(savedauxk(ne:2*nmax,1))
+!       print*,"sum ik2=",sum(savedauxk(1:pos+1,2)) + sum(savedauxk(ne:2*nmax,2))
+!       print*,"sum ik3=",sum(savedauxk(1:pos+1,3)) + sum(savedauxk(ne:2*nmax,3))
+!       print*,"sum ik4=",sum(savedauxk(1:pos+1,4)) + sum(savedauxk(ne:2*nmax,4))
+!       print*,"sum ik5=",sum(savedauxk(1:pos+1,5)) + sum(savedauxk(ne:2*nmax,5))
+!       print*,"pos=",pos,"  ne=",ne
+!       stop
       end if! onda cilíndrica circular ··········································
       ! fase horizontal (fuente..receptor)
       ! para cada fuente a la profundidad iz ................... 
@@ -2159,9 +2213,11 @@
                 CYCLE ! imec                              !                 ·
                 end if
             end if ! ························································
+!           print*,k_vec(:)
             do ik = 1,pos+1                                                 !
                 auxk(ik,imec) = auxk(ik,imec) * &                           !
                 exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
+!               print*,auxk(ik,imec);stop
             end do !  ik                                                    !i
             do ik = ne,2*Nmax                                               !l
                 auxk(ik,imec) = auxk(ik,imec) * &                           !i
@@ -2211,6 +2267,7 @@
 !            print*, 'n=',sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = sum(auxK(1:pos+1,iMec))+sum(auxK(ne:2*nmax,iMec))
              auxK(1,iMec) = auxK(1,iMec)*dk
+!            print*,pos,ne
 !            print*,auxK(1,iMec);stop
              
 #ifdef ver
@@ -3556,7 +3613,7 @@
                     CoefparGa(1:tam,e_f,ik,dj,2)* sincGamma(2) + &
                     CoefparNu(1:tam,e_f,ik,dj,2)* sincNu(2)
       end if
-!     print*,"eGAeNU",ik,sum(B(1:tam,ik))
+!     print*,"eGAeNU",ik,sum(B(1:tam,ik))!;stop
       end subroutine  eGAeNU
       
       
@@ -3781,6 +3838,7 @@
        nu = nu_E(ik,e)
        xi = k**2.0 - nu**2.0
        eta = 2.0*gamma**2.0 - cOME_i**2.0 / BETA(e)**2.0
+!     print*,ik,gamma,nu
       else !ik = 0
        gamma = sqrt(UR*OME**2.0_8/ALFA0(e)**2.0_8 - k**2.0_8)
        nu = sqrt(UR*OME**2.0_8/BETA0(e)**2.0_8 - k**2.0_8)
@@ -3825,7 +3883,7 @@
         ! {W}
         ! {U}
         subMatD = subMatD0(1:2,1:4,e,ik)
-        
+!       print*,ik,e,sum(subMatD0(1:2,1:4,e,ik))
         subMatD(:,1) = subMatD(:,1)*egammaN*coeffsPSV(1)
         subMatD(:,2) = subMatD(:,2)*enuN*coeffsPSV(2)
         subMatD(:,3) = subMatD(:,3)*egammaP*coeffsPSV(3)
@@ -3833,6 +3891,14 @@
         
         PSVdiffByStrata(1) = sum(subMatD(1,:)) !W
         PSVdiffByStrata(2) = sum(subMatD(2,:)) !U
+!       print*,ik,"e",egammaN,enuN
+!       print*,ik,"e",egammaP,enuP
+!       print*,ik,coeffsPSV(1)
+!       print*,ik,coeffsPSV(2)
+!       print*,ik,coeffsPSV(3)
+!       print*,ik,coeffsPSV(4)
+!       print*,ik,"(1)_",PSVdiffByStrata(1)
+!       print*,ik,"(2)_",PSVdiffByStrata(2)
         
        
       ! esfuerzos
@@ -3970,7 +4036,6 @@
       type(Punto),intent(in), pointer :: p_X,pXi
       complex*16, intent(in) :: cOME
       integer, intent(in) :: dir_j
-      
       real*8 :: r,gamma(2)
       complex*16 :: A,B,C,Dqr,Dkr,kx,kz
       complex*16 :: omeP,omeS
@@ -3990,12 +4055,6 @@
 !     print*,"px",p_x%center
 !     print*,"pxi",pXi%center
 !     print*,"dir_j=",dir_j
-      if ((p_X%boundaryIndex .eq. 17) .and. & 
-           (pXi%boundaryIndex .eq. 19)) then
-        print*,"entra"
-        print*,p_X%center,p_X%normal
-        print*,pXi%center,pXi%layer
-      end if
       FF%W=0; FF%U=0;FF%Tz=0;FF%Tx=0
       FF%sxx = 0;FF%szx = 0;FF%szz = 0
 !     estratosIguales = .false.
@@ -4019,7 +4078,7 @@
          else !pXi%region = 1
 !        print*,p_x%center,p_x%layer
 !        print*,pxi%center,pxi%layer
-          if (p_x%layer .eq. p_X%layer) shouldI = .true.
+          if (p_x%layer .eq. pXi%layer) shouldI = .true.
           if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
           estrato = p_x%layer
           e => p_x%layer
@@ -4028,14 +4087,14 @@
 !      end if
       else ! una fuente virtual
         el_tipo_de_fuente = 2 !(fuente segmento)
-        XinoEstaEnInterfaz = .true.
-        if (i_zF .eq. -1) then !(campo refractado en inclusion)
+        XinoEstaEnInterfaz = .true. !(se ha encargado la geometría)
+        if (i_zF .eq. -1) then !(campo refractado en inclusion R)
           shouldI = .true.
-          estrato = N+2
+          estrato = N+2 !(para tomar las propiedades de la inclusión)
           e => estrato
-        else !(campo refractado en medio estratificado)
+        else !(normal: campo refractado en medio estratificado E)
           if (p_x%layer .eq. pXi%layer) then 
-            shouldI = .true.
+            shouldI = .true. ! si están en el mismo estrato
             estrato = p_x%layer
             e => p_x%layer
           end if
@@ -4043,7 +4102,8 @@
       end if
       !
 !     print*,"shouldI"
-      if (shouldI) then        
+      if (shouldI) then  
+!     print*, "got into FFPSV" ,p_x%center,"--",pXi%center     
       if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
        if (Po(iFte)%PW_pol .eq. 1) then                                              !
@@ -4215,7 +4275,8 @@
       end if !mece5
       end do ! iGq
       
-      else !...............................                          
+      else !...............................            
+                    
         call greenexPSV(FF,dir_j,p_X,pXi,estrato,cOME) ! W,U
 !        if (p_X%isOD) then 
 !          print*,p_x%center,"  ->  ",pXi%center
@@ -4226,7 +4287,14 @@
 !          if (dir_j .eq. 3) then; FF%Tx=z0;     FF%Tz=0.5*UR; end if
 !        end if
       end if ! greenex o gaussiana
-      end if !on the interface
+      end if ! XinoEstaEnInterfaz: on the interface
+       
+!     print*,""
+!     print*,p_X%boundaryIndex,"(",p_X%center,")"
+!     print*,pXi%boundaryIndex,"(",pXi%center,")"
+!     print*,dir_j
+!     print*,FF%W,"FF%W"
+!     print*,FF%U,"FF%U"
 !     print*,"r",r
 !     print*,FF%Tx,"FF%Tx"
 !     print*,FF%Tz,"FF%Tz"
@@ -4239,20 +4307,19 @@
 !     print*,"nGq",nGq,"  usarGreenex",usarGreenex 
 !     print*,"-------------------------------------------"
 !     print*,""
+!     stop "FFpsv"
       end if !should I?
       
       !print*,p_X%center
       !print*,pXi%center
-      if ((p_X%boundaryIndex .eq. 17) .and.& 
-           (pXi%boundaryIndex .eq. 19)) then
-      print*,p_X%center,"---",pXi%center
-      print*,dir_j
-      print*,FF%W
-      print*,FF%U
-      print*,FF%Tz
-      print*,FF%Tx
-      stop "FFpsv"
-      end if
+!     if ((p_X%boundaryIndex .eq. 17) .and.& 
+!          (pXi%boundaryIndex .eq. 19)) then
+!     
+!     
+!     print*,FF%Tz
+!     print*,FF%Tx
+!     stop "FFpsv"
+!     end if
       end subroutine FFpsv
        
       subroutine greenexPSV(FF,dir_j,p_X,pXi, e,cOME)
@@ -4582,6 +4649,9 @@
       
       ! aquí siempre la fuente es la fuente real.
       ! esta función se ejecuta se ejecuta tantas veces como las necesarias para llenar trac0vec
+      
+      !print*,p_x%boundaryIndex," # ",p_x%center,p_x%normal,p_x%length
+      
       nf(1) = pXi%normal%x
       nf(2) = 1!pXi%normal%y
       nf(3) = pXi%normal%z
@@ -4659,7 +4729,7 @@
       if (Po(iFte)%tipofuente .eq. 1) nf(1:3) = 1 ! fuente real y onda plana
       
       if (dir_j .eq. 2) then ! SH
-        stop "termIndepR _ falta line4637"
+        stop "termIndepR SH _ falta line4637"
       else !PSV
         do ip_X = n_top_sub + 1, n_top_sub + n_con_sub + n_val_sub
           nullify(p_X)
@@ -4695,7 +4765,7 @@
       complex*16, intent(in)  :: cOME
       type(FFres),target :: FF
       complex*16 :: TractionPSV, TractionSH
-      if (p_X%tipoFrontera .gt. 1) return !o sea =2: (tracciones libres en inclusión)
+      if (p_X%tipoFrontera .gt. 1) return !o sea =2: (tracciones libres desde inclusión)
 !     print*,"ibemmat",auxK(1,1:5)
 !     call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6)
       if (dir_j .eq. 2) then ! SH
@@ -4733,9 +4803,10 @@
                     pXi%boundaryIndex *2 ) = 0.5_8*UR
           end if!
         else
-          if (i_zF .le. 0) then 
+            if (i_zF .le. 0) then 
             print*,i_zF;print*,p_X%center;print*,pXi%center
             stop "fill_ibemMat: (i_zF .le. 0)"; end if
+            
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,3,5)
           ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
                   pXi%boundaryIndex *2 -(2 - dj)) = &
@@ -4919,9 +4990,19 @@
           (auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty ! Ty
        end if
       else !PSV
+!     if (pXi%region .ne. p_x%region) return
+      if (pXi%region .ne. p_x%region) then 
+      print*,"no on the same region", pXi%region,pXi%center," - ",p_X%region,p_X%center
+      return
+      end if
        call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,5)  !incidencia directa       
-       if(i_zf .eq.0) then
-         if (pXi%region .ne. p_x%region) return
+       print*,"x= ",p_x%center
+       print*,p_x%resp(J,iFte)%W
+       print*,auxK(1,1)
+       print*,FF%W
+       print*," "
+       if(i_zf .eq. 0) then
+!        if (pXi%region .ne. p_x%region) return
          p_x%resp(J,iFte)%W = p_x%resp(J,iFte)%W + (auxK(1,1) + FF%W) * nf(dir_j) !W
          p_x%resp(J,iFte)%U = p_x%resp(J,iFte)%U + (auxK(1,2) + FF%U) * nf(dir_j) !U
          p_x%resp(J,iFte)%Tz = p_x%resp(J,iFte)%Tz + &
@@ -5657,8 +5738,8 @@
                     allpoints(iP)%center%x,& 
                     allpoints(iP)%center%z,1,S,.true.)
         end do        
-          call makeSabana('1_S-w__.pdf',.false.)
-          if(PlotFilledSabanas) call makeSabana('1_S-w_f.pdf',.true.) ! filled traces
+          call makeSabana('0_S-w__.pdf',.false.)
+          if(PlotFilledSabanas) call makeSabana('0_S-w_f.pdf',.true.) ! filled traces
           
         !#< r ____________   U   _________________________________________ !#>
         do iP = iPtini,iPtfin
@@ -5674,8 +5755,8 @@
                     allpoints(iP)%center%x,& 
                     allpoints(iP)%center%z,2,S,.true.)
         end do         
-          call makeSabana('1_S-u__.pdf',.false.)
-          if(PlotFilledSabanas) call makeSabana('1_S-u_f.pdf',.true.) ! filled traces
+          call makeSabana('0_S-u__.pdf',.false.)
+          if(PlotFilledSabanas) call makeSabana('0_S-u_f.pdf',.true.) ! filled traces
          
 !       !#< r ____________   Tracciones   ________________________________ !#>
 !       do iP = iPtini,iPtfin
@@ -5762,8 +5843,8 @@
                     allpoints(iP)%center%z,0,S,.false.)    
           end do 
 !         call chdir("..") 
-          call makeSabana('1_S-v__.pdf',.false.) 
-          call makeSabana('1_S-v_f.pdf',.true.)
+          call makeSabana('0_S-v__.pdf',.false.) 
+          call makeSabana('0_S-v_f.pdf',.true.)
 !         call chdir("traces")
           do iP = iPtini,iPtfin
           write(yAx,'(a)') '$Ty_$ [m]'
@@ -5942,7 +6023,7 @@
                iP,'_s_',nombre,'[', &
                int(x_i),'.',abs(int((x_i-int(x_i))*10)),';', & 
                int(z_i),'.',abs(int((z_i-int(z_i))*10)),'].pdf'
-         call plotXYcomp(S(1:n_maxtime+1) ,real(dt,4),n_maxtime+1,titleN, & 
+         call plotXYcomp(S(1:n_maxtime) ,real(dt,4),n_maxtime,titleN, & 
          'time[sec]',yAx, CTIT ,1200,800, 0.)
         
         write(titleN,'(I0,a,a,a,I0,a,I0,a,I0,a,I0,a)') & 
@@ -6354,7 +6435,8 @@
       use sourceVars, only : iFte => currentiFte
       implicit none
       interface
-      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, plotReceptoresA, plotReceptoresB,plotFuente)
+      subroutine drawBoundary(BP, nbpts, titleN, extension, zoomGeom, & 
+              plotReceptoresA, plotReceptoresB,plotFuente)
       use resultVars, only : Punto
       type (Punto), dimension(:), pointer :: BP
       integer, intent(in) :: nbpts
@@ -6364,7 +6446,8 @@
       end subroutine drawBoundary
       end interface
       real, dimension(:,:,:), allocatable :: xvmat,yvmat
-      real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep,encuadre, tlabel, madmax, escalaFlechas
+      real :: maV1,maV2,minX,maxX,minY,maxY,xstep,zstep, & 
+              encuadre, tlabel, madmax, escalaFlechas
       real*8 :: mxU,mxW
       real,dimension(nIpts*2) :: delX,delZ
       integer :: i,ii,j,n_maxtime,iT,k,fai,faf
@@ -6392,10 +6475,7 @@
        print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
-      
-      
-      
-      xstep = real(((maxX-minX) / nmarkX ))
+       xstep = real(((maxX-minX) / nmarkX ))
       
 !     CALL chdir("video")
       nframes = n_maxtime
@@ -7400,9 +7480,9 @@
            x(iP-(nIpts - nSabanapts)) = real(allpoints(ip)%center%x,4)
         end if;end do
         
-        write(t2,'(a,a)') trim(tt(1:7)),".m"
+        write(t2,'(a,a)') trim(tt(1:8)),".m"
         OPEN(739,FILE=trim(t2),FORM="FORMATTED",ACTION='WRITE')
-        write(t3,'(a,a)') trim(tt(1:7)),'tom'
+        write(t3,'(a)') trim(tt(1:8))
         CALL scripToMatlabMNmatrixZ(nSabanapts,1,y(1:nSabanapts),t3,739)
 !       call showMNmatrixZ(nSabanapts,1,y(1:nSabanapts),t2(1:5),739)
         close(739)
