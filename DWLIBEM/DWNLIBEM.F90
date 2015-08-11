@@ -4012,6 +4012,327 @@
       
 ! G_full space 
       Subroutine FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
+!#define ver 1
+      ! Sanchez-Sesma y Campillo, 1991.  Mismo resultado que:
+      ! Kaussel, Fundamental solutions in elastodynamics... pag 38
+      use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N,Z
+      use gloVars, only:UI,UR,one,z0,PWfrecReal
+      use hank !     use specfun
+      use resultvars, only : Punto,FFres
+      use sourceVars, only: Po,iFte=>currentiFte!tipofuente, PW_pol
+      use waveNumVars, only : OME
+      use Gquadrature, only : Gquad_n      
+      implicit none
+      interface
+        subroutine greenexPSV(greenex,dir_j,p_X,pXi,estrato,cOME)
+         use resultvars, only : Punto,FFres
+         type (FFres), intent(out) :: greenex
+         integer,intent(in) :: dir_j, estrato
+         type(Punto),intent(in), pointer :: p_X,pXi
+         complex*16,intent(in) :: cOME
+        end subroutine greenexPSV
+      end interface
+      type (FFres), intent(out) :: FF
+      integer,    intent(in)  :: mecS,mecE, i_zF
+      type(Punto),intent(in), pointer :: p_X,pXi
+      complex*16, intent(in) :: cOME
+      integer, intent(in) :: dir_j
+      real*8 :: r,gamma(2)
+      complex*16 :: A,B,C,Dqr,Dkr,kx,kz
+      complex*16 :: omeP,omeS
+      complex*16 :: H0s,H1s,H2s,H0p,H1p,H2p !Hankel 
+      complex*16 :: szz,szx,sxx
+      complex*16 :: la,am
+      integer :: i,j
+      integer, pointer :: e
+      real*8 :: nX(2)
+      integer :: iGq,nGq
+      real*8, pointer :: xf,zf,GqC
+      real*8 :: deltaij
+      real*8,dimension(2) :: theta
+      integer :: el_tipo_de_fuente
+      integer, target :: estrato
+      logical :: shouldI,XinoEstaEnInterfaz,usarGreenex
+#ifdef ver 
+      print*,""     
+      print*,"-------------------------------------------"
+      print*,"i_zF=",i_zF
+      print*,"px",p_x%center,"e=",p_x%layer
+      print*,"pxi",pXi%center,"e=",pXi%layer
+      print*,"dir_j=",dir_j
+#endif     
+      FF%W=0; FF%U=0;FF%Tz=0;FF%Tx=0
+      FF%sxx = 0;FF%szx = 0;FF%szz = 0      
+      XinoEstaEnInterfaz = .false.
+      usarGreenex = .false.
+      shouldI = .false.
+      j = dir_j ! <***********  dir_j = 3  (vertical)
+      if(j .eq. 3) j = 2 ! para coincidir con los indicies
+      nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
+      xf => one; zf => one
+      
+      if (i_zF .eq. 0) then ! es la fuente real
+         if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "FFPSV iFte=0" !failsafe
+         el_tipo_de_fuente = Po(iFte)%tipofuente !(puntual:0, onda plana:1, segmento:2)
+         if (pXi%region .eq. 2) then !en la inclusión R
+            shouldI = .true.
+            XinoEstaEnInterfaz = .true.
+            estrato = N+2
+            e => estrato
+         else !pXi%region = 1 E
+            if (p_x%layer .eq. pXi%layer) shouldI = .true.
+            if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+            estrato = p_x%layer
+            e => p_x%layer
+         end if
+      else ! i_zf .ne. 0  una fuente virtual de ibem
+         el_tipo_de_fuente = 2 !(fuente segmento)
+         XinoEstaEnInterfaz = .true. !(se ha encargado la geometría)
+         if (i_zF .eq. -1) then !(campo refractado en inclusion R)
+            shouldI = .true.
+            estrato = N+2 !(para tomar las propiedades de la inclusión)
+            e => estrato
+         else !(normal: campo refractado en medio estratificado E)
+            if (p_x%layer .eq. pXi%layer) then 
+               shouldI = .true. ! si están en el mismo estrato
+               estrato = p_x%layer
+               e => p_x%layer
+            end if
+         end if
+      end if
+#ifdef ver
+      print*,"shouldI=",ShouldI," estrato=",estrato
+      print*,"el_tipo_de_fuente=",el_tipo_de_fuente
+#endif
+      if (shouldI) then  
+      if ((i_zF .eq. 0) .and. (el_tipo_de_fuente .eq. 1)) then ! onda plana !
+#ifdef ver
+      print*,"onda plana"
+#endif
+!        if (p_x%isOnInterface .eqv. .true.) return  ! creo
+         if (Po(iFte)%PW_pol .eq. 1) then !SV
+            if (PWfrecReal) then
+               c = UR*beta0(N+1)
+            else
+               c = beta(N+1)
+            end if
+            theta(1) = cos(Po(iFte)%gamma)
+            theta(2) = sin(Po(iFte)%gamma)
+!           print*,theta(1),cos(pxi%gamma)
+!           print*,theta(2),sin(pxi%gamma);stop
+         elseif (Po(iFte)%PW_pol .eq. 2) then
+            if (PWfrecReal) then !P
+                c = UR*alfa0(N+1)
+            else
+                c = alfa(N+1) !SV
+            end if 
+            theta(1) = sin(Po(iFte)%gamma)
+            theta(2) = -cos(Po(iFte)%gamma)
+!           theta(1) = sin(pxi%gamma)
+!           theta(2) = -cos(pxi%gamma); stop
+         end if!
+         if (PWfrecReal) then
+            kx = UR*real(ome/c * sin(Po(iFte)%gamma))
+            kz = UR*real(ome/c * cos(Po(iFte)%gamma))
+            la = UR*real(LAMBDA0(N+1))
+            am = UR*real(AMU0(N+1))
+         else
+            kx = UR*real(come/c * sin(Po(iFte)%gamma))
+            kz = UR*real(come/c * cos(Po(iFte)%gamma))
+            la = UR*real(LAMBDA(N+1))
+            am = UR*real(AMU(N+1))
+         end if
+!       print*,"kxkzlaam",kx,kz,la,am
+        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+              * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))          !
+        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+              * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))          !
+        szz = UI * ( &                                                      !
+                    ( FF%W * kz * (la + 2.0* am)) &                         !
+                  - ( FF%U * kx * la))                                      !
+        szx = UI * am * ( kz * FF%U - kx * FF%W )                           !
+        sxx = UI * ( &                                                      !
+                  - ( FF%U * kx * (la + 2.0*am)) &                          !
+                  + ( FF%W * kz * la))                                      !
+        FF%Tx = sxx * nx(1) + szx * nx(2)                                   !
+        FF%Tz = szx * nx(1) + szz * nx(2)                                   !
+        FF%sxx = sxx                                                        !
+        FF%szx = szx                                                        !
+        FF%szz = szz                                                        !
+        return                                                              !
+      end if! fin onda plana -´-´-´-´-´-´-´-´-´-´-´-´-´-´--´-´ fin onda plana          
+      if (XinoEstaEnInterfaz .eqv. .true.) then 
+         xf => pXi%center%x
+         zf => pXi%center%z
+         r = sqrt((p_x%center%x-xf)**2. + (p_x%center%z-zf)**2.) 
+         
+        ! para funciones de Greeen en frontera con cont. de desplazamiento
+        if ((p_x%isboundary .eqv. .true.) .and. &
+            (pXi%isboundary .eqv. .true.) .and. & 
+            (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
+!       print*,usarGreenex
+        ! para campo cercano por fuente segmento
+        if ((i_zF .eq. 0) .and. &
+            (el_tipo_de_fuente .eq. 2) .and. &      !fuente real
+            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+!       print*,usarGreenex    
+!       if ((p_X%isboundary .eqv. .false.) .and. &
+!           (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
+!           (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+        if ((pXi%isboundary .eqv. .false.) .and. &
+            (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
+            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+
+!       print*,usarGreenex    
+        ! si fuente real y cilindrica entonces no
+        if (el_tipo_de_fuente .eq. 0) usarGreenex = .false. 
+!       print*,usarGreenex
+        ! si es un puntno para sobredeterminar el sistema entonces no
+        if (p_X%isOD) usarGreenex = .false.
+!       print*,usarGreenex
+!       !#< r
+!       usarGreenex = .false.
+!       !#>
+#ifdef ver
+      print*,"onda cilíndrica r=",r, "usarGreenex=",usarGreenex
+#endif
+      !Con integración de Gauss
+      if (usarGreenex .eqv. .false.) then
+         if (el_tipo_de_fuente .eq. 0) then
+            nGq = 1
+            GqC => ONE
+         else !.eq. 2 (fuente segmento suficientemente alejado)
+            if (pXi%isBoundary) nGq = Gquad_n ! IBEM
+            if (pXi%isSourceSegmentForce) nGq = Gquad_n 
+            if (nGq .ne. Gquad_n) stop "chin 6600"
+         end if
+         do iGq = 1,nGq
+            if (nGq .gt. 1) then
+                xf => pXi%Gq_xXx_coords(iGq,1)
+                zf => pXi%Gq_xXx_coords(iGq,2)
+                GqC => pXi%Gq_xXx_C(iGq) 
+            end if
+            r = sqrt((p_x%center%x-xf)**2. + (p_x%center%z-zf)**2.)
+#ifdef ver
+      print*,"iGq=",iGq,"xf,zf,r=",xf,zf,r
+#endif
+      gamma(1) = (p_X%center%x - xf) / r ! gamma x
+      gamma(2) = (p_X%center%z - zf) / r ! gamma z
+      omeP = cOME * r / alfa(e)
+      omeS = cOME * r / beta(e)
+      ! funcs de Hankel de segunda especie
+      call hankels(omeP,H0p,H1p)
+      H2p = -H0p + 2./omeP * H1p
+      call hankels(omeS,H0s,H1s)
+      H2s = -H0s + 2./omeS * H1s
+      
+      A = H0p/alfa(e)**2. + H0s/beta(e)**2.
+      B = H2p/alfa(e)**2. - H2s/beta(e)**2.
+      
+      ! desplazamientos 
+      if (mecS .eq. 1) then
+      ! W
+      i = 2
+      FF%W = FF%W + (-UI/8.0/rho(e)*& 
+      (A*deltaij(i,j)-(2.*gamma(i)*gamma(j)-deltaij(i,j))*B)) * GqC
+      ! U
+      i = 1
+      FF%U = FF%U + (-UI/8.0/rho(e)*& 
+      (A*deltaij(i,j)-(2.*gamma(i)*gamma(j)-deltaij(i,j))*B)) * GqC
+      end if!mecs1
+      
+      if (mecE .eq. 5) then
+      nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
+      ! tracciones
+      Dqr = omeP*H1p
+      Dkr = omeS*H1s
+      C = Dqr/alfa(e)**2. - Dkr/beta(e)**2.
+      
+      ! TZ
+      i = 2      
+      FF%Tz = FF%Tz + (& 
+      amu(e)*UI /(2.*rho(e)*r)*(& 
+      (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
+      ) * GqC
+      
+      ! TX
+      i = 1
+      FF%Tx = FF%Tx + ( & 
+      amu(e)*UI /(2.*rho(e)*r)*(& 
+      (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
+      ) * GqC
+      
+      ! sxx
+      i = 1
+      nX(1) = 1; nX(2) = 0
+      FF%sxx = FF%sxx + ( & 
+      amu(e)*UI /(2.*rho(e)*r)*(& 
+      (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
+      ) * GqC
+      ! szx
+      i = 1
+      nX(1) = 0; nX(2) = 1
+      FF%szx = FF%szx + ( & 
+      amu(e)*UI /(2.*rho(e)*r)*(& 
+      (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
+      ) * GqC
+      ! szz
+      i = 2
+      nX(1) = 0; nX(2) = 1
+      FF%szz = FF%szz + (& 
+      amu(e)*UI /(2.*rho(e)*r)*(& 
+      (B+(lambda(e)*Dqr)/(2.*amu(e)*alfa(e)**2.))*gamma(j)*nX(i) &
+      + (B + Dkr/(2.*beta(e)**2.))* & 
+      (gamma(i)*nX(j) + (gamma(1)*nX(1) + gamma(2)*nX(2))*deltaij(i,j)) + &
+      (C-4.*B)*gamma(i)*gamma(j)*(gamma(1)*nX(1) + gamma(2)*nX(2)))& 
+      ) * GqC
+      
+      end if !mece5
+      end do ! iGq
+      else !. usarGreenex ..................................................
+#ifdef ver
+      print*,"Greenex"
+#endif
+        call greenexPSV(FF,dir_j,p_X,pXi,estrato,cOME) ! W,U
+!     print*,FF%W,"FF%W"
+!     print*,FF%U,"FF%U"
+!     print*,FF%Tx,"FF%Tx"
+!     print*,FF%Tz,"FF%Tz"  
+!     print*,"Greenex";stop
+!        if (p_X%isOD) then 
+!          print*,p_x%center,"  ->  ",pXi%center
+!          print*,"tx=",FF%Tx
+!          print*,"tz=",FF%Tz
+!          stop "OD in FFpsv"
+!          if (dir_j .eq. 1) then; FF%Tx=0.5*UR; FF%Tz=z0;end if!
+!          if (dir_j .eq. 3) then; FF%Tx=z0;     FF%Tz=0.5*UR; end if
+!        end if
+      end if ! greenex o gaussiana
+      end if ! XinoEstaEnInterfaz: on the interface
+#ifdef ver
+      print*,FF%W,"FF%W"
+      print*,FF%U,"FF%U"
+      print*,FF%Tx,"FF%Tx"
+      print*,FF%Tz,"FF%Tz"
+      stop "FFpsv"
+#endif
+      end if !should I?
+      end subroutine FFpsv
+     
+     
+      Subroutine FFpsvbackup(i_zF,FF,dir_j,p_X,pXi,cOME,mecS,mecE)
       ! Sanchez-Sesma y Campillo, 1991.  Mismo resultado que:
       ! Kaussel, Fundamental solutions in elastodynamics... pag 38
       use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N,Z
@@ -4057,6 +4378,7 @@
 !     print*,"dir_j=",dir_j
       FF%W=0; FF%U=0;FF%Tz=0;FF%Tx=0
       FF%sxx = 0;FF%szx = 0;FF%szz = 0
+      return
 !     estratosIguales = .false.
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
@@ -4320,8 +4642,9 @@
 !     print*,FF%Tx
 !     stop "FFpsv"
 !     end if
-      end subroutine FFpsv
+      end subroutine FFpsvbackup
        
+     
       subroutine greenexPSV(FF,dir_j,p_X,pXi, e,cOME)
       use glovars, only : UR,UI,pi,z0
       use resultvars, only : Punto,FFres
@@ -4996,11 +5319,11 @@
       return
       end if
        call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,1,5)  !incidencia directa       
-       print*,"x= ",p_x%center
-       print*,p_x%resp(J,iFte)%W
-       print*,auxK(1,1)
-       print*,FF%W
-       print*," "
+!      print*,"x= ",p_x%center
+!      print*,p_x%resp(J,iFte)%W
+!      print*,auxK(1,1)
+!      print*,FF%W
+!      print*," "
        if(i_zf .eq. 0) then
 !        if (pXi%region .ne. p_x%region) return
          p_x%resp(J,iFte)%W = p_x%resp(J,iFte)%W + (auxK(1,1) + FF%W) * nf(dir_j) !W

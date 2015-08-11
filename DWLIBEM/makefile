@@ -1,7 +1,7 @@
 # compilador
 FF = gfortran
 DE = lldb
-FFLAGSDEB = -Wall -g -cpp -fbounds-check
+FFLAGSDEB = -Wall -g -cpp -fbounds-check -Wmaybe-uninitialized -Wuninitialized
 FFLAGSOP = -O3 -cpp
 DEPS = -I/usr/local/include -L/usr/local/lib -lfftw3 -I/usr/local/dislin/gf -L/opt/X11/lib -lXt -lXm -L/usr/OpenMotif/lib -L/usr/local/dislin -ldislin -lm -framework Accelerate
 

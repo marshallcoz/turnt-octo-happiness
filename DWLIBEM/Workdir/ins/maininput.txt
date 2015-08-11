@@ -1,15 +1,15 @@
-1		verbose [int]
+2		verbose [int]
 F		make a video [logical]
 T       vivaChurubusco [logical]
 F       vivaCine [logical]
-F	Solve IBEM boundary [logical]
+T	Solve IBEM boundary [logical]
 F	The inclusion is the layered media, the rest is homogeneous.
 T		Plot FK de medio sin topografia [logical]
 F       Plot FKCK
 F       Plot displacement at frecuency Eta.
 F       Plot filled sheets
 F		Save the Green funcs. for later use with "-L" argument [logical]
-10		Segments per wavelength [int :: R]
+15		Segments per wavelength [int :: R]
 F   168	Keep the subdivision of at least the Jth frequency [logical] [integer]
 F 1 150	Overdeterminate system
 3.5		K integrand runs up to fmax / (R * beta) [real :: R]
