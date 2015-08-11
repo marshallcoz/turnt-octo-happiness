@@ -709,9 +709,9 @@
        Po(i)%normal%x = nxfsource
 !      Po(i)%normal%y = nyfsource
        Po(i)%normal%z = nzfsource
-       Po(i)%cosT = cos(PW_theta*pi/180.0)
-       Po(i)%sinT = sin(PW_theta*pi/180.0)
-       Po(i)%gamma = PW_theta*pi/180.0
+       Po(i)%cosT = cos((360-PW_theta)*pi/180.0)
+       Po(i)%sinT = sin((360-PW_theta)*pi/180.0)
+       Po(i)%gamma = PW_theta*pi/180.0 !clockwise desde el eje z (hacia abajo)
        Po(i)%length = l
        if (tipoFuente .eq. 1) then ! onda plana
          Po(i)%center%z = Z(N+1)
@@ -755,6 +755,12 @@
       "   Source: (",Po(i)%center%x,",",Po(i)%center%z,")", &
       "n=[",Po(i)%normal%x,",",Po(i)%normal%z,&
       "] r= ",Po(i)%region," e=",Po(i)%layer," intf=",Po(i)%isOnInterface
+      write(PrintNum,'(a,F8.2,a,F8.2)') "   cosT=",Po(i)%cosT," sinT=",Po(i)%sinT
+      if (tipoFuente .eq. 2) then ! fuente segmento
+        write(PrintNum,'(a,F8.2,F8.2,a,F8.2,F8.2,a)') &
+        "   A=(",Po(i)%bord_A%x,Po(i)%bord_A%z,")   B=(",Po(i)%bord_B%x,Po(i)%bord_B%z,")"
+        write(PrintNum,'(a,F8.2)') "   Clockwise angle from Z: ",Po(i)%gamma
+      end if
       end do
       READ(77,*);READ(77,*) t0
       close(77); CALL chdir("..")

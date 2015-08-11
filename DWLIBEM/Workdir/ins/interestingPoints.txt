@@ -1,5 +1,5 @@
 Points of interest 
-1  <- Por lo menos (1)
+2  <- Por lo menos (1)
 51  101  F  0.0001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 0  54   puntos en secciones planas
 F  0.1  Puntos en la frontera
@@ -7,7 +7,8 @@ ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y
  X        Z          nx       nz   guardarFK=1  ptColocSobreEstimar
-10.0      0.0       0.0        1.0      1           F   0
+0.3      1.6       0.0        1.0      0           F   0
+-0.3      1.6      -1.0        0.0      0           F   0
 Secciones ----------------------------------------------------
  5.0   5.0  <- escala:x escala:y
 10.0  80.0  <- offset:x offset:y
@@ -67,29 +68,6 @@ npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
  1   0.91999930143356323       0.00  0.39186477083443116 0.00 F T
  1   0.95999926328659058       0.00  0.27995025883841174 0.00 F T
 26   1.00000000000000000       0.04  0.00000000000000000 0.00 F T
-hacer zeros el rango en la sabana:
-0   62
-
-Points of interest 
-2  <- Por lo menos (1)
-1  128  F  0.0001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
-0  54   puntos en secciones planas
-F  0.1  Puntos en la frontera
-___________________________________________________________
-1.0  1.0  <- escala:x escala:y
-0.0  0.0  <- offset:x offset:y
- X        Z          nx       nz   guardarFK=1  ptColocSobreEstimar
-0.3      1.6       0.0        1.0      0           F   0
--0.3      1.6      -1.0        0.0      0           F   0
-Secciones ----------------------------------------------------
- 5.0   5.0  <- escala:x escala:y
-10.0  80.0  <- offset:x offset:y
- npuntos     Xi        deltax      Zi       deltaz       nx       nz
-Sabanapoints -----------------------------------------------
-1.0  1.0  <- escala:x escala:y
-0.0  0.01  <- offset:x offset:y (vertical offset goes after fit)
-npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
-128    -2.0  0.03125     0.0   0    F   T
 hacer zeros el rango en la sabana:
 0   62
 

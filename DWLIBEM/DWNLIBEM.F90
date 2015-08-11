@@ -1603,7 +1603,7 @@
       use glovars, only : verbose
       use Gquadrature, only: Gqu_n => Gquad_n, & 
                              Gqu_t => Gqu_t_30, & 
-                             Gqu_A => Gqu_t_30
+                             Gqu_A => Gqu_A_30
       implicit none
       real*8, dimension(2) :: A,B
       real*8, dimension(:), pointer :: G_c
@@ -4052,7 +4052,7 @@
       real*8,dimension(2) :: theta
       integer :: el_tipo_de_fuente
       integer, target :: estrato
-      logical :: shouldI,XinoEstaEnInterfaz,usarGreenex
+      logical :: shouldI,XinoEstaEnInterfaz,usarGreenex,estratosIguales
 #ifdef ver 
       print*,""     
       print*,"-------------------------------------------"
@@ -4061,13 +4061,17 @@
       print*,"pxi",pXi%center,"e=",pXi%layer
       print*,"dir_j=",dir_j
 #endif     
-      FF%W=0; FF%U=0;FF%Tz=0;FF%Tx=0
-      FF%sxx = 0;FF%szx = 0;FF%szz = 0      
+      FF%W=z0; FF%U=z0;FF%Tz=z0;FF%Tx=z0
+      FF%sxx = z0;FF%szx = z0;FF%szz = z0 
+      estratosIguales = .false.     
       XinoEstaEnInterfaz = .false.
       usarGreenex = .false.
       shouldI = .false.
+      if (p_x%layer .eq. pXi%layer) estratosIguales = .true.
+      if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
       j = dir_j ! <***********  dir_j = 3  (vertical)
       if(j .eq. 3) j = 2 ! para coincidir con los indicies
+      el_tipo_de_fuente = 2 !(fuente segmento)
       nx(1) = p_X%normal%x; nx(2) = p_X%normal%z
       xf => one; zf => one
       
@@ -4159,6 +4163,10 @@
         FF%sxx = sxx                                                        !
         FF%szx = szx                                                        !
         FF%szz = szz                                                        !
+      print*,FF%W,"FF%W"
+      print*,FF%U,"FF%U"
+      print*,FF%Tx,"FF%Tx"
+      print*,FF%Tz,"FF%Tz" 
         return                                                              !
       end if! fin onda plana -´-´-´-´-´-´-´-´-´-´-´-´-´-´--´-´ fin onda plana          
       if (XinoEstaEnInterfaz .eqv. .true.) then 
@@ -4179,8 +4187,10 @@
 !       if ((p_X%isboundary .eqv. .false.) .and. &
 !           (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
 !           (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
-        if ((pXi%isboundary .eqv. .false.) .and. &
-            (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
+!       if ((pXi%isboundary .eqv. .false.) .and. &
+!           (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
+!           (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+        if ((pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
             (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
 
 !       print*,usarGreenex    
@@ -4214,7 +4224,7 @@
             end if
             r = sqrt((p_x%center%x-xf)**2. + (p_x%center%z-zf)**2.)
 #ifdef ver
-      print*,"iGq=",iGq,"xf,zf,r=",xf,zf,r
+      print*,"iGq=",iGq,"xf,zf,r,Gqc=",xf,zf,r,Gqc
 #endif
       gamma(1) = (p_X%center%x - xf) / r ! gamma x
       gamma(2) = (p_X%center%z - zf) / r ! gamma z
@@ -4228,7 +4238,11 @@
       
       A = H0p/alfa(e)**2. + H0s/beta(e)**2.
       B = H2p/alfa(e)**2. - H2s/beta(e)**2.
-      
+#ifdef ver
+      print*,"gamma,omeP,omeS,A,B",gamma(1),gamma(2)
+      print*,omeP,omeS
+      print*,A,B
+#endif      
       ! desplazamientos 
       if (mecS .eq. 1) then
       ! W
@@ -4326,7 +4340,8 @@
       print*,FF%U,"FF%U"
       print*,FF%Tx,"FF%Tx"
       print*,FF%Tz,"FF%Tz"
-      stop "FFpsv"
+      print*,""
+!     stop "FFpsv"
 #endif
       end if !should I?
       end subroutine FFpsv
@@ -5003,6 +5018,14 @@
         end if
       else !PSV 
       call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5)
+!     print*,"------------- fill_termindep"
+!     print*,p_X%boundaryindex,p_X%center,p_X%normal
+!     print*,p_x%length,p_x%cost,p_x%sint
+!     print*,TractionPSV(auxk(1,3:5), p_x%normal,0),FF%Tx
+!     print*,TractionPSV(auxk(1,3:5), p_x%normal,1),FF%Tz
+!     print*,auxk(1,1),FF%W
+!     print*,auxk(1,1),FF%V
+!     print*,""
       !  | Tx |
       !  | Tz |
         trac0vec(p_x%boundaryIndex *2 - (1 - 0)) = &
@@ -5129,8 +5152,14 @@
             if (i_zF .le. 0) then 
             print*,i_zF;print*,p_X%center;print*,pXi%center
             stop "fill_ibemMat: (i_zF .le. 0)"; end if
-            
           call FFpsv(i_zF,FF,dir_j,p_X,pXi,cOME,3,5)
+!         !#< r 
+!         auxk(1,1:5) = 0
+!         print*,"lin 5143"
+!         FF%Tx = 0;   FF%Tz = 0
+!         stop
+!         !#>
+          
           ibemMat(p_x%boundaryIndex *2 -(1 - 0), & 
                   pXi%boundaryIndex *2 -(2 - dj)) = &
                   (TractionPSV(auxK(1,3:5),p_x%normal,0) + FF%Tx)
