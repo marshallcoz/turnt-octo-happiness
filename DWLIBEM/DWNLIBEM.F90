@@ -684,6 +684,7 @@
       end if!
       if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
       !#>
+            
       do iP_x = 1,nIpts !cada receptor X 
 !         print*,""
 !         print*,allpoints(iP_x)%pointIndex," iP_x=(",allpoints(iP_x)%center,")"
@@ -712,9 +713,9 @@
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! por fzas verticales:
             iPhi = iPhi + 2
           end do         
-          if(i .eq. 1) allpoints(iP_x)%resp(J,currentiFte)%W = sum(trac0vec * auxGvector) + &!sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
+          if(i .eq. 1) allpoints(iP_x)%resp(J,currentiFte)%W = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &!sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%W
-          if(i .eq. 2) allpoints(iP_x)%resp(J,currentiFte)%U = sum(trac0vec * auxGvector) + &!sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
+          if(i .eq. 2) allpoints(iP_x)%resp(J,currentiFte)%U = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &!sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%U
         end do !i
         
@@ -726,16 +727,12 @@
             auxGvector(iPhi+1) = boupoints(iPxi)%G(iP_X,i,3) ! por fzas verticales:
             iPhi = iPhi + 2
           end do 
-          if(l .eq. 4) allpoints(iP_x)%resp(J,currentiFte)%Tz = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
+          if(i .eq. 4) allpoints(iP_x)%resp(J,currentiFte)%Tz = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%Tz
-          if(l .eq. 5) allpoints(iP_x)%resp(J,currentiFte)%Tx = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
+          if(i .eq. 5) allpoints(iP_x)%resp(J,currentiFte)%Tx = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
                        allpoints(iP_x)%resp(J,currentiFte)%Tx
-        end do !i
-           
-!         print*,allpoints(iP_x)%resp(J,currentiFte)%W," W"
-!         print*,allpoints(iP_x)%resp(J,currentiFte)%U," U"
-!         print*,allpoints(iP_x)%resp(J,currentiFte)%Tx," Tx"
-!         print*,allpoints(iP_x)%resp(J,currentiFte)%Tz," Tz"
+        end do !i 
+        
         do i=7,9
           auxGvector = z0
           iPhi = iPhi_I 
@@ -1047,14 +1044,14 @@
          do iP = iPtini,iPtfin
            if (allpoints(iP)% guardarFK) then
              if (SH) then
-             write(tt,'(a,I0)')"FK_",iP
+             write(tt,'(a,I0)')"0_FK_",iP
              call plotFK(allpoints(iP)%FK(1:NFREC+1,1:NMAX,1:3), &
                          real(allpoints(iP)%center%x,4), & 
                          real(allpoints(iP)%center%z,4), & 
                          tt,xAx,yAx,PrintNum,3,3, onlythisJ, frecEnd)
              end if !
              if (PSV) then
-             write(tt,'(a,I0)')"FK_",iP
+             write(tt,'(a,I0)')"0_FK_",iP
              call plotFK(allpoints(iP)%FK(1:NFREC+1,1:NMAX,1:3), &
                          real(allpoints(iP)%center%x,4), & 
                          real(allpoints(iP)%center%z,4), & 
@@ -1968,19 +1965,21 @@
          itabla_x = 3 ! En la tabla (pota) de índices: la fuente real -> (0,3)
 !        i_FuenteFinal = 1 ! Cantidad de fuentes reales
          if (isPW) then ! onda plana incidente·p
-            ! con incidencia de onda plana no usamos atenuación                  ·l
+            ! con incidencia de onda plana no usamos atenuación
            if (PWfrecReal) then 
-             cOME = OME * UR  !real(cOME_in) * UR!                               ·a
+             cOME = OME * UR  !real(cOME_in) * UR!
              alf = alfa0(N+1)
              bet = beta0(N+1)
            else
-             cOME = cOME_in  !real(cOME_in) * UR!                               ·a
+             cOME = cOME_in  !real(cOME_in) * UR!
              alf = alfa(N+1)
              bet = beta(N+1)
            end if
-           if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)!    ·a
-           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
-           if(Po(iFte)%PW_pol .eq. 3) k = real(cOME/bet)*sin(Po(iFte)%gamma)
+                                      k = real(cOME/bet)*sin(Po(iFte)%gamma) !SV,SH
+           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma) ! P
+!          if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)
+!          if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
+!          if(Po(iFte)%PW_pol .eq. 3) k = real(cOME/bet)*sin(Po(iFte)%gamma)
          end if! ·································································n
       else; itabla_x = 2 + pota(i_zF,1) + 1 !    la primer fuente virtual
 !           i_FuenteFinal = 1; 
@@ -4588,20 +4587,18 @@
 !        if (Po(iFte)%PW_pol .eq. 3) then ! SH
             if (PWfrecReal) then
                c = UR*beta0(N+1)
-!              kx = OME/c*sin(Po(iFte)%gamma)
-!              kz = OME/c*cos(Po(iFte)%gamma)
                kx = UR*real(ome/c * sin(Po(iFte)%gamma))
                kz = UR*real(ome/c * cos(Po(iFte)%gamma))
                am = UR*real(AMU0(N+1))
             else
                c = beta(N+1)
-!              kx = cOME/c*sin(Po(iFte)%gamma)
-!              kz = cOME/c*cos(Po(iFte)%gamma)
                kx = UR*real(come/c * sin(Po(iFte)%gamma))
                kz = UR*real(come/c * cos(Po(iFte)%gamma))
                am = UR*real(AMU(N+1))
             end if
 !        end if
+        ! las expresiones se encuentran en todos lados, por ejemplo:
+        ! Gil-Zepeda et al 2003
         ! SV:
         FF%V = (UR)* exp(-UI*(kx * (p_x%center%x - Po(iFte)%center%x) - &
                               kz * (p_x%center%z - Z(N+1))))
@@ -5396,6 +5393,7 @@
         p_X => allpoints(iP_x)
         if (p_x%isboundary) stop "GreenReg_R: p_x is boundary "
         if (p_x%region .ne. 2) cycle !'incl'
+        
         ! para todas las fuentes en la región R
       do iPXi = n_top_sub+1,nBpts ! las fuentes virtual en la región R
         pXi => boupoints(iPXi)
@@ -5405,8 +5403,8 @@
           pXi%G(p_x%pointIndex,6,dir_j) = FF%Ty ! Ty
         else !PSV
          call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5) 
-          pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W
-          pXi%G(p_X%pointIndex,2,dir_j) = FF%U !U
+          pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W 
+          pXi%G(p_X%pointIndex,2,dir_j) = FF%U !U 
           pXi%G(p_X%pointIndex,4,dir_j) = FF%Tz !Tz
           pXi%G(p_X%pointIndex,5,dir_j) = FF%Tx !Tx
           pXi%G(p_X%pointIndex,7,dir_j) = FF%sxx !sxx
