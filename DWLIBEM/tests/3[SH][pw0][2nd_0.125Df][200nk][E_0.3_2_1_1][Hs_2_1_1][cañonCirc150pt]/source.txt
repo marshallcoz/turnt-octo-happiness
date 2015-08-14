@@ -1,0 +1,28 @@
+| Direcciones de análisis en campo incidente
+2   1:PSV_dirX   2:SH_dirY  3:PSV_dirZ   4:PSV_dirXyZ
+---------------------------------------------------------------------------------------
+1   Number of sources [int]:   
+---------------------------------------------------------------------------------------
+ X    Z  | nx   nz  |  th    l    reg  Esca  Afn   Tmax   Ts    Tp    Gsg   PWp  Knd
+0.0  1.4   0.0  0.0    0.0   4.5   1   1.0   1      2.0   0.3   0.2   20.0    3   1
+---------------------------------------------------------------------------------------
+0.3  t0[real]
+
+
+
+th :  theta of plane wave or segment source [real]
+l  :  length of segment source [real]
+reg:  region of the source [int]
+Amp:  Amplitude Scale [real]
+Afn:  Amplitude Function: 0 dirac; 1 ricker; 2 gaussian; 3 inAmplitude.txt [int]
+T0 :  Tiempo inicial de graficacion
+Tma:  Tiempo final de graficacion
+Ts :  Ricker Ts [real] (center in seconds)
+Tp :  Ricker Tp [real] (Span in seconds)
+Gsg:  Gaussian sigma as % of Fmax [real]
+PWp:  Plane wave polarization[int]: 1 SV; 2 P; 3 SH
+Knd:  Kind of source[int]: |  0 : point source
+                           |  1 : plane wave
+                           !  2 : segment source
+
+The plane wave Z is set at the Half-Space interface

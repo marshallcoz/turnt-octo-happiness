@@ -203,10 +203,12 @@
        end do !
        do currentiFte = 1,nfuentes
          if(.not. onlythisJ) call sourceAmplitudeFunction
-         write(titleN,'(a,I0,a)') '0___OriginalGeometry',currentiFte,'.pdf'
+         write(titleN,'(a,I0,a)') '0___Geometry',currentiFte,'.pdf'
          write(extension,'(a)') 'PDF'
          BP => BouPoints
          call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.,.false.,.true.)
+         write(titleN,'(a,I0,a)') '0___ModeloCompleto',currentiFte,'.pdf'
+         call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.,.true.,.true.)
        end do !
        currentiFte = 0
        
@@ -214,9 +216,11 @@
        BP => BouPoints
        write(titleN,'(a)') '0___SensorsA.pdf'
        call drawBoundary(BP,nbpts,titleN,extension,.false.,.true.,.false.,.false.)
+       if (nsecciones .gt. 0) then
        write(titleN,'(a)') '0___SensorsB.pdf'
        call drawBoundary(BP,nbpts,titleN,extension,.false.,.false.,.true.,.false.)
-         
+       end if!
+       
        if (workBoundary .eqv. .true.) then 
          write(titleN,'(a)') '0___Inclusion.pdf'
          write(extension,'(a)') 'PDF'
@@ -861,9 +865,9 @@
          iPxi = ipxi_I
          do iPhi = iPhi_I,iPhi_F
            auxGvector(iPhi) = boupoints(iPxi)%G(iP_X,i,2)
-           if(i.eq.3) write(6,'(a,i0,a,i0,a,F10.6,F10.6)') & 
-           "G(",iP_X,",",iPxi,")22=",& 
-           real(boupoints(iPxi)%G(iP_X,i,2)),aimag(boupoints(iPxi)%G(iP_X,i,2))
+!          if(i.eq.3) write(6,'(a,i0,a,i0,a,F10.6,F10.6)') & 
+!          "G(",iP_X,",",iPxi,")22=",& 
+!          real(boupoints(iPxi)%G(iP_X,i,2)),aimag(boupoints(iPxi)%G(iP_X,i,2))
            iPxi = iPxi + 1
          end do !iPhi         
           if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
@@ -963,45 +967,59 @@
       end if ! comoFacDeAmpliDinamica
      
       if (onlythisJ) then
-          print*,"";print*,"Rultados en puntos receptores: ------"
+          write(PrintNum,'(a)') ""
+          write(PrintNum,'(a)') "Rultados en puntos receptores: ------"
           do iP_x = 1,nPts
            if ((.not. allpoints(iP_x)%isSabana) .and. &
                (.not. allpoints(iP_x)%guardarMovieSiblings)) then
-            print*,"ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"] ", &
+            write(PrintNum,'(a,i0,a,F5.1,a,F5.1,a,a,F3.1,a,F3.1,a)')&
+            "ip",ip_x,"[",allpoints(iP_x)%center%x,",",allpoints(iP_x)%center%z,"] ", &
             "n = [",allpoints(iP_x)%normal%x,",",allpoints(iP_x)%normal%z,"]"
-            
-            print*,"reg",allpoints(iP_x)%region," layer",allpoints(iP_x)%layer
+            write(PrintNum,'(a,i0,a,i0)')&
+            "reg",allpoints(iP_x)%region," layer",allpoints(iP_x)%layer
             if (allpoints(iP_x)% guardarMovieSiblings) then
             if (PSV) then
-            print*,"   W=",allpoints(iP_x)%Wmov(J,1,1:npixX,currentiFte)
-            print*,"   U=",allpoints(iP_x)%Wmov(J,2,1:npixX,currentiFte)
+            write(PrintNum,*)&
+            "   W=",allpoints(iP_x)%Wmov(J,1,1:npixX,currentiFte)
+            write(PrintNum,*)&
+            "   U=",allpoints(iP_x)%Wmov(J,2,1:npixX,currentiFte)
             else !SH
-            print*,"   V=",allpoints(iP_x)%Wmov(J,3,1:npixX,currentiFte)
+            write(PrintNum,*)&
+            "   V=",allpoints(iP_x)%Wmov(J,3,1:npixX,currentiFte)
             end if
             else
             if (PSV) then
-            print*,"   W=",allpoints(iP_x)%resp(J,currentiFte)%W
-            print*,"   U=",allpoints(iP_x)%resp(J,currentiFte)%U
-            print*,"   Tz=",allpoints(iP_x)%resp(J,currentiFte)%Tz
-            print*,"   Tx=",allpoints(iP_x)%resp(J,currentiFte)%Tx
-            print*,"   sxx=",allpoints(iP_x)%resp(J,currentiFte)%sxx
-            print*,"   szx=",allpoints(iP_x)%resp(J,currentiFte)%szx
-            print*,"   szz=",allpoints(iP_x)%resp(J,currentiFte)%szz
+            write(PrintNum,*)&
+            "   W=",allpoints(iP_x)%resp(J,currentiFte)%W
+            write(PrintNum,*)&
+            "   U=",allpoints(iP_x)%resp(J,currentiFte)%U
+            write(PrintNum,*)&
+            "   Tz=",allpoints(iP_x)%resp(J,currentiFte)%Tz
+            write(PrintNum,*)&
+            "   Tx=",allpoints(iP_x)%resp(J,currentiFte)%Tx
+            write(PrintNum,*)&
+            "   sxx=",allpoints(iP_x)%resp(J,currentiFte)%sxx
+            write(PrintNum,*)&
+            "   szx=",allpoints(iP_x)%resp(J,currentiFte)%szx
+            write(PrintNum,*)&
+            "   szz=",allpoints(iP_x)%resp(J,currentiFte)%szz
             
             ! a polares locales y guardar:
-            print*," Aguas con la transf de coordenadas lin929"
-            allpoints(iP_x)%sinT = (980 - allpoints(iP_x)%center%z)/5.5
-            allpoints(iP_x)%cosT = (10 - allpoints(iP_x)%center%x)/5.5
-            
-            outvar(iP_x,1) = UR*10. - allpoints(iP_x)%center%x
-            outvar(iP_x,2) = UR*980. - allpoints(iP_x)%center%z
-            
-            outvar(iP_x,3) = allpoints(iP_x)%resp(J,currentiFte)%sxx
-            outvar(iP_x,4) = allpoints(iP_x)%resp(J,currentiFte)%szx
-            outvar(iP_x,5) = allpoints(iP_x)%resp(J,currentiFte)%szz
+!           print*," Aguas con la transf de coordenadas lin929"
+!           allpoints(iP_x)%sinT = (980 - allpoints(iP_x)%center%z)/5.5
+!           allpoints(iP_x)%cosT = (10 - allpoints(iP_x)%center%x)/5.5
+!           
+!           outvar(iP_x,1) = UR*10. - allpoints(iP_x)%center%x
+!           outvar(iP_x,2) = UR*980. - allpoints(iP_x)%center%z
+!           
+!           outvar(iP_x,3) = allpoints(iP_x)%resp(J,currentiFte)%sxx
+!           outvar(iP_x,4) = allpoints(iP_x)%resp(J,currentiFte)%szx
+!           outvar(iP_x,5) = allpoints(iP_x)%resp(J,currentiFte)%szz
             else !SH
-            print*,"   V=",allpoints(iP_x)%resp(J,currentiFte)%V
-            print*,"   Ty=",allpoints(iP_x)%resp(J,currentiFte)%Ty
+            write(PrintNum,*)&
+            "   V=",allpoints(iP_x)%resp(J,currentiFte)%V
+            write(PrintNum,*)&
+            "   Ty=",allpoints(iP_x)%resp(J,currentiFte)%Ty
             end if
             
 !           outvar(iP_x,3) = abs( &
@@ -1012,12 +1030,12 @@
             end if ! guardarMovieSiblings
            end if ! isSabana
           end do !iP_x
-      if (PSV) then    
-      open(169,FILE= 'outvar.m',action="write",status="replace")
-      write(arg,'(a)') "out"
-      call scripToMatlabMNmatrixZ(nPts-1,5,outvar(2:nPts,1:5),arg,169)
-      close(169)
-      end if
+!     if (PSV) then    
+!     open(169,FILE= 'outvar.m',action="write",status="replace")
+!     write(arg,'(a)') "out"
+!     call scripToMatlabMNmatrixZ(nPts-1,5,outvar(2:nPts,1:5),arg,169)
+!     close(169)
+!     end if
       end if! onlythisJ
       
       
@@ -1039,8 +1057,8 @@
         end if
         CALL chdir("..");CALL chdir("..")
         if ((onlythisJ .eqv. .true.) .and. (currentiFte .eq. nFuentes))then 
-          print*,""
-          print*,"at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
+          write(PrintNum,'(/,a,F7.3)')&
+         "at normalized frequency eta=",abs(come*1.0/(pi*beta(N+1)))
           Stop "-f argum finish"
         end if!
         if (onlythisJ) cycle
@@ -3091,22 +3109,22 @@
       real*8 :: z_loc
       !     Colocamos la onda incindente en la interfaz
       !     con el semiespacio de abajo.
-      e = N+1 
-      z_loc = 0! (Z(N+1)- Z(N+1)) 
+      e = Po(iFte)%layer! N+1 
+      z_loc = Z(N+1)
       
       if (Po(iFte)%PW_pol .eq. 1) then
         if (PWfrecReal) then
-        c = beta0(N+1) !SV
+        c = beta0(e) !SV
         else
-        c = beta(N+1) !SV
+        c = beta(e) !SV
         end if
         theta(1) = cos(gamma)
         theta(2) = sin(gamma)
       elseif (Po(iFte)%PW_pol .eq. 2) then 
         if (PWfrecReal) then
-        c = alfa0(N+1) !SV
+        c = alfa0(e) !SV
         else
-        c = alfa(N+1) !SV
+        c = alfa(e) !SV
         end if
         theta(1) = sin(gamma)
         theta(2) = -cos(gamma)
@@ -3115,13 +3133,13 @@
       if (PWfrecReal) then
       kx = ome/c * sin(gamma)
       kz = ome/c * cos(gamma)
-      la = LAMBDA0(N+1)
-      am = AMU0(N+1)
+      la = LAMBDA0(e)
+      am = AMU0(e)
       else
       kx = come/c * sin(gamma)
       kz = come/c * cos(gamma)
-      la = LAMBDA(N+1)
-      am = AMU(N+1)
+      la = LAMBDA(e)
+      am = AMU(e)
       end if
       U = (theta(1))* exp(UI * kz * (z_loc))
       W = (theta(2))* exp(UI * kz * (z_loc))
@@ -3652,50 +3670,106 @@
       use glovars, only:UR,UI,z0,PWfrecReal
       use waveNumVars, only : cOME,ome
       use debugStuff
+      use sourceVars, only: Po,iFte=>currentiFte
       implicit none
       complex*16, intent(inout), dimension(1:4*N+2) :: this_B
       real*8, intent(in) :: gamma
-      integer :: i,e
+      integer :: e
       complex*16 :: kx,kz,V,am,c
       real*8 :: z_loc
-      !     Colocamos la onda incindente en la interfaz
-      !     con el semiespacio de abajo.
-      e = N+1 
-      z_loc = 0! (Z(N+1)- Z(N+1)) 
+            
+      e = Po(iFte)%layer ! puede ser 1 o N+1
       
         if (PWfrecReal) then
-        c = beta0(N+1) !SV
+        c = beta0(e) !SV
         else
-        c = beta(N+1) !SV
+        c = beta(e) !SV
         end if
       
       if (PWfrecReal) then
       kx = ome/c * sin(gamma)
       kz = ome/c * cos(gamma)
-      am = AMU0(N+1)
+      am = AMU0(e)
       else
       kx = come/c * sin(gamma)
       kz = come/c * cos(gamma)
-      am = AMU(N+1)
+      am = AMU(e)
       end if
-      V = UR * exp(UI * kz * (z_loc))
       
-      i=0
       this_B(1:2*N+1) = Z0 
       if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
-        i = 1                                                !
-        this_B(1+2*(e-1)-1 + i) = V !  v                     !
+!       i = 1                                                !
+!       this_B(1+2*(e-1)-1 + i) = V !  v                     !
+        stop "SHvectorB_ondaplana Semiespacio arriba no implementado"
       end if                                                 !  
       ! ······················································
-      ! Desplazamientos en la frontera de la región de la fuente....
-      if (e .ne. 1) then                                     ! 
-        this_B(1+2*(e-1)-1 + i) = V !  v                     !
-      end if                                                 !
-      !.......................................................
-      ! Tracciones en la frontera de la región de la fuente.........
-      this_B(1+2*(e-1)   + i) = UI * am * V * (- kx * 0 + kz * 1)
-      !............................................................!
+     
+!     if (e .eq. 1) then ! Colocamos la onda incindente en la frontera libre.
+!         z_loc = 0
+!     else
+          z_loc = Z(N+1) ! La incidencia en la última interfaz
+!     end if
+      
+       ! Tracciones libres en z=0
+       V = UR * exp(UI * kz * (z_loc))
+       this_B(1+2*(e-1)  ) = UI * am * V * (- kx * 0 + kz * 1)
+       
+      ! Continuidad en z = z1
+      if (N .ge. 1) then
+       this_B(1+2*(e-1)-1) = V
+      end if
+      
       end subroutine SHvectorB_ondaplana
+      
+!     subroutine SHvectorB_ondaplana(this_B,gamma)
+!     use soilvars, only : n,amu0,amu,beta0,Z,beta
+!     use glovars, only:UR,UI,z0,PWfrecReal
+!     use waveNumVars, only : cOME,ome
+!     use debugStuff
+!     implicit none
+!     complex*16, intent(inout), dimension(1:4*N+2) :: this_B
+!     real*8, intent(in) :: gamma
+!     integer :: i,e
+!     complex*16 :: kx,kz,V,am,c
+!     real*8 :: z_loc
+!     !     Colocamos la onda incindente en la interfaz
+!     !     con el semiespacio de abajo.
+!     e = N+1 
+!     z_loc = 0! (Z(N+1)- Z(N+1)) 
+!     
+!       if (PWfrecReal) then
+!       c = beta0(N+1) !SV
+!       else
+!       c = beta(N+1) !SV
+!       end if
+!     
+!     if (PWfrecReal) then
+!     kx = ome/c * sin(gamma)
+!     kz = ome/c * cos(gamma)
+!     am = AMU0(N+1)
+!     else
+!     kx = come/c * sin(gamma)
+!     kz = come/c * cos(gamma)
+!     am = AMU(N+1)
+!     end if
+!     V = UR * exp(UI * kz * (z_loc))
+!     
+!     i=0
+!     this_B(1:2*N+1) = Z0 
+!     if (Z(0) .lt. 0.0) then ! Semiespacio en z<0 ···········
+!       i = 1                                                !
+!       this_B(1+2*(e-1)-1 + i) = V !  v                     !
+!     end if                                                 !  
+!     ! ······················································
+!     ! Desplazamientos en la frontera de la región de la fuente....
+!     if (e .ne. 1) then                                     ! 
+!       this_B(1+2*(e-1)-1 + i) = V !  v                     !
+!     end if                                                 !
+!     !.......................................................
+!     ! Tracciones en la frontera de la región de la fuente.........
+!     this_B(1+2*(e-1)   + i) = UI * am * V * (- kx * 0 + kz * 1)
+!     !............................................................!
+!     end subroutine SHvectorB_ondaplana
       
       
       subroutine SHvectorB_force(i_zF,this_B,tam,pXi,cOME,k,ik)
@@ -4043,7 +4117,7 @@
 !#define ver 1
       ! Sanchez-Sesma y Campillo, 1991.  Mismo resultado que:
       ! Kaussel, Fundamental solutions in elastodynamics... pag 38
-      use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N,Z
+      use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N!,Z
       use gloVars, only:UI,UR,one,z0,PWfrecReal
       use hank !     use specfun
       use resultvars, only : Punto,FFres
@@ -4144,9 +4218,9 @@
 !        if (p_x%isOnInterface .eqv. .true.) return  ! creo
          if (Po(iFte)%PW_pol .eq. 1) then !SV
             if (PWfrecReal) then
-               c = UR*beta0(N+1)
+               c = UR*beta0(e)
             else
-               c = beta(N+1)
+               c = beta(e)
             end if
             theta(1) = cos(Po(iFte)%gamma)
             theta(2) = sin(Po(iFte)%gamma)
@@ -4154,9 +4228,9 @@
 !           print*,theta(2),sin(pxi%gamma);stop
          elseif (Po(iFte)%PW_pol .eq. 2) then
             if (PWfrecReal) then !P
-                c = UR*alfa0(N+1)
+                c = UR*alfa0(e)
             else
-                c = alfa(N+1) !SV
+                c = alfa(e) !SV
             end if 
             theta(1) = sin(Po(iFte)%gamma)
             theta(2) = -cos(Po(iFte)%gamma)
@@ -4166,18 +4240,18 @@
          if (PWfrecReal) then
             kx = UR*real(ome/c * sin(Po(iFte)%gamma))
             kz = UR*real(ome/c * cos(Po(iFte)%gamma))
-            la = UR*real(LAMBDA0(N+1))
-            am = UR*real(AMU0(N+1))
+            la = UR*real(LAMBDA0(e))
+            am = UR*real(AMU0(e))
          else
             kx = UR*real(come/c * sin(Po(iFte)%gamma))
             kz = UR*real(come/c * cos(Po(iFte)%gamma))
-            la = UR*real(LAMBDA(N+1))
-            am = UR*real(AMU(N+1))
+            la = UR*real(LAMBDA(e))
+            am = UR*real(AMU(e))
          end if
 !       print*,"kxkzlaam",kx,kz,la,am
-        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+        FF%U = (theta(1))* exp(UI * kz * (p_x%center%z - 0)) &         !
               * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))          !
-        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - Z(N+1))) &         !
+        FF%W = (theta(2))* exp(UI * kz * (p_x%center%z - 0)) &         !
               * exp(-UI * kx * (p_x%center%x - Po(iFte)%center%x))          !
         szz = UI * ( &                                                      !
                     ( FF%W * kz * (la + 2.0* am)) &                         !
@@ -4511,7 +4585,7 @@
 ! G_full SH 
       subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
 !#define ver 1
-      use soilVars ,only : amu,amu0,beta,beta0,N,z
+      use soilVars ,only : amu,amu0,beta,beta0,N!,z
       use gloVars, only:UR,UI,z0,ONE,PWfrecReal
       use hank !use specfun
       use resultvars, only : Punto,FFres
@@ -4564,21 +4638,21 @@
       if (i_zF .eq. 0) then
          if ((i_zF .eq. 0) .and. (iFte .eq. 0)) stop "FFSH iFte=0"
          el_tipo_de_fuente = Po(iFte)%tipofuente !(puntual u onda plana) 
-         if (pXi%region .eq. 2) then !en la inclusión R
-            shouldI = .true.
-            XinoEstaEnInterfaz = .true.
-            estrato = N+2
-            e => estrato
-         else !pXi%region = 1 E
-            if (p_x%layer .eq. pXi%layer) shouldI = .true.
-            if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
-            estrato = p_x%layer
-            e => p_x%layer
-         end if
+            if (pXi%region .eq. 2) then !en la inclusión R
+               shouldI = .true.
+               XinoEstaEnInterfaz = .true.
+               estrato = N+2
+               e => estrato
+            else ! en el exterior E
+               if (p_x%layer .eq. pXi%layer) shouldI = .true.
+               if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+               estrato = p_x%layer
+               e => p_x%layer
+            end if 
       else !i_zf .ne. 0  una fuente virtual de ibem
          el_tipo_de_fuente = 2 !(fuente segmento)
          XinoEstaEnInterfaz = .true. !(se ha encargado la geometría)
-         if (i_zF .eq. -1) then !(campo refractado en inclusion R) 
+         if (i_zF .eq. -1) then !(Fza distr en segmento en región R) 
             shouldI = .true.
             estrato = N+2 !(para tomar las propiedades de la inclusión)
             e => estrato
@@ -4599,29 +4673,44 @@
 #ifdef ver
       print*,"onda plana"
 #endif     
-!        if (p_x%isOnInterface .eqv. .true.) return  ! creo
 !        if (Po(iFte)%PW_pol .eq. 3) then ! SH
             if (PWfrecReal) then
-               c = UR*beta0(N+1)
+               c = UR*beta0(e)
                kx = UR*real(ome/c * sin(Po(iFte)%gamma))
                kz = UR*real(ome/c * cos(Po(iFte)%gamma))
-               am = UR*real(AMU0(N+1))
+               am = UR*real(AMU0(e))
             else
-               c = beta(N+1)
+               c = beta(e)
                kx = UR*real(come/c * sin(Po(iFte)%gamma))
                kz = UR*real(come/c * cos(Po(iFte)%gamma))
-               am = UR*real(AMU(N+1))
+               am = UR*real(AMU(e))
             end if
+!           if (PWfrecReal) then
+!              c = UR*beta0(N+1)
+!              kx = UR*real(ome/c * sin(Po(iFte)%gamma))
+!              kz = UR*real(ome/c * cos(Po(iFte)%gamma))
+!              am = UR*real(AMU0(N+1))
+!           else
+!              c = beta(N+1)
+!              kx = UR*real(come/c * sin(Po(iFte)%gamma))
+!              kz = UR*real(come/c * cos(Po(iFte)%gamma))
+!              am = UR*real(AMU(N+1))
+!           end if
 !        end if
         ! las expresiones se encuentran en todos lados, por ejemplo:
         ! Gil-Zepeda et al 2003
         ! SV:
         FF%V = (UR)* exp(-UI*(kx * (p_x%center%x - Po(iFte)%center%x) - &
-                              kz * (p_x%center%z - Z(N+1))))
+                              kz * (p_x%center%z - 0)))
 !       szy, sxy
         sxy = am * FF%V * (-UI * kx)
         szy = am * FF%V * (UI * kz)
         FF%Ty = sxy * nx(1) + szy * nx(2)
+!       !#< r  
+!       FF%V = 0
+!       FF%Ty = 0
+!       print*,"lin 4713"
+!       !#>
 #ifdef ver
       print*,FF%V,"FF%V"
       print*,FF%Ty,"FF%Ty"
@@ -4822,8 +4911,8 @@
 !     print*,""
       !  | Ty |
         trac0vec(p_x%boundaryIndex) = & 
-        trac0vec(p_x%boundaryIndex) - (& 
-          (TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty) * nf(dir_j))
+        trac0vec(p_x%boundaryIndex) - & 
+          (TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty) * nf(dir_j)
            
         if (p_X%tipoFrontera .eq.1) then !los desplazamientos
       !  |   V   |
@@ -5283,8 +5372,6 @@
       type(Punto), pointer :: pXi,p_X
       integer :: ip_X,dj
       type(FFres),target :: FF
-!     real*8 :: r
-!     complex*16 :: greenexG22
       
       nullify(pXi)
       pXi => boupoints(ipXi)
@@ -6600,7 +6687,7 @@
       
      
       subroutine Churubusco(testPoints)
-      use glovars, only : workBoundary,flip12
+      use glovars, only : workBoundary,flip12,Printnum
       use DISLIN
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas,fotogramas_Region
@@ -6655,7 +6742,8 @@
        n_maxtime = int(maxtime(iFte)/dt)
        if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
        if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-       print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
+       write(Printnum,'(a,F5.2,a,F7.4,a,F6.2,a)')& 
+       "maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
        xstep = real(((maxX-minX) / nmarkX ))
@@ -6986,7 +7074,7 @@
       call drawBoundary(BP,nbpts,titleN, extension,.false.,.false.,.false.,.true.)
       !  -framerate #   antes de -i para hacerlo más lento. Donde # es menor a 25 (default)
       write(titleN,'(a)')'ffmpeg -i foto_%d.png -f mp4 -vcodec h264 -pix_fmt yuv420p 0_video.mp4'
-      print*,trim(titleN)
+      write(Printnum,'(/,a,/)') trim(titleN)
       call system(trim(titleN))
 !     call chdir("..")
 !     call system('cp video/video.mp4 video.mp4')
@@ -6995,14 +7083,14 @@
       if (encuadre - 0.5 .le. 0.1) then
       write(titleN,'(a,I0,a,I0,a)') 'ffmpeg -i 0_video.mp4 -filter:v ''''crop=1200:',&
             int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''''' 0_video_Crop.mp4'
-      print*,trim(titleN)
+      write(Printnum,'(/,a,/)') trim(titleN)
       call system(trim(titleN))
       end if
       end subroutine Churubusco    
       
       subroutine Hollywood(imec)
       use DISLIN
-      use glovars, only : workboundary,verbose
+      use glovars, only : workboundary,verbose,Printnum
       use peli, only : ypray => coords_Z, xpray => coords_X,& 
                      fotogramas
       use meshVars, only : npixX,npixZ,nmarkZ,nmarkX
@@ -7051,7 +7139,8 @@
          n_maxtime = int(maxtime(iFte)/dt)
          if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
          if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-         print*,"maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
+         write(Printnum,'(a,F5.2,a,F7.4,a,F6.2,a)')&
+         "maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
         
        ColorRangeMaximumScale = 0.1
   123  maV = maxVal(real(fotogramas(:,:,1:n_maxtime,imec,iFte),4))
@@ -7059,6 +7148,10 @@
        maV = max(maV,abs(miV))
        miV = - maV
        
+       IF (verbose .eq. 1)then
+         write(Printnum,'(a)') " Used automatic scaling of amplitudes"
+         imdone = "Y"
+       ELSE
          print *, char(7)
          write(6,'(a,a,a,EN13.2,a,/,a,/,a,EN13.2,/,a)', ADVANCE = "NO") & 
          'Look at the seismograms for ', nombre(imec), & 
@@ -7067,14 +7160,8 @@
          'We propose the maximum to be = ', & 
          ColorRangeMaximumScale * maV, &
          'Proceed [Y] or change it [else] ?'
-       
-       IF (verbose .eq. 1)then
-         print*," YES (automatic)"
-         imdone = "Y"
-       ELSE
          read(5,*)imdone
-       end if
-       
+         
          if(imdone .eq. 'Y' .or. imdone .eq. 'y') then
             write(6,'(a)') "keeping those plot limits"
          else
@@ -7082,10 +7169,12 @@
             read(5,*) p
             ColorRangeMaximumScale = real(p / maV,4)
          end if
+       end if
+         
        colorBounds(1) = maV * ColorRangeMaximumScale
        colorBounds(2) = miV * ColorRangeMaximumScale
-       
-          write(6,'(a,a,a,a,E12.4,a,E12.4,a)') "colorbounds:", & 
+        
+          write(Printnum,'(a,a,a,a,E12.4,a,E12.4,a)') "colorbounds:", & 
           "(",nombre(imec),") [",colorBounds(2)," ; ",colorBounds(1),"]"
        
       minx = minval(xpray)
@@ -7095,7 +7184,7 @@
       xstep = real(abs(xpray(npixX)-xpray(1))/ nmarkX,4)
       zstep = real(abs(ypray(npixZ)-ypray(1))/ nmarkZ,4)
       encuadre = (ypray(npixZ)-ypray(1))/(xpray(npixX)-xpray(1))
-      print*,"encuadre=",encuadre      
+      write(Printnum,'(a,F5.2)')"encuadre=",encuadre      
         
       Iframe = 1
       Fframe = n_maxtime 
@@ -7107,17 +7196,19 @@
         write(6,'(a,I0,a)')'Look at the seismograms, I will plot ',Fframe,&
         'frames. Proceed [Y] or change frame range [else]'
         read(5,*)imdone
-      end if!
-      
-      if(imdone .eq. 'Y' .or. imdone .eq. 'y') then
+        
+        if(imdone .eq. 'Y' .or. imdone .eq. 'y') then
         Write(6,'(a,I5,a)') ' plotting',Fframe-Iframe+1,' photograms'
-      else
+        else
         write(6,'(a)', ADVANCE = "NO")'Start frame = '
         read(5,*)Iframe
         write(6,'(a)', ADVANCE = "NO")'Final frame = '
         read(5,*)Fframe
         Write(6,'(a,I5,a)') ' plotting',Fframe-Iframe+1,' photograms'
-      end if
+        end if
+      end if!
+      
+      
       
       do iT=Iframe,Fframe !cada fotograma
       do i=1,npixX
@@ -7269,7 +7360,7 @@
       
       write(path,'(a,a,I0,a,I0,a,a,a)') 'ffmpeg -i video.mp4 -filter:v ','''crop=1200:',&
             int(encuadre*1200+150),':0:',1200-int(encuadre*1200+150),''' 0_',nombre(iMec),'.mp4'
-      print*,trim(path)
+      write(Printnum,'(a)') trim(path)
       call system(trim(path))
       else
       write(path,'(a,a,a)') 'cp video.mp4 0_',nombre(iMec),'.mp4'
@@ -7635,6 +7726,7 @@
       use dislin
       use debugStuff
       use sourceVars, only : currentiFte
+      use gloVars, only : Printnum
       implicit none
       integer :: iP,J
       character(LEN=100) :: tt,t2
@@ -7650,7 +7742,6 @@
       call filmod('DELETE')
       CALL SETPAG('DA4L')
       CALL SETFIL(trim(tt))
-      call errmod ("all", "off")
         do iP = 1,nIpts; if (allpoints(iP)%isSabana) then
            alguno = .true.
            if (tt(1:1) .eq. 'W') BP = allpoints(iP)%resp(J,currentiFte)%W
@@ -7672,25 +7763,51 @@
         
         write(t2,'(a,a)') trim(tt),"_.txt"
         if (alguno) then
-        print*,"plot ", trim(t2)
+        write(Printnum,'(a,a)') "plot_at_eta: plot ", trim(t2)
         if (warning) then 
-        print*,trim(tt), ": One or more values are either NaN or inf"
+        write(Printnum,'(a,a,/,a)')& 
+        "plot_at_eta:",trim(tt), "   One or more values are either NaN or inf"
         else
 !       call showMNmatrixZabs(nSabanapts,1, Sabana(1:nSabanapts,1),tt(1:5),6)
-        write(t2,'(a,a)') "0__Abs_",trim(tt)
+        write(t2,'(a,a)') "0__atEta_",trim(tt)
         CALL SETFIL(trim(t2))
-        CALL color('BLACK')
-        call qplot(x(1:nSabanapts),real(abs(y(1:nSabanapts)),4), nSabanapts)
+        call disini()
+        call errmod ("all", "off")
+        CALL color('FORE')
+        call solid()
+        call QPLCRV(x(1:nSabanapts),real(abs(y(1:nSabanapts)),4), nSabanapts,'FIRST')
         
-        write(t2,'(a,a)') "0__Rea_",trim(tt)
-        CALL SETFIL(trim(t2))
         CALL color('RED')
-        call qplot(x(1:nSabanapts),real(real(y(1:nSabanapts)),4), nSabanapts)
+        call dash()
+        call QPLCRV(x(1:nSabanapts),real(real(y(1:nSabanapts)),4), nSabanapts,'NEXT')
         
-        write(t2,'(a,a)') "0__Ima_",trim(tt)
-        CALL SETFIL(trim(t2))
         CALL color('BLUE')
-        call qplot(x(1:nSabanapts),real(aimag(y(1:nSabanapts)),4), nSabanapts)
+        call dash()
+        call QPLCRV(x(1:nSabanapts),real(aimag(y(1:nSabanapts)),4), nSabanapts,'LAST')
+        call disfin
+
+!       write(t2,'(a,a)') "0__Abs_",trim(tt)
+!       CALL SETFIL(trim(t2))
+!       call disini()
+!       call errmod ("all", "off")
+!       CALL color('FORE')
+!       call qplot(x(1:nSabanapts),real(abs(y(1:nSabanapts)),4), nSabanapts)
+!       call disfin
+!       write(t2,'(a,a)') "0__Rea_",trim(tt)
+!       CALL SETFIL(trim(t2))
+!       call disini()
+!       call errmod ("all", "off")
+!       CALL color('RED')
+!       call qplot(x(1:nSabanapts),real(real(y(1:nSabanapts)),4), nSabanapts)
+!       call disfin
+!       write(t2,'(a,a)') "0__Ima_",trim(tt)
+!       CALL SETFIL(trim(t2))
+!       call disini()
+!       call errmod ("all", "off")
+!       CALL color('BLUE')
+!       call qplot(x(1:nSabanapts),real(aimag(y(1:nSabanapts)),4), nSabanapts)
+!       call disfin
         end if
-        end if        
+        end if  
+            
       end subroutine plot_at_eta

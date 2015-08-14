@@ -1,2 +1,0 @@
-[SH][pw0][5th_0.125Df][200nk][Hs_2_1_1][circularHole30pt]
-./DWNLIBEM.out -f 5

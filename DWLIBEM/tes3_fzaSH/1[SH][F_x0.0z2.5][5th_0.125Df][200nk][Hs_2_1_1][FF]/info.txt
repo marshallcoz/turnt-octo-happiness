@@ -1,0 +1,3 @@
+Igual que el el anterior 1 pero en campo libre
+[SH][pw0][5th_0.125Df][200nk][Hs_2_1_1][FF]
+./DWNLIBEM.out -f 5

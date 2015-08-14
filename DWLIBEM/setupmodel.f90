@@ -715,8 +715,13 @@
        Po(i)%gamma = PW_theta*pi/180.0 !clockwise desde el eje z (hacia abajo)
        Po(i)%length = l
        if (tipoFuente .eq. 1) then ! onda plana
-         Po(i)%center%z = Z(N+1)
-         efsource = N+1
+!         if (Po(i)%center%z .gt. 0.001) then
+            Po(i)%center%z = Z(N+1)
+            efsource = N+1
+!         else
+ !           Po(i)%center%z = 0
+  !          efsource = 1
+   !      end if
          intfsource = .true.
        else
          efsource = thelayeris(real(zfsource,8))

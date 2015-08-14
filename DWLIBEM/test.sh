@@ -2,7 +2,24 @@
 echo "*****************"
 echo "* Asorted tests *"
 echo "*****************"
-TESTSDIR=tests 
+echo $# $1
+if [ $# -gt 0 ]; then
+	TESTSDIR=$*
+	if [ -d "./$TESTSDIR" ]; then
+		echo "valid directory"
+		echo "runing cases at " $TESTSDIR
+    else
+    	echo ""
+	echo "  sh test.sh DIR --- run cases at specified DIRectory"
+	echo ""
+	exit 1
+	fi
+else
+	echo ""
+	echo "  sh test.sh DIR --- run cases at specified DIRectory"
+	echo ""
+	exit 1
+fi
 
 CONTADOR=0
 for entry in "$TESTSDIR"/*; do
