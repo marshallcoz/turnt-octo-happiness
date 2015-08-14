@@ -1,0 +1,2 @@
+Validación contra el Trifunac 1973 Figura 2. eta=0.50
+./DWNLIBEM.out -f 3

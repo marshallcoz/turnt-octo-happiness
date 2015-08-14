@@ -700,10 +700,11 @@
       write(Printnum,'(a)') &
        "---------------------------------------------------------------------------------"
       do i=1,nFuentes
-       READ(77,*) xfsource, zfsource, nxfsource,&
-                 nyfsource, nzfsource, PW_theta, l, regi,&
-                 Escala, ampfunction,  mastimere, Ts, Tp, sigGaus,&
-                 PW_pol, tipoFuente
+       READ(77,*) xfsource, zfsource, &
+                  nxfsource, nzfsource, &
+                  PW_theta, l, regi,&
+                  Escala, ampfunction,  mastimere, Ts, Tp, sigGaus,&
+                  PW_pol, tipoFuente
        Po(i)%center%x = xfsource
        Po(i)%center%z = zfsource
        Po(i)%normal%x = nxfsource

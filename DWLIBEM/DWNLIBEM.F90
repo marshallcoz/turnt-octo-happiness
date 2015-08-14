@@ -614,19 +614,19 @@
       Ni = ik*l
        
 !#< b
-       call chdir(trim(adjustl(rutaOut)))
-       call chdir('matrices')
-      print*,n_top_sub,"n_top_sub"
-      print*,n_con_sub,"n_con_sub"
-      print*,n_val_sub,"n_val_sub"
-       write(arg,'(a,I0,a)') "outA",J,".m"
-       open(421,FILE= trim(arg),action="write",status="replace")
-       write(arg,'(a)') "BiSIN"
-       call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
-       write(arg,'(a,I0)') "Mi",J
-       call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
-       close(421)
-       CALL chdir(".."); CALL chdir("..")
+!      call chdir(trim(adjustl(rutaOut)))
+!      call chdir('matrices')
+!     print*,n_top_sub,"n_top_sub"
+!     print*,n_con_sub,"n_con_sub"
+!     print*,n_val_sub,"n_val_sub"
+!      write(arg,'(a,I0,a)') "outA",J,".m"
+!      open(421,FILE= trim(arg),action="write",status="replace")
+!      write(arg,'(a)') "BiSIN"
+!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+!      write(arg,'(a,I0)') "Mi",J
+!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+!      close(421)
+!      CALL chdir(".."); CALL chdir("..")
 !      stop 456
 !      
 !     if (verbose .ge. 1) call showMNmatrixZ(size(ibemMat,1),size(ibemMat,2), ibemMat ," mat ",6);stop
@@ -719,7 +719,7 @@
                        allpoints(iP_x)%resp(J,currentiFte)%U
         end do !i
         
-        do i=4,5
+        do i=4,5 !tracciones
           auxGvector = z0
           iPhi = iPhi_I 
           do iPxi = ipxi_I,ipxi_F ! recopilamos  G_ij
@@ -733,7 +733,7 @@
                        allpoints(iP_x)%resp(J,currentiFte)%Tx
         end do !i 
         
-        do i=7,9
+        do i=7,9 !esfuerzos
           auxGvector = z0
           iPhi = iPhi_I 
           do iPxi = ipxi_I,ipxi_F ! recopilamos  G_ij
@@ -795,10 +795,23 @@
       iPIVbem = ik * l
       Mi = ik * l
       Ni = ik * l
-      !#< b
-      if (verbose .ge. 3) call showMNmatrixZ(Mi,Ni, ibemMat," mat ",6)
-      if (verbose .ge. 3) call showMNmatrixZ(Mi,1, trac0vec,"  b  ",6)
-      !#>
+!     !#< b
+!     if (verbose .ge. 3) call showMNmatrixZ(Mi,Ni, ibemMat," mat ",6)
+!     if (verbose .ge. 3) call showMNmatrixZ(Mi,1, trac0vec,"  b  ",6)
+!      call chdir(trim(adjustl(rutaOut)))
+!      call chdir('matrices')
+!     print*,n_top_sub,"n_top_sub"
+!     print*,n_con_sub,"n_con_sub"
+!     print*,n_val_sub,"n_val_sub"
+!      write(arg,'(a,I0,a)') "outA",J,".m"
+!      open(421,FILE= trim(arg),action="write",status="replace")
+!      write(arg,'(a)') "Bincidente"
+!      call scripToMatlabMNmatrixZ(size(trac0vec,1),1,trac0vec,arg,421)
+!      write(arg,'(a,I0)') "Mibem",J
+!      call scripToMatlabMNmatrixZ(size(ibemMat,1),size(ibemMat,2),ibemMat,arg,421)
+!      close(421)
+!      CALL chdir(".."); CALL chdir("..")
+!     !#>
       call zgesv(Mi,1,ibemMat,Mi,IPIVbem,trac0vec,Mi,info)
       if(info .ne. 0) stop "problem with ibem system"
       
@@ -842,18 +855,19 @@
           else ! 'void'
             cycle
           end if
-      do i= 3,6,3!dirección de desplazamient V,Ty !SH
+      do i= 3,6,3!dirección de desplazamientraccion V,Ty !SH
          auxGvector = z0 !(1:ik)
 !        print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
          iPxi = ipxi_I
          do iPhi = iPhi_I,iPhi_F
            auxGvector(iPhi) = boupoints(iPxi)%G(iP_X,i,2)
+           if(i.eq.3) write(6,'(a,i0,a,i0,a,F10.6,F10.6)') & 
+           "G(",iP_X,",",iPxi,")22=",& 
+           real(boupoints(iPxi)%G(iP_X,i,2)),aimag(boupoints(iPxi)%G(iP_X,i,2))
            iPxi = iPxi + 1
          end do !iPhi         
           if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
           
-!         if (i .eq. 3) allpoints(iP_x)%W(J,i) = sum(trac0vec * auxGvector) + &
-!         allpoints(iP_x)%W(J,i) 
           
           if (i .eq. 3) allpoints(iP_x)%resp(J,currentiFte)%V = & 
                         allpoints(iP_x)%resp(J,currentiFte)%V + &
@@ -1989,6 +2003,7 @@
        call asociar(pXi,iFte,i_zF,itabla_x) ! asociar apuntador a fuente [pXi]
 !      if (J .eq. 1 .and. i_zF .eq. 0) print*,"zf=pXi%center%z",pXi%center%z
        xf=>pXi%center%x;zf=>pXi%center%z;ef=>pXi%layer;intf=>pXi%isOnInterface
+!      print*,"pXi: x",pXi%center,pXi%normal,pXi%layer,pXi%isoninterface,pxi%tipofuente,pxi%region
 #ifdef ver
        call ETIME(tarray, result)
        print*,"pXi: x",pXi%center%x,"z",pXi%center%z,& 
@@ -2295,6 +2310,7 @@
               if(p_x%isBoundary) then
                 if(i_zF .eq. 0) then ! pXi es la fuente real
                   ! term. indep.
+!                 print*,pXi%center
                   call fill_termindep(auxK(1,mecS:mecE),& 
                                       come,mecS,mecE,p_x,pXi,dir_j)
                 else ! pXi es una fuente virtual
@@ -4799,6 +4815,11 @@
       
       if (dir_j .eq. 2) then ! SH
         call FFsh(0,FF,p_X,pXi,cOME,1,3)
+!     print*,"------------- fill_termindep"
+!     print*,p_X%boundaryindex,p_X%center
+!     print*,pXi%center
+!     print*,auxk(1,1),FF%V
+!     print*,""
       !  | Ty |
         trac0vec(p_x%boundaryIndex) = & 
         trac0vec(p_x%boundaryIndex) - (& 
@@ -4818,7 +4839,7 @@
 !     print*,TractionPSV(auxk(1,3:5), p_x%normal,0),FF%Tx
 !     print*,TractionPSV(auxk(1,3:5), p_x%normal,1),FF%Tz
 !     print*,auxk(1,1),FF%W
-!     print*,auxk(1,1),FF%V
+!     print*,auxk(1,1),FF%U
 !     print*,""
       !  | Tx |
       !  | Tz |
@@ -5138,16 +5159,17 @@
 !         if (pXi%region .ne. p_x%region) return
           p_x%resp(J,iFte)%V = & 
           p_x%resp(J,iFte)%V + (auxk(1,1) + FF%V) !* nf(dir_j) ! V
-          !                     s12                       s32
           p_x%resp(J,iFte)%Ty = & 
           p_x%resp(J,iFte)%Ty + & 
           ((auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty) !* nf(dir_j)
+          !                     s12                       s32
        else
           pXi%G(p_x%pointIndex,3,dir_j) = & 
           pXi%G(p_x%pointIndex,3,dir_j) + auxK(1,1) + FF%V ! V
           pXi%G(p_x%pointIndex,6,dir_j) = & 
           pXi%G(p_x%pointIndex,6,dir_j) + & 
           (auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty ! Ty
+          !                     s12                       s32
        end if
       else !PSV
 !     if (pXi%region .ne. p_x%region) return
