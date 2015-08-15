@@ -2214,7 +2214,6 @@
             do ik = 1,pos+1                                                 !
                 auxk(ik,imec) = auxk(ik,imec) * &                           !
                 exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_x%center%x - xf), 8))!c
-!               print*,auxk(ik,imec);stop
             end do !  ik                                                    !i
             do ik = ne,2*Nmax                                               !l
                 auxk(ik,imec) = auxk(ik,imec) * &                           !i
@@ -2325,6 +2324,15 @@
           complex*16, dimension(1:4*N+2),intent(in) :: coefOndas_PSV
         end function PSVdiffByStrata
         
+        function SHdiffByStrata(coefOndas_SH,z_i,e,cOME_i,k,ik)
+          use soilvars, only:N
+          complex*16, dimension(1:3) :: SHdiffByStrata
+          real*8, intent(in)           :: z_i,k
+          complex*16, intent(in)       :: cOME_i  
+          integer, intent(in)          :: e,ik
+          complex*16, dimension(2*N+1),intent(in) :: coefOndas_SH
+        end function SHdiffByStrata
+        
         subroutine  eGAeNU(i_zF,ik,pXI,dj)
           use resultVars, only : Punto
           integer :: ik,i_zF,dj
@@ -2368,8 +2376,8 @@
              bet = beta(N+1)
            end if
            ! numeros de onda horizontales 
-           if(Po(iFte)%PW_pol .eq. 1) k = real(cOME/bet)*sin(Po(iFte)%gamma)
-           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma)
+                                      k = real(cOME/bet)*sin(Po(iFte)%gamma) !SV,SH
+           if(Po(iFte)%PW_pol .eq. 2) k = real(cOME/alf)*sin(Po(iFte)%gamma) ! P
          end if! ································································
       call asociar(pXi,iFte,0,3) ! asociar apuntador a fuente [pXi]
 #ifdef ver 
@@ -2381,20 +2389,55 @@
       ! Si es la fuente real y es una onda plana no se usa el DWN. Se calcula para
       ! el número de onda horizontal asociado al ángulo de incidencia ············
       if (isPW) then ! onda plana incidente   ·
+            if (dir_j .eq. 2) then! SH                                           ·o
+            tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1!                       ·n
+            pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·d
+            pt_k => k; pt_come_i => cOME!                                        ·a
+            allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
+            pt_ipivA => ipivA; pt_workA => workA!                                ·
+            call globalmatrix_SH(pointA,pt_k,0)!                                 ·p
+            call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·l
+            call SHvectorB_ondaplana(B(:,0),pxi%gamma)!                          ·a
+            B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·n
+          else!  P-SV                                                            ·a
             tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2!                       ·
             pointA => Ak(1:tam,1:tam,0) !indice 0 reservado para onda plana      ·
             pt_k => k; pt_come_i => cOME!                                        ·
             allocate(ipivA(tam)); allocate(workA((tam)*(tam)))!                  ·
-            pt_ipivA => ipivA; pt_workA => workA!                                · 
+            pt_ipivA => ipivA; pt_workA => workA!                                ·
             call gloMat_PSV(pointA,pt_k,0)!                                      ·
             call inverseA(pointA,pt_ipivA,pt_workA,tam)!                         ·
             call PSVvectorB_ondaplana(B(:,0),pxi%gamma)!                         ·
             B(:,0) = matmul(Ak(1:tam,1:tam,0),B(:,0))!                           ·
-            pos = 0; ne = 2*nmax+1
+          end if!                                                                ·
+          pos = 0; ne = 2*nmax+1
       else ! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · 
       ! La fuente es cilíndrica 
         pos = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(pos-2)                !
-        B(:,pos:ne) = 0                                                         !
+        B(:,pos:ne) = 0    
+        if (dir_j .eq. 2) then                                                   !
+         tam = 2*N+1; if (Z(0) .lt. 0.0) tam = tam + 1                           !
+         ! si la fuente está sobre una interfaz ...............
+!        if (pXi%isOnInterface) then
+         do ik = 1,pos+1                                                            !n
+           call SHvectorB_force(0,B(:,ik),tam,pXi,cOME,k_vec(ik),ik)             !d
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !a
+         end do                                                                  !                                     
+         do ik = ne,2*NMAX                                                       !c
+           call SHvectorB_force(0,B(:,ik),tam,pXi,cOME,k_vec(ik),ik)             !i
+           B(:,ik) = matmul(Ak(:,:,ik),B(:,ik))                                  !l
+         end do                                                                  !i
+!        else ! la fuente está entre interfaces ..............
+!        stop "fuerza entre interfaces no implementado para SH"
+!          do ik = 1,pos+1
+!            stop 1990
+!            call eGAeNU(i_zF,ik,pXI,dj)
+!          end do!                                                                 
+!          do ik = ne,2*NMAX
+!            call eGAeNU(i_zF,ik,pXI,dj)
+!          end do
+!        end if
+        else!  .   .   .   .   .   .   .   .   .   .   .   .   .   .   .   .    !
         tam = 4*N+2; if (Z(0) .lt. 0.0) tam = tam + 2                           !
          ! si la fuente está sobre una interfaz ...............                 !
          if (pXi%isOnInterface) then                                            !
@@ -2413,20 +2456,36 @@
            do ik = ne,2*NMAX                                                    !
              call eGAeNU(0,ik,pXI,dj)                                           !
            end do                                                               !
-         end if                                                                 !
+         end if  
+        end if                                                                !
       end if! · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · · ·      
       ! resultado en el receptor
       if (isPW) then ! onda plana·············                                  .
-              auxK(1,1:5) = PSVdiffByStrata(B(:,0), &!                          ·
-                              p_X%center%z, p_X%layer,cOME,k,0)!                ·
+          if (dir_j .eq. 2) then!                                               ·
+                 auxk(1,1:3) = SHdiffByStrata(B(:,0), & 
+                              p_X%center%z, p_X%layer,cOME,k,0)
+          else !                                                                ·
+                 auxk(1,1:5) = PSVdiffByStrata(B(:,0), &!                  ·a
+                              p_X%center%z, p_X%layer,cOME,k,0)!                ·a
+          end if
       else ! onda plana incidente / onda cilíndrica circular ····················
         do ik = 1,pos+1                                                         !
-              auxK(ik,1:5) = PSVdiffByStrata(B(:,ik), &                         !
-                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !
-        end do ! ik                                                             !
-        do ik = ne,2*Nmax                                                       !
-              auxK(ik,1:5) = PSVdiffByStrata(B(:,ik), &                         !
-                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !
+          if (dir_j .eq. 2) then !SH
+              auxk(ik,1:3) = SHdiffByStrata(B(:,ik), & 
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)
+          else !PSV                                                             !a
+              auxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                    !c
+                              p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)        !i
+          end if                                                                !l
+        end do ! ik                                                             !i
+        do ik = ne,2*Nmax                                                       !n
+          if (dir_j .eq. 2) then !SH                                            !d
+             auxk(ik,1:3) = SHdiffByStrata(B(:,ik), & 
+                                 p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)
+          else !PSV                                                             !
+             auxk(ik,1:5) = PSVdiffByStrata(B(:,ik), &                     !
+                                 p_X%center%z, p_X%layer,cOME,k_vec(ik),ik)     !
+          end if                                                                !
         end do ! ik                                                             !
       end if! onda cilíndrica circular ··········································     
       ! agregar información fase horizontal de fuente y receptor 
@@ -3638,9 +3697,8 @@
         am = AMU0(e)
       else
         c = beta(e) !SV
-!       kx = come/c * sin(gamma)
-!       kz = come/c * cos(gamma)
         kx = come/c * sin(gamma)
+!       kz = come/c * cos(gamma)
         kz = sqrt((come/c)**2 - kx**2)
         if(aimag(kz).gt.0.0_8) kz=conjg(kz) 
         am = AMU(e)
@@ -4194,9 +4252,8 @@
             theta(2) = -cos(Po(iFte)%gamma)
          end if!
          if (PWfrecReal) then
-!           kx = UR*real(ome/c * sin(Po(iFte)%gamma))
-!           kz = UR*real(ome/c * cos(Po(iFte)%gamma))
             kx = UR*real(ome/c * sin(Po(iFte)%gamma))
+!           kz = UR*real(ome/c * cos(Po(iFte)%gamma))
             kz = sqrt((ome/c)**2 - kx**2)
             if(aimag(kz).gt.0.0_8) kz=conjg(kz)
             la = UR*real(LAMBDA0(e))
@@ -4640,7 +4697,6 @@
 #ifdef ver
       print*,"onda plana"
 #endif     
-!        if (Po(iFte)%PW_pol .eq. 3) then ! SH
             if (PWfrecReal) then
                c = UR*beta0(e)
                kx = UR*real(ome/c * sin(Po(iFte)%gamma))
@@ -4656,18 +4712,6 @@
                if(aimag(kz).gt.0.0_8) kz=conjg(kz)
                am = UR*real(AMU(e))
             end if
-!           if (PWfrecReal) then
-!              c = UR*beta0(N+1)
-!              kx = UR*real(ome/c * sin(Po(iFte)%gamma))
-!              kz = UR*real(ome/c * cos(Po(iFte)%gamma))
-!              am = UR*real(AMU0(N+1))
-!           else
-!              c = beta(N+1)
-!              kx = UR*real(come/c * sin(Po(iFte)%gamma))
-!              kz = UR*real(come/c * cos(Po(iFte)%gamma))
-!              am = UR*real(AMU(N+1))
-!           end if
-!        end if
         ! las expresiones se encuentran en todos lados, por ejemplo:
         ! Gil-Zepeda et al 2003
         ! SV:
