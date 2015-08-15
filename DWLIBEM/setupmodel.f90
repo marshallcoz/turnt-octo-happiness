@@ -258,7 +258,7 @@
        "   L/alfa = tp = ",(2*pi/DK)/maxval(abs(ALFA0)), "seconds"
        write(outpf,'(a,EN19.5E2,a)') &
        "   L/beta = ts = ",(2*pi/DK)/maxval(abs(BETA0)), "seconds"
-       write(outpf,'(a,E10.2,a)') '   Frec. Imaginary part: ',OMEI,' rad/s'
+       write(outpf,'(a,E10.2,a)') '   Frec. Imaginary part: - periodicdamper*PI/TW = ',OMEI,' rad/s'
        write(outpf,'(a)') &
        "---------------------------------------------------------------------------------"
       end if !#>
@@ -1251,19 +1251,23 @@
       !  TR^r = 0
       origGeom(n_cont+n_topo+1:nXI)%tipoFrontera = 2
 
-      write(Printnum,'(A, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') &
-         'inclusion  ',ALFA0(N+2),BETA0(N+2),real(AMU0(N+2)),&
+      write(Printnum,'(/,A,/,A, F7.1,2x, F7.1,2x, E8.2,2x, E8.2,2x, E8.2,2x, E8.2)') &
+         '--- Inclusion -------------------------------------------------------------------',&
+         '   ',ALFA0(N+2),BETA0(N+2),real(AMU0(N+2)),&
          RHO(N+2), real(LAMBDA0(N+2)),real(anu(N+2))
 
-        if (verbose .ge. 3) then
+        if (verbose .ge. 2) then
+        write(Printnum,'(/,A)') '--- Geometry---------------------------------------------------------------------'
          DO iXI = 1,nXI
-        write(Printnum,'(I0,a,F5.2,a,F5.2,a,F5.2,a,F5.2,a,F5.2)', ADVANCE = "NO") iXI,&
-         " c[",origGeom(iXI)%center%x,",",origGeom(iXI)%center%z,"] n[",&
+        write(Printnum,'(A,I0,a,F5.2,a,F5.2,a,F5.2,a,F5.2,a,F5.2)', ADVANCE = "NO") &
+        '   ',&
+         iXI," c[",origGeom(iXI)%center%x,",",origGeom(iXI)%center%z,"] n[",&
          origGeom(iXI)%normal%x,",",origGeom(iXI)%normal%z,"] l:",origGeom(iXI)%length
         write(Printnum,'(a,F5.2,a,F5.2,a,i0,a,i0)') &
         "  co",origGeom(iXI)%cosT," si",origGeom(iXI)%sinT," e",origGeom(iXI)%layer, &
-        " t",origGeom(iXI)%tipoFrontera
+        " tipo",origGeom(iXI)%tipoFrontera
          end do
+         write(Printnum,'(A,/)') '---------------------------------------------------------------------------------'
         end if
       deallocate(auxA);deallocate(auxB);deallocate(es_de_esquina);deallocate(isonif)
       deallocate(lengthXI);deallocate(layerXI);deallocate(cost);deallocate(sint)
