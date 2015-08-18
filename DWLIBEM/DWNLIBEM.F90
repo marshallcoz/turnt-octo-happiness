@@ -343,7 +343,7 @@
            
 
            call plotSisGram(PSV,SH,.false.)
-           if (plotFKCK) call F_K_exp(XF)
+           if (plotFKCK) call F_K_exp(PSV,XF)
            CALL chdir("..")
            
            if (makeVideo) then 
@@ -1067,7 +1067,7 @@
       ! w->time & plot
       if (J .eq. frecEnd) then 
       print*,"w->time & plot"
-      if (plotFKS) then  
+      if (plotFKS) then  ! imprimir integrandos del DWN
            write(xAx,'(a)')"frec [Hz]"
            write(yAx,'(a)')" K [1/m] "
            call chdir(trim(adjustl(rutaOut)))
@@ -1109,7 +1109,7 @@
            CALL chdir(trim(arg))
        
       call plotSisGram(PSV,SH,.true.)    
-      if (plotFKCK) call F_K_exp(XF)
+      if (plotFKCK) call F_K_exp(PSV,XF)
       CALL chdir("..")
          
       if (makeVideo) then 
@@ -6557,7 +6557,7 @@
       end subroutine makeSabana
       
 
-      subroutine F_K_exp(XF) !calc y graf de FK y CK a partir de sábana de sensores
+      subroutine F_K_exp(PSV,XF) !calc y graf de FK y CK a partir de sábana de sensores
       use waveNumVars, only : NFREC,dfrec,omei
       use soilvars, only : Qq
       use glovars
@@ -6567,6 +6567,7 @@
       use debugStuff
       use sourceVars, only : currentiFte
       implicit none
+      logical, intent(in) :: PSV
       complex*16, dimension(nSabanapts,Nfrec+1,2) :: XF
       complex*16, dimension(nSabanapts,Nfrec+1,2) :: XFc
       complex*16, dimension(nfrec+1, nSabanapts/2,2) :: FC
@@ -6580,17 +6581,24 @@
       real, parameter :: p2 = 1. ! sharpness parameter
       real, parameter :: p3 = 4 ! sharpness parameter
       ! guardar XF
-!     print*, nIpts, nSabanapts
+      print*,"Printing Fk analysis ..." !nIpts, nSabanapts
 !     call winsiz(int(1200,4),int(1200,4))
       CALL SETPAG('DA4L')
       alguno = .false.
       do iP = 1,nIpts
+      if (PSV) then
        if (allpoints(iP)%isSabana) then
         alguno = .true.
         XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,1) = allpoints(ip)%resp(1:NFREC+1,currentiFte)%W
         XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,2) = allpoints(ip)%resp(1:NFREC+1,currentiFte)%U
 !       print*,allpoints(ip)%center%x,"  ",(iP-(nIpts-nSabanapts))
        end if
+      else !SH
+       if (allpoints(iP)%isSabana) then
+        alguno = .true.
+        XF((iP-(nIpts-nSabanapts)) ,1:NFREC+1,1) = allpoints(ip)%resp(1:NFREC+1,currentiFte)%V
+       end if
+      end if
       end do
       
       ! XF -> KF -------------------------------
@@ -6598,22 +6606,16 @@
       dx = (allpoints(nSabanapts)%center%x - allpoints(nIpts-nSabanapts+1)%center%x)
       dx = dx / (nSabanapts+1)
       do ij = 1,NFREC+1
-      XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
-      XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
-      !escala
-!     XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * (sqrt(1.0*nSabanapts) * dx)
-!     XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * (sqrt(1.0*nSabanapts) * dx)
-      
-      call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1) 
-      XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * sqrt(1.0*nSabanapts) * dx ! factor de escala
-
-      call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1) 
-      XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * sqrt(1.0*nSabanapts) * dx ! factor de escala
-
-      
-      XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
-      XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
-      
+        XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
+        call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1) 
+        XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * sqrt(1.0*nSabanapts) * dx ! factor de escala
+        XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
+        if (PSV) then
+           XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
+           call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1) 
+           XF(1:nSabanapts,ij,2) = XF(1:nSabanapts,ij,2) * sqrt(1.0*nSabanapts) * dx ! factor de escala
+           XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
+        end if
       end do
       
 !      open(427,FILE= "outKF.m",action="write",status="replace")
@@ -6627,77 +6629,89 @@
       XFc(1:nSabanapts,1:Nfrec+1,1) = real(log(1. + exp(p1)*abs(XF(1:nSabanapts,1:Nfrec+1,1))) / & 
            log(exp(p1)+1.),4)
       XFc(1:nSabanapts,1:Nfrec+1,1) = XFc(1:nSabanapts,1:Nfrec+1,1) / maxval(abs(XFc(1:nSabanapts,1:Nfrec+1,1)))
-      CALL SETFIL("2_w_KF.pdf")
+      if (PSV) then
+         CALL SETFIL("0_w_KF.pdf")
+      else
+         CALL SETFIL("0_v_KF.pdf")
+      end if
       CALL QPLCLR(real(abs(XFc(1:nSabanapts,1:NFREC+1,1)),4), nSabanapts,NFREC+1) 
       
+      if (PSV) then
       XFc(1:nSabanapts,1:Nfrec+1,2) = real(log(1. + exp(p1)*abs(XF(1:nSabanapts,1:Nfrec+1,2))) / & 
            log(exp(p1)+1.),4)
       XFc(1:nSabanapts,1:Nfrec+1,2) = XFc(1:nSabanapts,1:Nfrec+1,2) / maxval(abs(XFc(1:nSabanapts,1:Nfrec+1,2)))
-      CALL SETFIL("2_u_KF.pdf")
+      CALL SETFIL("0_u_KF.pdf")
       CALL QPLCLR(real(abs(XFc(1:nSabanapts,1:NFREC+1,2)),4), nSabanapts,NFREC+1) 
+      end if
       
       uno = 1;
-      
       ! velocidad  k positivo
       do ij = 1,NFREC+1
       ome = (ij*dfrec)*2*pi
       COME = CMPLX(OME, OMEI,8)!periodic sources damping
       COME = COME * cmplx(1.0, -1.0/2.0/Qq,8)
       FC(ij,nSabanapts/2:1:-1,1) = come/XF(nSabanapts/2+1:nSabanapts,ij,1)
+      if (PSV) &
       FC(ij,nSabanapts/2:1:-1,2) = come/XF(nSabanapts/2+1:nSabanapts,ij,2)
       end do
       
       ! comprimir
       FC(:,:,1) = real(log(1. + exp(p2)*abs(FC(:,:,1))) / & 
            log(exp(p2)+1.),4)
-      FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
-           log(exp(p2)+1.),4) 
-      
       FC(:,:,1) = uno - FC(:,:,1)/maxval(abs(FC(:,:,1)))
-      FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))
-      
       ! aumentar contraste un poquito
       FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
       FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
-      CALL SETFIL("3_w_CFp.pdf")
+      if (PSV) then
+         CALL SETFIL("0_w_CFp.pdf")
+      else
+         CALL SETFIL("0_v_CFp.pdf")
+      end if
       CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2) 
-       
-      FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
-      FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
-      CALL SETFIL("3_u_CFp.pdf")
-      CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
+      if (PSV) then
+        FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
+           log(exp(p2)+1.),4) 
+        FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))
+        ! aumentar contraste un poquito
+        FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
+        FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
+        CALL SETFIL("0_u_CFp.pdf")
+        CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
+      end if
       
       ! velocidad  k negativo
       do ij = 1,NFREC+1
       ome = (ij*dfrec)*2*pi
       COME = CMPLX(OME, OMEI,8)!periodic sources damping
       COME = COME * cmplx(1.0, -1.0/2.0/Qq,8)
-!     FC(ij,nSabanapts/2:1:-1,1) = come/XF(1:nSabanapts/2,ij,1)
-!     FC(ij,nSabanapts/2:1:-1,2) = come/XF(1:nSabanapts/2,ij,2)
       FC(ij,1:nSabanapts/2,1) = come/XF(1:nSabanapts/2,ij,1)
+      if (PSV) &
       FC(ij,1:nSabanapts/2,2) = come/XF(1:nSabanapts/2,ij,2)
       end do
       
       ! comprimir
       FC(:,:,1) = real(log(1. + exp(p2)*abs(FC(:,:,1))) / & 
            log(exp(p2)+1.),4)
-      FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
-           log(exp(p2)+1.),4) 
-      
       FC(:,:,1) = uno - FC(:,:,1)/maxval(abs(FC(:,:,1)))
-      FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))
-      
       ! aumentar contraste un poquito
       FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
       FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
-      CALL SETFIL("3_w_CFn.pdf")
-      CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2) 
-       
-      FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
-      FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
-      CALL SETFIL("3_u_CFn.pdf")
-      CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
-           
+      if (PSV) then
+         CALL SETFIL("0_w_CFn.pdf")
+      else
+         CALL SETFIL("0_v_CFn.pdf")
+      end if
+      CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2)
+      if (PSV) then
+         FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
+           log(exp(p2)+1.),4) 
+         FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))  
+         ! aumentar contraste un poquito
+         FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
+         FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
+         CALL SETFIL("0_u_CFn.pdf")
+         CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
+      end if
       end subroutine F_K_exp
       
      
