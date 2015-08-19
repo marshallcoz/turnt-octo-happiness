@@ -1811,8 +1811,11 @@
 !           titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
           end if
       elseif(Po(iFte)%ampfunction .gt. 20) then ! GaussianCúbico
-        call gaussian(Uo(:,iFte),Po(iFte)%sigGaus)
-        Uo(:,iFte) = Uo(:,iFte) ** (Po(iFte)%ampfunction-20)
+        call gaussian(Uo(:,iFte),Po(iFte)%sigGaus) !shift =  int((int(sigGaus) - sigGaus) * 1000)
+        if (int((int(Po(iFte)%sigGaus) - Po(iFte)%sigGaus) * 1000) .gt. 0) & 
+        write(Printnum,'(a,I0)')'   One sided Gaussian filter with shift in points:',&
+         int((int(Po(iFte)%sigGaus) - Po(iFte)%sigGaus) * 1000)
+        Uo(:,iFte) = Uo(:,iFte) ** (Po(iFte)%ampfunction-20) 
           if (ve .ge. 1) then
            write(Printnum,'(a,I0)')'   Incident wave amplitude function: Gaussian ',int((Po(iFte)%ampfunction-20))
             write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
@@ -5866,11 +5869,11 @@
       implicit none
       integer :: i,ix,iz,imec,mecS,mecE
       complex*16, dimension(:), pointer :: p_fot
-      character(LEN=100) :: nam
-!     real*8 :: factor
+      character(LEN=100) :: nam,titlen
+      
       if (verbose .ge. 1) print*,"frec -> time"
       if (iFte .eq. 0) stop "crepa_four_fotogr iFte=0"
-!     factor = sqrt(1.0*nT)
+      
       mecS = 3; mecE = 2; if (PSV) mecS =1; if (SH) mecE =3
       if (saveG .eqv. .true.) then
        write(nam,'(a,I0,a)') "G",iFte,".bin"
@@ -5898,13 +5901,13 @@
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
           exp(-OMEI * Dt*((/(i,i=0,nT-1)/)))
-!         if (verbose .ge. 3) then
-!           CALL chdir("perPixelTraces")
-!           write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
-!           CALL SETFIL(trim(titleN))
-!           call qplot(real((/((i-1)*Dt,i=1,800)/),4),real(p_fot(1:800),4),800)
-!           CALL chdir("..")
-!         end if
+          if (verbose .ge. 3) then
+            CALL chdir("perPixelTraces")
+            write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
+            CALL SETFIL(trim(titleN))
+            call qplot(real((/((i-1)*Dt,i=1,nT)/),4),real(p_fot(1:nT),4),nT)
+            CALL chdir("..")
+          end if
         end do !ix
       end do !iz
       end do !imec
@@ -5952,14 +5955,11 @@
           p_fot = FFTW(nT,p_fot,+1,1/(nT*dt))
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
-          exp(-OMEI * Dt*((/(i,i=0,nT-1)/)))
-        ! remover efecto de la velocidad imaginaria ?
-          !p_fot = p_fot * & 
-          !exp((1./2./Qq) * Dt*((/(i,i=0, nT-1)/))) 
+          exp(-OMEI * Dt*((/(i,i=0,nT-1)/))) 
           if (verbose .ge. 3)then
             write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
             CALL SETFIL(trim(titleN))
-            call qplot(real((/((i-1)*Dt,i=1,800)/),4),real(p_fot(1:800),4),800) 
+            call qplot(real((/((i-1)*Dt,i=1,nT)/),4),real(p_fot(1:nT),4),nT) 
           end if
       end do !ix
       end do !iz
@@ -6452,7 +6452,11 @@
       CALL HWFONT()
       CALL axspos (int(70,4) ,int(H+100,4))
       call axslen (int(W+1050,4) ,int(H,4))
+      if ((nPow10x *(-1)) .gt. 0) then
       write(dumb,'(a,I0,a)') 't (sec) [ 10^',(nPow10x *(-1)),' ]'
+      else
+      write(dumb,'(a)') 't (sec)'
+      end if
        call name(trim(dumb),'X')
        call labdig(int(1,4),'X')
        call ticks (int(5,4) ,'X')
@@ -6572,7 +6576,7 @@
       complex*16, dimension(nSabanapts,Nfrec+1,2) :: XFc
       complex*16, dimension(nfrec+1, nSabanapts/2,2) :: FC
       complex*16, dimension(nfrec+1, nSabanapts/2) :: uno
-      integer :: ij, iP
+      integer :: ij, iP,ik
       complex*16 :: come
       real*8 :: ome,dx
 !     CHARACTER(len=32) :: arg
@@ -6662,6 +6666,12 @@
       ! aumentar contraste un poquito
       FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
       FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
+      
+      do ij = 1,Nfrec+1
+      do ik = 1,nSabanapts/2
+      if (isnan(real(FC(ij,ik,1)))) FC(ij,ik,1)=0
+      end do;end do
+      
       if (PSV) then
          CALL SETFIL("0_w_CFp.pdf")
       else
@@ -6672,6 +6682,10 @@
         FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
            log(exp(p2)+1.),4) 
         FC(:,:,2) = uno - FC(:,:,2)/maxval(abs(FC(:,:,2)))
+        do ij = 1,Nfrec+1
+        do ik = 1,nSabanapts/2
+        if (isnan(real(FC(ij,ik,2)))) FC(ij,ik,2)=0
+        end do;end do
         ! aumentar contraste un poquito
         FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
         FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
@@ -6696,6 +6710,11 @@
       ! aumentar contraste un poquito
       FC(:,:,1) = real((abs(FC(:,:,1))**p3 * 0.4**p3)/(abs(FC(:,:,1))**p3 + 0.4**p3),4)
       FC(:,:,1) = FC(:,:,1) / maxval(abs(FC(:,:,1)))
+      do ij = 1,Nfrec+1
+      do ik = 1,nSabanapts/2
+      if (isnan(real(FC(ij,ik,1)))) FC(ij,ik,1)=0
+      end do;end do
+      
       if (PSV) then
          CALL SETFIL("0_w_CFn.pdf")
       else
@@ -6709,6 +6728,10 @@
          ! aumentar contraste un poquito
          FC(:,:,2) = real((abs(FC(:,:,2))**p3 * 0.4**p3)/(abs(FC(:,:,2))**p3 + 0.4**p3),4)
          FC(:,:,2) = FC(:,:,2) / maxval(abs(FC(:,:,2)))
+         do ij = 1,Nfrec+1
+         do ik = 1,nSabanapts/2
+         if (isnan(real(FC(ij,ik,2)))) FC(ij,ik,2)=0
+         end do;end do
          CALL SETFIL("0_u_CFn.pdf")
          CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
       end if
@@ -6771,7 +6794,7 @@
        n_maxtime = int(maxtime(iFte)/dt)
        if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
        if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-       write(Printnum,'(a,F5.2,a,F7.4,a,F6.2,a)')& 
+       write(Printnum,'(a,F5.2,a,F7.4,a,I0,a)')& 
        "maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
        allocate(xvmat(npixX,npixZ,n_maxtime))
        allocate(yvmat(npixX,npixZ,n_maxtime))
@@ -7168,7 +7191,7 @@
          n_maxtime = int(maxtime(iFte)/dt)
          if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
          if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
-         write(Printnum,'(a,F5.2,a,F7.4,a,F6.2,a)')&
+         write(Printnum,'(a,F5.2,a,F7.4,a,I0,a)')&
          "maxtime = ",maxtime," segs :: @",dt," : ",n_maxtime," puntos"
         
        ColorRangeMaximumScale = 0.1

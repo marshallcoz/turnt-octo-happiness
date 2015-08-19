@@ -1,5 +1,5 @@
 1	verbose [int]
-F	make a video [logical]
+T	make a video [logical]
 T       vivaChurubusco [logical]
 F       vivaCine [logical]
 T	Solve IBEM boundary [logical]
