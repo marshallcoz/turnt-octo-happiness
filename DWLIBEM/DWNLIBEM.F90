@@ -194,12 +194,20 @@
        do currentiFte = 1,nFuentes 
        write(arg,'(a,I0)') 'mkdir phi',currentiFte
        call system(trim(adjustl(arg)))
+       write(arg,'(a,I0,a)') 'rm phi',currentiFte,'/*.pdf'
+       call system(trim(adjustl(arg)))
        
        write(arg,'(a,I0)') 'mkdir traces',currentiFte
+       call system(trim(adjustl(arg)))
+       write(arg,'(a,I0,a)') 'rm traces',currentiFte,'/*.m'
+       call system(trim(adjustl(arg)))
+       write(arg,'(a,I0,a)') 'rm traces',currentiFte,'/*.pdf'
        call system(trim(adjustl(arg)))
        
        write(arg,'(a,I0)') 'mkdir video',currentiFte
        call system(trim(adjustl(arg))) 
+       write(arg,'(a,I0,a)') 'rm video',currentiFte,'/*.png'
+       call system(trim(adjustl(arg)))
        end do !
        do currentiFte = 1,nfuentes
          if(.not. onlythisJ) call sourceAmplitudeFunction
@@ -295,6 +303,7 @@
       end do
       allocate(t_vec(NPTSTIME))
       t_vec(1:NPTSTIME) = z0
+       write(PrintNum,'(a,EN12.2,a)') "   t0=",t0," sec"
       t_vec(1) = exp(cmplx(0.0,-0.01* dfrec * t0*(2*pi),8))
       do i = 2,nfrec+1
         t_vec(i) = exp(cmplx(0.0,-(i-1)* dfrec * t0*(2*pi),8))
@@ -1170,7 +1179,9 @@
       integer, allocatable, dimension(:,:) :: pota,auxpota
       real*8 :: bola
       character(LEN=100) :: titleN
-      bola = min(0.01_8*smallestWL,0.01_8)
+      !#< r 
+!     bola = min(0.01_8*smallestWL,0.01_8)
+      bola = 0.1*smallestWL !#>
       ! si es la primera vez que corre sólo agregamos los allpoints 
       if (firstTime) then
        if (verbose .ge. 4) print*, "generating master table"
@@ -6129,7 +6140,7 @@
           end do 
 !         call chdir("..") 
           call makeSabana('0_S-v__.pdf',.false.) 
-          call makeSabana('0_S-v_f.pdf',.true.)
+          if(PlotFilledSabanas) call makeSabana('0_S-v_f.pdf',.true.)
 !         call chdir("traces")
           do iP = iPtini,iPtfin
           write(yAx,'(a)') '$Ty_$ [m]'
@@ -6262,11 +6273,17 @@
         call scripToMatlabMNmatrixZ(int(nfrec +1),1,S(1:int(nfrec +1)),name,3212)
         close (3212)
         return
-      else
-      S = S * t_vec ! t0 tiempo inicial
+!     else
+!     S = S * t_vec ! t0 tiempo inicial
       end if
+      S = S * t_vec ! t0 tiempo inicial
+!     if(ip.eq.3) then
+!     print*,"*******"
+!     DO i=1,NPTSTIME
+!     print*,i,S(i),t_vec(i)
+!     end do
+!     end if
       S = S * Uo(:,iFte) ! conv con fucion de amplitud
-      
       if (Verbose .ge. 4) call showMNmatrixZ(nptstime,1, S,"  S  ",6)
       
             
@@ -6286,6 +6303,18 @@
       if (allpoints(iP)%isSabana) then
          ! guardamos la sabana actual
 !        print*,"saved sabana point, ",iP-(nIpts - nSabanapts)
+         write(titleN,'(a,a,I0,a,I0,a,I0,a,I0,a,I0,a)') & 
+               's',nombre(1:1),iP,'I', &
+               int(x_i),'p',abs(int((x_i-int(x_i))*10)),'x', & 
+               int(z_i),'p',abs(int((z_i-int(z_i))*10)),'zI.m'
+!       write(name,'(a,I0,a,I0)') 's',iP,'C',icomp
+        write(name,'(a)') 'v'
+        OPEN(3219,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE',STATUS='REPLACE')
+        write(3219,'(a,a,/,a,EN26.9,a,EN26.9,a,/,a)') '%',yAx, & 
+         '%(', allpoints(iP)%center%x,',',allpoints(iP)%center%z,')','%% '
+        call scripToMatlabMNmatrixZ(NPTSTIME,1,S(1:int(NPTSTIME)),name,3219)
+        close (3219)
+
          Sabana(iP-(nIpts - nSabanapts),1:NPTSTIME) = S
          if (SabanaPlotIndividual .eqv. .false.) return
       end if
@@ -6380,6 +6409,7 @@
       use waveVars, only : dt,maxtime
       use resultvars, only : Sabana, nSabanapts,sabZeroini,sabZerofin
       use sourceVars, only : iFte=>currentiFte
+      use debugStuff
       use dislin   
       implicit none
       character(LEN=11)   :: nombre
@@ -6396,6 +6426,8 @@
       real, dimension(:), allocatable :: falda
       integer*4 :: lentitle
       character(LEN=60) :: CTIT
+      character(LEN=32) :: named
+      character(LEN=100) :: titleN
       
       if (nSabanapts .eq. 0) return
       !loop de escala y offset preguntando
@@ -6403,7 +6435,14 @@
       if(maxtime(iFte) .lt. dt) n_maxtime = 2*nfrec
       if(maxtime(iFte) .gt. NPTSTIME * real(dt,4)) n_maxtime = NPTSTIME
       S => Sabana(1:nSabanapts,1:n_maxtime)
-       
+      
+        write(titleN,'(a,a,a)') 'ASab',nombre(5:1),'.m'
+        write(named,'(a)') 'sab'
+        OPEN(3212,FILE=trim(titleN),FORM="FORMATTED",ACTION='WRITE',STATUS='REPLACE')
+        write(3212,'(a,/)') '%% '
+        call scripToMatlabMNmatrixZ(nSabanapts,n_maxtime,Sabana(1:nSabanapts,1:n_maxtime),named,3212)
+        close (3212)
+      
       if(sabZeroini .ne. 0) S(sabZeroini:sabZerofin,:) = z0
       
        ! primero usamos la escal para normalizar, luego para aumentar el constraste

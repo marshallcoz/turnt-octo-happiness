@@ -38,6 +38,8 @@
       write(rutaOut,'(a)') "outs"
       end if!
       if (status .eq. 0) call chdir("..") !workdir
+      write(path,'(a,a,a)') 'rm -rf ',trim(adjustl(rutaOut)),'/insbackup'
+      call system(trim(adjustl(path)))
       write(path,'(a,a,a)') 'cp -r ins ',trim(adjustl(rutaOut)),'/insbackup'
       call system(trim(adjustl(path)))
       call chdir(trim(adjustl(rutaOut)),status) !outs
