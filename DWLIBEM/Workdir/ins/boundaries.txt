@@ -1,47 +1,96 @@
-Superficie (x,y)ini - (x,y)fin en metros CAÑON-SEMICIRCULAR 150
+Superficie (x,y)ini - (x,y)fin en metros CIRCULARINCLU
 0		N_topo segmentos :: T^0 + T^d = 0
-4		N_cont segmentos :: T^d = T^0; u^d = u^0
+30		N_cont segmentos :: T^d = T^0; u^d = u^0
 0		N_vall segmentos :: T^d = 0
 ***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
 1  1   <- escala:x escala:y
 0  0   <- offset:x offset:y
 1.0    <- [negativo invierte normal]
 ***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
-1  1   <- escala:x escala:y
-0  0   <- offset:x offset:y
+0.5  0.5   <- escala:x escala:y
+0.5  0.6   <- offset:x offset:y
 1.0    <- [negativo invierte normal]
-60 100 -60 100 F
--60 100 -60 40 F
--60 40 60 40 F
-60 40 60 100 F
+    1.0000         0    0.9766    0.2150   F
+    0.9766    0.2150    0.9076    0.4199   F
+    0.9076    0.4199    0.7961    0.6052   F
+    0.7961    0.6052    0.6474    0.7622   F
+    0.6474    0.7622    0.4684    0.8835   F
+    0.4684    0.8835    0.2675    0.9635   F
+    0.2675    0.9635    0.1618    1.0000   F
+    0.1618    1.0000   -0.1618    1.0000   F
+   -0.1618    1.0000   -0.3701    0.9290   F
+   -0.3701    0.9290   -0.5612    0.8277   F
+   -0.5612    0.8277   -0.7260    0.6877   F
+   -0.7260    0.6877   -0.8569    0.5156   F
+   -0.8569    0.5156   -0.9477    0.3193   F
+   -0.9477    0.3193   -1.0000    0.1081   F
+   -1.0000    0.1081   -1.0000   -0.1081   F
+   -1.0000   -0.1081   -0.9477   -0.3193   F
+   -0.9477   -0.3193   -0.8569   -0.5156   F
+   -0.8569   -0.5156   -0.7260   -0.6877   F
+   -0.7260   -0.6877   -0.5612   -0.8277   F
+   -0.5612   -0.8277   -0.3701   -0.9290   F
+   -0.3701   -0.9290   -0.1618   -0.9868   F
+   -0.1618   -0.9868   -0.0541   -0.9985   F
+   -0.0541   -0.9985    0.0541   -0.9985   F
+    0.0541   -0.9985    0.2675   -0.9635   F
+    0.2675   -0.9635    0.4684   -0.8835   F
+    0.4684   -0.8835    0.6474   -0.7622   F
+    0.6474   -0.7622    0.7961   -0.6052   F
+    0.7961   -0.6052    0.9076   -0.4199   F
+    0.9076   -0.4199    0.9766   -0.2150   F
+    0.9766   -0.2150    1.0000    0.0000   F
 ***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
 1 1  <- escala:x escala:y
 0 0  <- offset:x offset:y
-1.0  <- escala:n
+1.0  <- [negativo invierte normal]
 Inclusion properties
 Alfa(m/s) Beta(m/s) Dens(T/m3) 
-2000.0   1000.0   1800.0
+2.0   1.0   1.0
 Cualquier receptor dentro de esta superficie está en el aire
 0    N segmentos 
 1 1  <- escala:x escala:y
 0 0  <- offset:x offset:y
 Cualquier receptor dentro de estas superficies está en la region homogenea
 1  N de regiones
-4  Total de segmentos
-4   N segmentos 
-1.0 1.0  <- escala:x escala:y
-1.0 1.0  <- offset:x offset:y
-60 100 -60 100 F
--60 100 -60 40 F
--60 40 60 40 F
-60 40 60 100 F
+30  Total de segmentos
+30   N segmentos 
+0.5 0.5  <- escala:x escala:y
+0.5 0.6  <- offset:x offset:y
+    1.0000         0    0.9766    0.2150   F
+    0.9766    0.2150    0.9076    0.4199   F
+    0.9076    0.4199    0.7961    0.6052   F
+    0.7961    0.6052    0.6474    0.7622   F
+    0.6474    0.7622    0.4684    0.8835   F
+    0.4684    0.8835    0.2675    0.9635   F
+    0.2675    0.9635    0.1618    1.0000   F
+    0.1618    1.0000   -0.1618    1.0000   F
+   -0.1618    1.0000   -0.3701    0.9290   F
+   -0.3701    0.9290   -0.5612    0.8277   F
+   -0.5612    0.8277   -0.7260    0.6877   F
+   -0.7260    0.6877   -0.8569    0.5156   F
+   -0.8569    0.5156   -0.9477    0.3193   F
+   -0.9477    0.3193   -1.0000    0.1081   F
+   -1.0000    0.1081   -1.0000   -0.1081   F
+   -1.0000   -0.1081   -0.9477   -0.3193   F
+   -0.9477   -0.3193   -0.8569   -0.5156   F
+   -0.8569   -0.5156   -0.7260   -0.6877   F
+   -0.7260   -0.6877   -0.5612   -0.8277   F
+   -0.5612   -0.8277   -0.3701   -0.9290   F
+   -0.3701   -0.9290   -0.1618   -0.9868   F
+   -0.1618   -0.9868   -0.0541   -0.9985   F
+   -0.0541   -0.9985    0.0541   -0.9985   F
+    0.0541   -0.9985    0.2675   -0.9635   F
+    0.2675   -0.9635    0.4684   -0.8835   F
+    0.4684   -0.8835    0.6474   -0.7622   F
+    0.6474   -0.7622    0.7961   -0.6052   F
+    0.7961   -0.6052    0.9076   -0.4199   F
+    0.9076   -0.4199    0.9766   -0.2150   F
+    0.9766   -0.2150    1.0000    0.0000   F 
 Borde de región homogenea cuando flip12 .true.
 0    N segmentos 
 1.0  1.0   <- escala:x escala:y
 0.0  0.0   <- offset:x offset:y
-
-
-
 
 
 
@@ -138,106 +187,6 @@ Borde de región homogenea cuando flip12 .true.
 0    N segmentos 
 1.0  1.0   <- escala:x escala:y
 0.0  0.0   <- offset:x offset:y
-
-
-
-
-
-
-Superficie (x,y)ini - (x,y)fin en metros CIRCULARINCLU
-0		N_topo segmentos :: T^0 + T^d = 0
-30		N_cont segmentos :: T^d = T^0; u^d = u^0
-0		N_vall segmentos :: T^d = 0
-***** [topo] Tracciones nulas en medio estratificado ***** [normales hacia el aire]
-1  1   <- escala:x escala:y
-0  0   <- offset:x offset:y
-1.0    <- [negativo invierte normal]
-***** [cont] Continuidad de desplazamientos y esfuerzos ***** [normales hacia la inclusión]
-0.5  0.5   <- escala:x escala:y
-0.5  0.6   <- offset:x offset:y
-1.0    <- [negativo invierte normal]
-    1.0000         0    0.9766    0.2150   F
-    0.9766    0.2150    0.9076    0.4199   F
-    0.9076    0.4199    0.7961    0.6052   F
-    0.7961    0.6052    0.6474    0.7622   F
-    0.6474    0.7622    0.4684    0.8835   F
-    0.4684    0.8835    0.2675    0.9635   F
-    0.2675    0.9635    0.1618    1.0000   F
-    0.1618    1.0000   -0.1618    1.0000   F
-   -0.1618    1.0000   -0.3701    0.9290   F
-   -0.3701    0.9290   -0.5612    0.8277   F
-   -0.5612    0.8277   -0.7260    0.6877   F
-   -0.7260    0.6877   -0.8569    0.5156   F
-   -0.8569    0.5156   -0.9477    0.3193   F
-   -0.9477    0.3193   -1.0000    0.1081   F
-   -1.0000    0.1081   -1.0000   -0.1081   F
-   -1.0000   -0.1081   -0.9477   -0.3193   F
-   -0.9477   -0.3193   -0.8569   -0.5156   F
-   -0.8569   -0.5156   -0.7260   -0.6877   F
-   -0.7260   -0.6877   -0.5612   -0.8277   F
-   -0.5612   -0.8277   -0.3701   -0.9290   F
-   -0.3701   -0.9290   -0.1618   -0.9868   F
-   -0.1618   -0.9868   -0.0541   -0.9985   F
-   -0.0541   -0.9985    0.0541   -0.9985   F
-    0.0541   -0.9985    0.2675   -0.9635   F
-    0.2675   -0.9635    0.4684   -0.8835   F
-    0.4684   -0.8835    0.6474   -0.7622   F
-    0.6474   -0.7622    0.7961   -0.6052   F
-    0.7961   -0.6052    0.9076   -0.4199   F
-    0.9076   -0.4199    0.9766   -0.2150   F
-    0.9766   -0.2150    1.0000    0.0000   F
-***** [vall] Tracciones nulas en inclusión ***** [normales hacia la inclusión]
-1 1  <- escala:x escala:y
-0 0  <- offset:x offset:y
-1.0  <- [negativo invierte normal]
-Inclusion properties
-Alfa(m/s) Beta(m/s) Dens(T/m3) 
-2.0   1.0   1.0
-Cualquier receptor dentro de esta superficie está en el aire
-0    N segmentos 
-1 1  <- escala:x escala:y
-0 0  <- offset:x offset:y
-Cualquier receptor dentro de estas superficies está en la region homogenea
-1  N de regiones
-30  Total de segmentos
-30   N segmentos 
-0.5 0.5  <- escala:x escala:y
-0.5 0.6  <- offset:x offset:y
-    1.0000         0    0.9766    0.2150   F
-    0.9766    0.2150    0.9076    0.4199   F
-    0.9076    0.4199    0.7961    0.6052   F
-    0.7961    0.6052    0.6474    0.7622   F
-    0.6474    0.7622    0.4684    0.8835   F
-    0.4684    0.8835    0.2675    0.9635   F
-    0.2675    0.9635    0.1618    1.0000   F
-    0.1618    1.0000   -0.1618    1.0000   F
-   -0.1618    1.0000   -0.3701    0.9290   F
-   -0.3701    0.9290   -0.5612    0.8277   F
-   -0.5612    0.8277   -0.7260    0.6877   F
-   -0.7260    0.6877   -0.8569    0.5156   F
-   -0.8569    0.5156   -0.9477    0.3193   F
-   -0.9477    0.3193   -1.0000    0.1081   F
-   -1.0000    0.1081   -1.0000   -0.1081   F
-   -1.0000   -0.1081   -0.9477   -0.3193   F
-   -0.9477   -0.3193   -0.8569   -0.5156   F
-   -0.8569   -0.5156   -0.7260   -0.6877   F
-   -0.7260   -0.6877   -0.5612   -0.8277   F
-   -0.5612   -0.8277   -0.3701   -0.9290   F
-   -0.3701   -0.9290   -0.1618   -0.9868   F
-   -0.1618   -0.9868   -0.0541   -0.9985   F
-   -0.0541   -0.9985    0.0541   -0.9985   F
-    0.0541   -0.9985    0.2675   -0.9635   F
-    0.2675   -0.9635    0.4684   -0.8835   F
-    0.4684   -0.8835    0.6474   -0.7622   F
-    0.6474   -0.7622    0.7961   -0.6052   F
-    0.7961   -0.6052    0.9076   -0.4199   F
-    0.9076   -0.4199    0.9766   -0.2150   F
-    0.9766   -0.2150    1.0000    0.0000   F 
-Borde de región homogenea cuando flip12 .true.
-0    N segmentos 
-1.0  1.0   <- escala:x escala:y
-0.0  0.0   <- offset:x offset:y
-
 
 
 

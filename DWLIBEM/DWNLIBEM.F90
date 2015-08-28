@@ -805,6 +805,15 @@
       if (SH) then
       ik = 1
       l = n_top_sub + 2* n_con_sub + n_val_sub !cantidad de segmentos
+      if ((overDeterminedSystem) .and. & 
+          (OD_Jini .le. J) .and. &
+          (J .le. OD_Jend)) then !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
+      Mi = ik*(l + n_OD)
+      Ni = ik*l
+      call overDetermineSystem(J,ik*l+1,.false.)
+      call solveOverDetermineSystem(Mi,Ni)
+      Mi = Ni
+      else !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
       iPIVbem = ik * l
       Mi = ik * l
       Ni = ik * l
@@ -830,6 +839,8 @@
       
       if (any(isnan(real(trac0vec)))) then ! NAN is not equal even to itself
       stop "891 valio madres el ibem"; end if!
+      end if !#< r -.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.- !#>
+      
       !#< b
       !call showMNmatrixZ(Mi,1, trac0vec," phi ",6)
       if (verbose .ge. 2) then  
@@ -879,15 +890,15 @@
 !          real(boupoints(iPxi)%G(iP_X,i,2)),aimag(boupoints(iPxi)%G(iP_X,i,2))
            iPxi = iPxi + 1
          end do !iPhi         
-          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
+          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector(1:Mi)," auxG",6)
           
           
           if (i .eq. 3) allpoints(iP_x)%resp(J,currentiFte)%V = & 
                         allpoints(iP_x)%resp(J,currentiFte)%V + &
-                        sum(trac0vec * auxGvector)
+                        sum(trac0vec(1:Mi) * auxGvector(1:Mi))
           if (i .eq. 6) allpoints(iP_x)%resp(J,currentiFte)%Ty = & 
                         allpoints(iP_x)%resp(J,currentiFte)%Ty + &
-                        sum(trac0vec * auxGvector)
+                        sum(trac0vec(1:Mi) * auxGvector(1:Mi))
       end do !i
       end do !iP_x
       
@@ -920,8 +931,8 @@
            auxGvector(iPhi) = boupoints(iPxi)%Gmov(iP_X-nIpts,i,2,m)
            iPxi = iPxi + 1
          end do !iPhi 
-         if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector," auxG",6)
-          fotogramas(iP_x-nIpts,m,J,i,currentiFte) = sum(trac0vec * auxGvector) + &
+         if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector(1:Mi)," auxG",6)
+          fotogramas(iP_x-nIpts,m,J,i,currentiFte) = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
           allpoints(iP_x)%Wmov(J,i,m,currentiFte) 
 !     end do !i
       end do !iP_x
@@ -5043,6 +5054,7 @@
       complex*16, dimension(1,mecS:mecE), target :: auxK
       complex*16, intent(in)  :: cOME
       type(FFres),target :: FF
+      type(FFres) :: SolRef
       complex*16 :: TractionPSV, TractionSH
       if (p_X%tipoFrontera .gt. 1) return !o sea =2: (tracciones libres desde inclusión)
 !     print*,"ibemmat",auxK(1,1:5)
@@ -5050,18 +5062,20 @@
       if (dir_j .eq. 2) then ! SH
        if (p_x%tipoFrontera .le. 1) then
         call FFsh(i_zF,FF,p_X,pXi,cOME,1,3)
+        SolRef%Ty = (TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty)
+        SolRef%V = (auxk(1,1) + FF%V)
       !  |  Tyy  |
         if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
            ibemMat(p_x%boundaryIndex,pXi%boundaryIndex) = 0.5_8*UR
         else
            ibemMat(p_x%boundaryIndex,pXi%boundaryIndex) = &
-              (TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty)
+              SolRef%Ty !(TractionSH(auxk(1,2),auxk(1,3),p_x%normal) + FF%Ty)
         end if
            ! y si es un p. de coloc. en frontera con continuidad
         if (p_X%tipoFrontera .eq.1) then 
       !  |   V   |
            ibemMat(p_x%boundaryIndex + n_con_sub,pXi%boundaryIndex) = &
-              (auxk(1,1) + FF%V)
+              SolRef%V !(auxk(1,1) + FF%V)
         end if
        end if
       else !PSV -------------------------------------------------------------
@@ -5151,6 +5165,7 @@
       complex*16 :: c,kx!,omega,bet,alf
       complex*16, intent(in)  :: cOME
       type(FFres),target :: FF
+      type(FFres) :: SolRef
       real*8 :: nf(3)
       logical :: PW
       nf(1) = pXi%normal%x
@@ -5266,7 +5281,8 @@
       return
       end if
        call FFsh(i_zf,FF,p_X,pXi,cOME,1,3) !incidencia directa
-       
+       SolRef%Ty = ((auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty)
+       SolRef%V = (auxk(1,1) + FF%V)
 !      !#< r
 !      print*,p_X%center
 !      print*,auxk(1,1) ,abs(auxk(1,1)),FF%V,abs(FF%V),abs(auxk(1,1)+FF%V)
@@ -5278,17 +5294,17 @@
 !         print*,p_x%resp(J,iFte)%V,auxk(1,1),FF%V,nf(dir_j);stop 4898
 !         if (pXi%region .ne. p_x%region) return
           p_x%resp(J,iFte)%V = & 
-          p_x%resp(J,iFte)%V + (auxk(1,1) + FF%V) !* nf(dir_j) ! V
+          p_x%resp(J,iFte)%V + SolRef%V !(auxk(1,1) + FF%V) !* nf(dir_j) ! V
           p_x%resp(J,iFte)%Ty = & 
-          p_x%resp(J,iFte)%Ty + & 
-          ((auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty) !* nf(dir_j)
+          p_x%resp(J,iFte)%Ty + SolRef%Ty !& 
+!         ((auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty) !* nf(dir_j)
           !                     s12                       s32
        else
           pXi%G(p_x%pointIndex,3,dir_j) = & 
-          pXi%G(p_x%pointIndex,3,dir_j) + auxK(1,1) + FF%V ! V
+          pXi%G(p_x%pointIndex,3,dir_j) + SolRef%V !auxK(1,1) + FF%V ! V
           pXi%G(p_x%pointIndex,6,dir_j) = & 
-          pXi%G(p_x%pointIndex,6,dir_j) + & 
-          (auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty ! Ty
+          pXi%G(p_x%pointIndex,6,dir_j) + SolRef%Ty !& 
+!         (auxk(1,3)* p_x%normal%x + auxk(1,2)* p_x%normal%z) + FF%Ty ! Ty
           !                     s12                       s32
        end if
       else !PSV
@@ -5403,6 +5419,7 @@
       type(Punto), pointer :: pXi,p_X
       integer :: ip_X,dj
       type(FFres),target :: FF
+      type(FFres) :: SolRef
       
       nullify(pXi)
       pXi => boupoints(ipXi)
@@ -5413,6 +5430,8 @@
         
       if (dir_j .eq. 2) then ! SH
         call FFsh(-1,FF,p_X,pXi,cOME,1,3)
+        SolRef%Ty = FF%Ty
+        SolRef%V = FF%V
        if(p_X%tipoFrontera .eq. 1) then !if(p_X%tipoFrontera .lt. 2) then
       !  |  Tyy  |
         if (pXi%boundaryIndex .eq. p_x%boundaryIndex) then
@@ -5420,13 +5439,13 @@
                    pXi%boundaryIndex + n_con_sub) = 0.5_8*UR
         else
            ibemMat(p_x%boundaryIndex, &
-                   pXi%boundaryIndex + n_con_sub) = - FF%Ty
+                   pXi%boundaryIndex + n_con_sub) = -  SolRef%Ty!FF%Ty
         end if
            ! y si es un p. de coloc. en frontera con continuidad
 !       if (p_X%tipoFrontera .eq.1) then 
       !  |   V   |
            ibemMat(p_x%boundaryIndex + n_con_sub, & 
-                   pXi%boundaryIndex + n_con_sub) = - FF%V
+                   pXi%boundaryIndex + n_con_sub) = - SolRef%V!FF%V
 !       end if
            ! y si es un p. de coloc. en frontera libre
        elseif (p_X%tipoFrontera .eq. 2) then
@@ -5437,7 +5456,7 @@
                    pXi%boundaryIndex + n_con_sub) = - 0.5_8*UR
            else
                ibemMat(p_x%boundaryIndex + n_con_sub, & 
-                   pXi%boundaryIndex + n_con_sub) = FF%Ty
+                   pXi%boundaryIndex + n_con_sub) =  SolRef%Ty!FF%Ty
            end if
        end if
       else !PSV **********************************************************************
@@ -5525,6 +5544,7 @@
       integer :: i,j,iPo
       type(Punto),target :: p_xaux
       type(FFres),target :: FF
+      type(FFres) :: SolRef
       real*8 :: nf(3)
       ! ciclar en todos los puntos y averiguar se le corresponde
       do iP_x = 1, nIpts ! (todos los puntos receptores menos las fronteras de integración)
@@ -5537,8 +5557,10 @@
         pXi => boupoints(iPXi)
         if (dir_j .eq. 2) then ! SH
          call FFsh(-1,FF,p_X,pXi,cOME,1,3)
-          pXi%G(p_x%pointIndex,3,dir_j) = FF%V ! V
-          pXi%G(p_x%pointIndex,6,dir_j) = FF%Ty ! Ty
+         SolRef%Ty = FF%Ty
+         SolRef%V = FF%V
+          pXi%G(p_x%pointIndex,3,dir_j) = SolRef%V !FF%V ! V
+          pXi%G(p_x%pointIndex,6,dir_j) = SolRef%Ty !FF%Ty ! Ty
         else !PSV
          call FFpsv(-1,FF,dir_j,p_X,pXi,cOME,1,5) 
           pXi%G(p_X%pointIndex,1,dir_j) = FF%W !W 
@@ -5562,8 +5584,10 @@
 !     print*,"iFte=",iFte
       if (dir_j .eq. 2) then ! SH
        call FFsh(0,FF,p_X,pXi,cOME,1,3)
-          p_x%resp(Jfrec,iFte)%V = p_x%resp(Jfrec,iFte)%V + (FF%V) * nf(dir_j) ! V
-          p_x%resp(Jfrec,iFte)%Ty = p_x%resp(Jfrec,iFte)%Ty + (FF%Ty) * nf(dir_j)
+          SolRef%Ty = FF%Ty
+          SolRef%V = FF%V
+          p_x%resp(Jfrec,iFte)%V = SolRef%V !p_x%resp(Jfrec,iFte)%V + (FF%V) * nf(dir_j) ! V
+          p_x%resp(Jfrec,iFte)%Ty = SolRef%Ty !p_x%resp(Jfrec,iFte)%Ty + (FF%Ty) * nf(dir_j)
       else !PSV
        call FFpsv(0,FF,dir_j,p_X,pXi,cOME,1,5) 
 !        if (pXi%region .ne. p_x%region) cycle
@@ -5775,6 +5799,87 @@
        end if !%tipoFrontera
       else !PSV / SH
          stop "overDetermineSystem: Falta SH sobreDet"
+         
+         if (p_X% tipoFrontera .eq.0) then!#< r frontera tipo trontera libre en medio estrat !#>
+          ipxi_I = 1
+          ipxi_F = n_top_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            dir_j=2 !por fuerza transversal
+            !  |  Tyy  |
+            col = pXi%boundaryIndex 
+!           print*,"ibemMat",pXi%G(p_X%pointIndex,5,dir_j),pXi%G(p_X%pointIndex,4,dir_j)
+              ibemMat(ren,   col) = pXi%G(p_X%pointIndex,6,dir_j) !Ty
+            
+          end do !iPxi
+            !  | Ty |
+!           print*,"tra0",p_x%resp(J,iFte)%Tx,p_x%resp(J,iFte)%Tz
+              trac0vec(ren  ) = p_x%resp(J,iFte)%Ty  !0
+          renStep = 1
+       else if (p_X%tipoFrontera .eq.1) then !#< r  frontera tipo continuidad !#>
+          ipxi_I = 1
+          ipxi_F = n_top_sub + n_con_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            dir_j=2 !transversal
+            !  |  Tyy  |
+            col = pXi%boundaryIndex 
+              ibemMat(ren,   col) = pXi%G(p_X%pointIndex,6,dir_j) !Ty
+            !  |  Wx   Wz  |
+            !  |  Ux   Uz  |
+              ibemMat(ren+1, col) = pXi%G(p_X%pointIndex,3,dir_j) !V
+            
+          end do !iPxi
+          ipxi_I = n_top_sub + 1
+          ipxi_F = n_top_sub + n_con_sub + n_val_sub
+          do iPxi = ipxi_I,ipxi_F!; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi)!; print*,"pxiCen=",pXI%center
+            dir_j=2 !por fuerza transversal
+            call FFsh(-1,FF,p_X,pXi,cOME,1,3)
+            !  |  Txx Txz  |
+            !  |  Tzx Tzz  |
+            col = (pXi%boundaryIndex )+ 1* n_con_sub
+              ibemMat(ren,   col) = -FF%Ty !Ty
+            !  |  Wx   Wz  |
+            !  |  Ux   Uz  |
+              ibemMat(ren+1, col) = -FF%V !v
+            
+          end do !iPxi
+            !  | Tx |
+            !  | Tz |
+            !  | W  |
+            !  | U  |
+              trac0vec(ren  ) = p_x%resp(J,iFte)%Ty
+              trac0vec(ren+1) = p_x%resp(J,iFte)%V
+          renStep = 2
+       else if (p_X%tipoFrontera .eq.2) then !#< r  frontera tipo frontera libre en inclusión elástica !#>
+          ! los segmentos en la frontera de continuidad y en
+          ! la frontera libre en la inclusión
+          ipxi_I = n_top_sub + 1
+          ipxi_F = n_top_sub + n_con_sub + n_val_sub
+!         print*,"ipxi_I=",ipxi_I,"ipxi_F=",ipxi_F
+          do iPxi = ipxi_I,ipxi_F !; print*,"iPxi = ",iPxi
+            pXI => boupoints(iPxi) !; print*,"pxiCen=",pXI%center
+            dir_j=2 !por fuerza transversal
+            call FFsh(-1,FF,p_X,pXi,cOME,1,3)
+            !  |  Txx Txz  |
+            !  |  Tzx Tzz  |
+!           col = pXi%boundaryIndex *2 -(2 - dj)+ 2* n_con_sub + n_top_sub 
+            col = (pXi%boundaryIndex )+ 1* n_con_sub
+!           print*,"col=",col,"  ren=",ren
+!           print*,"| Tx |",FF%Tx
+!           print*,"| Tz |",FF%Tz
+            
+              ibemMat(ren,   col) =  FF%Ty !Ty
+            
+          end do !iPxi
+!             print*,"trac0vec(",ren,ren+1,")"
+!             print*,"| Tx |",p_x%resp(J,iFte)%Tx
+!             print*,"| Tz |",p_x%resp(J,iFte)%Tz
+              trac0vec(ren  ) = z0!p_x%resp(J,iFte)%Ty
+          renStep = 1
+       end if !%tipoFrontera
+         
       end if !PSV/SH
       ren = ren + renStep
       end do !iP_x

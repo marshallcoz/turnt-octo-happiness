@@ -257,9 +257,13 @@
        write(outpf,'(a,F12.7)') "   delta X = ", real(pi / (nMax * DK),4)
        write(outpf,'(a,EN14.2E2,a)') "   L = 2*pi/DK = ",2*pi/DK, "m"
        write(outpf,'(a,EN19.5E2,a)') &
-       "   L/alfa = tp = ",(2*pi/DK)/maxval(abs(ALFA0)), "seconds"
+       "   L/Mxaalfa = ",(2*pi/DK)/maxval(abs(ALFA0(1:N+1))), "seconds"
        write(outpf,'(a,EN19.5E2,a)') &
-       "   L/beta = ts = ",(2*pi/DK)/maxval(abs(BETA0)), "seconds"
+       "   L/Maxbeta = ",(2*pi/DK)/maxval(abs(BETA0(1:N+1))), "seconds"
+       write(outpf,'(a,EN19.5E2,a)') &
+       "   L/minalfa = ",(2*pi/DK)/minval(abs(ALFA0(1:N+1))), "seconds"
+       write(outpf,'(a,EN19.5E2,a)') &
+       "   L/minbeta = ",(2*pi/DK)/minval(abs(BETA0(1:N+1))), "seconds"
        write(outpf,'(a,E10.2,a)') '   Frec. Imaginary part: - periodicdamper*PI/TW = ',OMEI,' rad/s'
        write(outpf,'(a)') &
        "---------------------------------------------------------------------------------"
@@ -404,7 +408,7 @@
       inqPoints(:)%region = 1
       inqPoints(:)%boundaryIndex = 0
       inqPoints(:)%atBou = .false.
-      READ(7,*) !  X        Z          nx       nz     guardarFK
+      READ(7,*) !  X        Z          nx       nz     guardarFK   isOD    tipoFrontera
       do i=1, nIpts
          READ(7,*) inqPoints(i)%center%x, inqPoints(i)%center%z, &
              inqPoints(i)%normal%x, inqPoints(i)%normal%z, auxGuardarFK, &
@@ -715,7 +719,11 @@
        Po(i)%cosT = cos((360-PW_theta)*pi/180.0)
        Po(i)%sinT = sin((360-PW_theta)*pi/180.0)
        Po(i)%gamma = PW_theta*pi/180.0 !clockwise desde el eje z (hacia abajo)
+       if (tipoFuente .eq. 2) then
        Po(i)%length = l
+       else
+       Po(i)%length = 1
+       end if
        if (tipoFuente .eq. 1) then ! onda plana
 !         if (Po(i)%center%z .gt. 0.001) then
             Po(i)%center%z = Z(N+1)
