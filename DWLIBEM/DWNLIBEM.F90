@@ -2,7 +2,7 @@
       use gloVars
       use refSolMatrixVars, only : Ak,B,BparaGa,BparaNu,CoefparGa, CoefparNu,subMatD0,subMatS0
       use waveNumVars
-      use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq
+      use soilVars, only : alfa,beta, alfa0,beta0,minbeta,n,z,amu,lambda,rho,qq,minWL
       use debugStuff
       use resultVars
       use ploteo10pesos
@@ -294,6 +294,7 @@
       allocate( subMatD0(2,4,N+1,0:2*nmax))
       allocate( subMatS0(3,4,N+1,0:2*nmax))      
       allocate( k_vec(2*nmax))
+      allocate( minWL(0:N+2))
       k_vec(1) = real(dk * 0.01,8)
       do ik = 2,NMAX+1
         k_vec(ik) = real(ik-1,8) * dk
@@ -421,6 +422,9 @@
            Lambda(l) = RHO(l)*alfa(l)**2. - real(2.)*aMU(l)
           end do 
         end if
+        do l=i,ik
+           minWL(l) = real(beta(l))/FREC
+        end do
       !#< b
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
@@ -892,7 +896,6 @@
          end do !iPhi         
           if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector(1:Mi)," auxG",6)
           
-          
           if (i .eq. 3) allpoints(iP_x)%resp(J,currentiFte)%V = & 
                         allpoints(iP_x)%resp(J,currentiFte)%V + &
                         sum(trac0vec(1:Mi) * auxGvector(1:Mi))
@@ -934,12 +937,15 @@
          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector(1:Mi)," auxG",6)
           fotogramas(iP_x-nIpts,m,J,i,currentiFte) = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
           allpoints(iP_x)%Wmov(J,i,m,currentiFte) 
+          
+!         print*,m,iP_x,(abs(allpoints(iP_x)%Wmov(J,i,m,currentiFte))), & 
+!         (abs(sum(trac0vec(1:Mi) * auxGvector(1:Mi))))
 !     end do !i
       end do !iP_x
       end do !m
       end if !makevideo
       end if !SH
-!     stop 2214
+!     stop 944
       else !not workboundary
       if (makeVideo) then
       if (PSV) then
@@ -1556,8 +1562,8 @@
       
       allocate(boupoints(nSegmeTotal)) !numero de segmentos total
         do idi = 1,size(boupoints)
-          allocate(BouPoints(idi)%Gq_xXx_coords(Gquad_n,2))
-          allocate(BouPoints(idi)%Gq_xXx_C(Gquad_n))
+          allocate(BouPoints(idi)%Gq_xXx_coords(Gquad_n,2,2))
+          allocate(BouPoints(idi)%Gq_xXx_C(Gquad_n,2))
         end do 
       nBpts = nSegmeTotal
       
@@ -1656,14 +1662,14 @@
       ! Coordenadas de los puntos de integración Gaussiana.
       use resultVars, only : Punto 
       use glovars, only : verbose
-      use Gquadrature, only: Gqu_n => Gquad_n, & 
-                             Gqu_t => Gqu_t_30, & 
-                             Gqu_A => Gqu_A_30
+      use Gquadrature, only: Gquad_n,Gquad_f, &
+                             Gqu_t_n, Gqu_A_n, &
+                             Gqu_t_f, Gqu_A_f
       implicit none
       real*8, dimension(2) :: A,B
-      real*8, dimension(:), pointer :: G_c
+      real*8, dimension(:,:), pointer :: G_c
       real*8, pointer :: L
-      real*8, dimension(:,:), pointer :: Gq
+      real*8, dimension(:,:,:), pointer :: Gq
       real*8, dimension(2) :: norm_comp
       real*8, dimension(2) :: ABp !x or y coords of points A and B
       integer :: i, xory, xoryOtro
@@ -1674,8 +1680,8 @@
       A = (/ BP%bord_A%x, BP%bord_A%z /)
       B = (/ BP%bord_B%x, BP%bord_B%z /)
       L => BP%length
-      Gq => BP%Gq_xXx_coords(1:Gqu_n,1:2)
-      G_c => BP%Gq_xXx_C(1:Gqu_n)
+      Gq => BP%Gq_xXx_coords(1:Gquad_n,1:2,1:2)
+      G_c => BP%Gq_xXx_C(1:Gquad_n,1:2)
       
       norm_comp(1)=abs(B(1)-A(1)) / L
       norm_comp(2)=abs(B(2)-A(2)) / L
@@ -1693,17 +1699,28 @@
       ABp(1) = A(xory)
       ABp(2) = B(xory)
       
-      do i = 1,Gqu_n !ceros de Legendre (una coordenada):      
-        Gq(i,xory) = (ABp(2)+ABp(1))/2. + (ABp(2)-ABp(1))/2. * Gqu_t(i)
-        G_c(i) = abs(L)/2. * Gqu_A(i)
+      ! para campo cercano (1)
+      do i = 1,Gquad_n !ceros de Legendre (una coordenada):      
+        Gq(i,xory,1) = (ABp(2)+ABp(1))/2. + (ABp(2)-ABp(1))/2. * Gqu_t_n(i)
+        G_c(i,1) = abs(L)/2. * Gqu_A_n(i)
+      end do
+      ! para campo lejano (2)
+      do i = 1,Gquad_f !ceros de Legendre (una coordenada):      
+        Gq(i,xory,2) = (ABp(2)+ABp(1))/2. + (ABp(2)-ABp(1))/2. * Gqu_t_f(i)
+        G_c(i,2) = abs(L)/2. * Gqu_A_f(i)
       end do
       ! la otra coordenada:
         xA = ABp(1)
         yA = A(xoryOtro)
         xB = ABp(2)
         yB = B(xoryOtro)
-        do i = 1,Gqu_n
-          Gq(i,xoryOtro) = interpol(xA,yA,xB,yB,Gq(i,xory))
+        ! near
+        do i = 1,Gquad_n
+          Gq(i,xoryOtro,1) = interpol(xA,yA,xB,yB,Gq(i,xory,1))
+        end do
+        ! far
+        do i = 1,Gquad_f
+          Gq(i,xoryOtro,2) = interpol(xA,yA,xB,yB,Gq(i,xory,2))
         end do
       
       if (verbose .ge. 4) then
@@ -1715,11 +1732,16 @@
         if (xory .eq. 1) print*,"mayormente horizontal"
         if (xory .eq. 2) print*,"mayormente vertical"          
         !print*,"{",xA,",",yA,"}-{",xB,",",yB,"} Gquad points:"
-        do i = 1,Gqu_n
-          print*,"Gq",i,"[", BP%Gq_xXx_coords(i,1), " , ", &
-          BP%Gq_xXx_coords(i,2), "] :: ", BP%Gq_xXx_C(i)
+        print*, "near field:"
+        do i = 1,Gquad_n
+          print*,"Gq",i,"[", BP%Gq_xXx_coords(i,1,1), " , ", &
+          BP%Gq_xXx_coords(i,2,1), "] :: ", BP%Gq_xXx_C(i,1)
         end do
-        print*,""
+        print*,"far field:"
+        do i = 1,Gquad_f
+          print*,"Gq",i,"[", BP%Gq_xXx_coords(i,1,2), " , ", &
+          BP%Gq_xXx_coords(i,2,2), "] :: ", BP%Gq_xXx_C(i,2)
+        end do
       end if
       end subroutine punGa
       
@@ -2228,12 +2250,13 @@
           auxK(ne:2*nmax,mecS:mecE) = savedAuxK(ne:2*nmax,mecS:mecE)
             ! agregar información fase horizontal de fuente y receptor 
           do imec = mecS,mecE !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-
+          if (p_x%guardarMovieSiblings .eqv. .false.) then
             if (isPW) then 
-                if (p_x%guardarMovieSiblings .eqv. .false.) then
+!               if (p_x%guardarMovieSiblings .eqv. .false.) then
                 auxk(1,imec) = auxk(1,imec) * &           ! onda plana      ·
                 exp(-UI*k*(p_x%center%x - xf))            !                 ·
                 CYCLE ! imec                              !                 ·
-                end if
+!               end if
             end if ! ························································
 !           print*,k_vec(:)
             do ik = 1,pos+1                                                 !
@@ -2270,7 +2293,7 @@
        lastresult = result
 #endif
       ! K -> X  .........................................................   !
-         if (p_x%guardarMovieSiblings .eqv. .false.) then
+         
 #ifdef ver         
         write(arg,'(a,I0,I0,a)') "k_at",p_x%pointIndex,imec,".m"
         OPEN(739,FILE=trim(arg),FORM="FORMATTED",ACTION='WRITE')
@@ -4160,13 +4183,13 @@
 !#define ver 1
       ! Sanchez-Sesma y Campillo, 1991.  Mismo resultado que:
       ! Kaussel, Fundamental solutions in elastodynamics... pag 38
-      use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N!,Z
+      use soilVars ,only : alfa0,beta0,Lambda0,AMU0,alfa,beta,amu,lambda,rho,N,minWL
       use gloVars, only:UI,UR,one,z0,PWfrecReal
       use hank !     use specfun
       use resultvars, only : Punto,FFres
       use sourceVars, only: Po,iFte=>currentiFte!tipofuente, PW_pol
       use waveNumVars, only : OME
-      use Gquadrature, only : Gquad_n      
+      use Gquadrature, only : Gquad_n,Gquad_f      
       implicit none
       interface
         subroutine greenexPSV(greenex,dir_j,p_X,pXi,estrato,cOME)
@@ -4188,7 +4211,7 @@
       complex*16 :: H0s,H1s,H2s,H0p,H1p,H2p !Hankel 
       complex*16 :: szz,szx,sxx
       complex*16 :: la,am
-      integer :: i,j
+      integer :: i,j,iGqDistan
       integer, pointer :: e
       real*8 :: nX(2)
       integer :: iGq,nGq
@@ -4355,16 +4378,31 @@
          if (el_tipo_de_fuente .eq. 0) then
             nGq = 1
             GqC => ONE
-         else !.eq. 2 (fuente segmento suficientemente alejado)
-            if (pXi%isBoundary) nGq = Gquad_n ! IBEM
-            if (pXi%isSourceSegmentForce) nGq = Gquad_n 
-            if (nGq .ne. Gquad_n) stop "chin 6600"
+            iGqDistan = 0
+         else !.eq. 2 (fuente segmento)
+            if (abs(r) .le. minWL(e)) then
+            ! si está muy cerca:
+            nGq = Gquad_n
+            iGqDistan = 1
+            else if (abs(r) .le. 2*minWL(e)) then
+            ! si está mas o menos cerca
+            nGq = Gquad_f
+            iGqDistan = 2
+            else 
+            ! está lejos
+            nGq = 1
+            GqC => ONE
+            iGqDistan = 0
+            end if!
+!           if (pXi%isBoundary) nGq = Gquad_n ! IBEM
+!           if (pXi%isSourceSegmentForce) nGq = Gquad_n 
+!           if (nGq .ne. Gquad_n) stop "chin 6600"
          end if
          do iGq = 1,nGq
             if (nGq .gt. 1) then
-                xf => pXi%Gq_xXx_coords(iGq,1)
-                zf => pXi%Gq_xXx_coords(iGq,2)
-                GqC => pXi%Gq_xXx_C(iGq) 
+                xf => pXi%Gq_xXx_coords(iGq,1,iGqDistan)
+                zf => pXi%Gq_xXx_coords(iGq,2,iGqDistan)
+                GqC => pXi%Gq_xXx_C(iGq,iGqDistan) 
             end if
             r = sqrt((p_x%center%x-xf)**2. + (p_x%center%z-zf)**2.)
 #ifdef ver
@@ -4628,13 +4666,13 @@
 ! G_full SH 
       subroutine FFsh(i_zF,FF,p_X,pXi,cOME,mecS,mecE)
 !#define ver 1
-      use soilVars ,only : amu,amu0,beta,beta0,N!,z
+      use soilVars ,only : amu,amu0,beta,beta0,N,minWL
       use gloVars, only:UR,UI,z0,ONE,PWfrecReal
       use hank !use specfun
       use resultvars, only : Punto,FFres
       use sourceVars, only: Po,iFte=>currentiFte!use sourceVars, only: tipofuente
       use waveNumVars, only : OME
-      use Gquadrature, only : Gquad_n
+      use Gquadrature, only : Gquad_n,Gquad_f
       implicit none
       interface
         subroutine greenexSH(FF,p_X,pXi,e,cOME)
@@ -4654,7 +4692,7 @@
       complex*16 :: omeS,c,am
       complex*16 :: H0s,H1s,kx,kz,szy,sxy
       integer, pointer :: e
-      integer :: iGq,nGq
+      integer :: iGq,nGq,iGqDistan
       real*8 ::  nX(2)
       real*8, pointer :: xf,zf,GqC
       integer :: el_tipo_de_fuente
@@ -4795,17 +4833,33 @@
       if (usarGreenex .eqv. .false.) then
          if (el_tipo_de_fuente .eq. 0) then                             !
            nGq = 1                                                      !
-           GqC => ONE                                                   ! 
-         else ! eq. 2; print*,"fuente segmento "                        !
-           if (pXi%isBoundary) nGq = Gquad_n ! IBEM                     !
-           if (pXi%isSourceSegmentForce) nGq = Gquad_n                  !
-           if (nGq .ne. Gquad_n) stop "chin 6600"                       !
+           GqC => ONE
+           iGqDistan = 0
+         else !.eq. 2 (fuente segmento)
+            if (abs(r) .le. minWL(e)) then
+            ! si está muy cerca:
+            nGq = Gquad_n
+            iGqDistan = 1
+            else if (abs(r) .le. 2*minWL(e)) then
+            ! si está mas o menos cerca
+            nGq = Gquad_f
+            iGqDistan = 2
+            else 
+            ! está lejos
+            nGq = 1
+            GqC => ONE
+            iGqDistan = 0
+            end if!                                                 ! 
+!        else ! eq. 2; print*,"fuente segmento "                        !
+!          if (pXi%isBoundary) nGq = Gquad_n ! IBEM                     !
+!          if (pXi%isSourceSegmentForce) nGq = Gquad_n                  !
+!          if (nGq .ne. Gquad_n) stop "chin 6600"                       !
          end if                                                         !
          do iGq = 1,nGq !..........................................     !
             if (nGq .gt. 1) then                                  !     !
-               xf => pXi%Gq_xXx_coords(iGq,1)                     !     !
-               zf => pXi%Gq_xXx_coords(iGq,2)                     !     !
-               GqC => pXi%Gq_xXx_C(iGq)                           !     !
+               xf => pXi%Gq_xXx_coords(iGq,1,iGqDistan)           !     !
+               zf => pXi%Gq_xXx_coords(iGq,2,iGqDistan)           !     !
+               GqC => pXi%Gq_xXx_C(iGq,iGqDistan)                 !     !
             end if                                                !     !
       r = sqrt((p_x%center%x-xf)**2. + (p_x%center%z-zf)**2.)     !     !
 #ifdef ver
@@ -5191,7 +5245,7 @@
         do i = 1,npixX ! para cada hermanito
           mov_x = MeshMinX + (MeshMaxX - MeshMinX)/(npixX-1) * (i-1)! la coordenada x
           p_Xmov%center%x = mov_x
-          
+!         print*,i,mov_x,pXi%center%x
           ! si no es de la region 0 no vale la pena calcularlo
           if(fotogramas_Region(p_x%pointIndex-nIpts,i) .ne. 1) then !'estr'
 !           print*,"cycled [",p_Xmov%center%x,",",p_xaux%center%z,"]"
@@ -5208,13 +5262,13 @@
 !      if ((i_zF .eq. 0) .and. (PoFte(iFte)%tipofuente .eq. 1)) then ! onda plana !
       if (PW) then
 !      if (p_x%isOnInterface .eqv. .true.) return  ! creo                   !
-       if ((PoFte(iFte)%PW_pol .eq. 1) .or. (PoFte(iFte)%PW_pol .eq. 3)) then
+!      if ((PoFte(iFte)%PW_pol .eq. 1) .or. (PoFte(iFte)%PW_pol .eq. 3)) then
          if (PWfrecReal) then
            c = UR*beta0(N+1) !SV
          else
            c = beta(N+1) !SV
-         end if
-       elseif (PoFte(iFte)%PW_pol .eq. 2) then
+         end if!
+        if (PoFte(iFte)%PW_pol .eq. 2) then
          if (PWfrecReal) then
            c = UR*alfa0(N+1) !SV
          else
@@ -5236,11 +5290,11 @@
         do imec = 1,mecaElemEnd
            do ik = 1,po+1!2*Nmax
             auxKmo(ik,imec) = auxk(ik,imec) * &
-            exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x-pXi%center%x), 8))
+            exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x - pXi%center%x), 8))
            end do!  ik
            do ik = ne,2*Nmax
             auxKmo(ik,imec) = auxk(ik,imec) * &
-            exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x-pXi%center%x), 8))
+            exp(cmplx(0.0_8, (-1.0_8)*k_vec(ik)*(p_Xmov%center%x - pXi%center%x), 8))
            end do!  ik
            
            !K->X
@@ -5256,7 +5310,7 @@
           call FFsh(i_zf,FF,p_Xmov,pXi,cOME,1,1)
             if(i_zf .eq.0) then
               p_x%Wmov(J,3,i,iFte) = & 
-              p_x%Wmov(J,3,i,iFte) + (auxKmo(1,1) + FF%V) * nf(dir_j) ! V
+              p_x%Wmov(J,3,i,iFte) + (auxKmo(1,1) + FF%V) ! * nf(dir_j) ! V
             else
               pXi%Gmov(p_x%pointIndex-nIpts,3,dir_j,i) = & 
               pXi%Gmov(p_x%pointIndex-nIpts,3,dir_j,i) + auxKmo(1,1) + FF%V ! V
@@ -5274,6 +5328,7 @@
             end if
           end if !dir_j
         end do ! i
+!       stop 5276
       else !not a movie point .......................................................................
       if (dir_j .eq. 2) then ! SH
       if (pXi%region .ne. p_x%region) then 
@@ -5986,7 +6041,7 @@
       integer :: i,ix,iz,imec,mecS,mecE
       complex*16, dimension(:), pointer :: p_fot
       character(LEN=100) :: nam,titlen
-      
+      call system('mkdir perPixelTraces')
       if (verbose .ge. 1) print*,"frec -> time"
       if (iFte .eq. 0) stop "crepa_four_fotogr iFte=0"
       
@@ -6017,13 +6072,13 @@
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
           exp(-OMEI * Dt*((/(i,i=0,nT-1)/)))
-          if (verbose .ge. 3) then
+!         if (verbose .ge. 3) then
             CALL chdir("perPixelTraces")
             write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
             CALL SETFIL(trim(titleN))
             call qplot(real((/((i-1)*Dt,i=1,nT)/),4),real(p_fot(1:nT),4),nT)
             CALL chdir("..")
-          end if
+!         end if
         end do !ix
       end do !iz
       end do !imec
@@ -7560,9 +7615,9 @@
       call system(trim(path))
       else
       write(path,'(a,a,a)') 'cp video.mp4 0_',nombre(iMec),'.mp4'
-!     call system(trim(path)) 
+      call system(trim(path)) 
       end if
-!     call system('rm video/video.mp4')
+      call system('rm video.mp4')
       
       if (verbose .ge. 2) then
       print *, char(7)
@@ -7802,12 +7857,12 @@
       call color('FORE')                                                 !
       !             circulitos negros                                    !
       CALL RLSYMB (17, real(BP(j)%center%x,4), real(BP(j)%center%z,4))   !
-      call color('ORANGE')                                               !
-      CALL HSYMBL(int(3,4)) !size of symbols                             !
-      call marker(int(0,4)) !tachecitos                                  !
-      call curve(real(BP(j)%Gq_xXx_coords(:,1),4), &                     !
-                 real(BP(j)%Gq_xXx_coords(:,2),4), &                     !
-                 int(size(BP(J)%Gq_xXx_coords(:,1)),4))                  !
+!     call color('ORANGE')                                               !
+!     CALL HSYMBL(int(3,4)) !size of symbols                             !
+!     call marker(int(0,4)) !tachecitos                                  !
+!     call curve(real(BP(j)%Gq_xXx_coords(:,1),4), &                     !
+!                real(BP(j)%Gq_xXx_coords(:,2),4), &                     !
+!                int(size(BP(J)%Gq_xXx_coords(:,1)),4))                  !
       end do !j                                                          !
       end if ! zoomGeom
       end if !workboundary 

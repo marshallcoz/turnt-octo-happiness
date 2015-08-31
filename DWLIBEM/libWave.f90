@@ -38,7 +38,7 @@
       save
       integer ::  N !number of layers from z>= 0. HALF-SPACE at N+1
       real*8 :: minBeta
-      real*8,     dimension(:), allocatable :: ALFA0,BETA0,AMU0,LAMBDA0,ANU,Z,RHO
+      real*8,     dimension(:), allocatable :: ALFA0,BETA0,AMU0,LAMBDA0,ANU,Z,RHO,minWL
       complex*16 ,dimension(:), allocatable :: ALFA ,BETA ,AMU, LAMBDA
       real*8 :: Qq
       real*4, dimension(:),  allocatable :: layershadecolor
@@ -176,8 +176,8 @@
       !                 ,--- xXx (indice punto integracion Gaussiana)
       !                 | ,--- (1,2) -> (x,z)
       !                 | |
-        real*8, dimension(:,:), allocatable :: Gq_xXx_coords
-        real*8, dimension(:), allocatable :: Gq_xXx_C
+        real*8, dimension(:,:,:), allocatable :: Gq_xXx_coords
+        real*8, dimension(:,:), allocatable :: Gq_xXx_C
       
        end type Punto   
       ! bondary elements:     ,--- POINT index / x (receptor)
@@ -255,6 +255,7 @@
       module Gquadrature
         real :: WLmulti ! una o dos longitudes de onda
         integer, parameter :: Gquad_n = 30
+        integer, parameter :: Gquad_f = 8
       ! ##############################
       ! # Para cambiar Num de puntos #
       ! # actualizar encabezado de   #
@@ -262,8 +263,8 @@
       ! ##############################
       
       ! courtesy of http://pomax.github.io/bezierinfo/legendre-gauss.html
-      
-      real, parameter, dimension(8) :: Gqu_t_8 = & 
+      ! 8
+      real, parameter, dimension(8) :: Gqu_t_f = & 
       (/ -0.9602898564975363, &
          -0.7966664774136267, &
          -0.5255324099163290, &
@@ -273,7 +274,7 @@
           0.7966664774136267, &
           0.9602898564975363 /)
       
-      real, parameter, dimension(8) :: Gqu_A_8 = &
+      real, parameter, dimension(8) :: Gqu_A_f = &
       (/ 0.1012285362903763, &
          0.2223810344533745, &
          0.3137066458778873, &
@@ -315,7 +316,8 @@
           0.0801580871597602, &
           0.0351194603317519 /)
       
-      real, parameter, dimension(30) :: Gqu_t_30 = & 
+      ! near field
+      real, parameter, dimension(30) :: Gqu_t_n = & 
       (/  -0.9968934840746495, &
        -0.9836681232797472, &
        -0.9600218649683075, &
@@ -347,7 +349,7 @@
        0.9836681232797472, &
        0.9968934840746495/)
       
-      real, parameter, dimension(30) :: Gqu_A_30 = & 
+      real, parameter, dimension(30) :: Gqu_A_n = & 
       (/ 0.0079681924961666, &
        0.0184664683110910, &
        0.0287847078833234, &

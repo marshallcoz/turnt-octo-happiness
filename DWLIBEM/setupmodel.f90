@@ -752,8 +752,8 @@
         Po(i)%bord_B%z = zfsource + l * 0.5 * Po(i)%sinT
         Po(i)%isSourceSegmentForce = .true.
         BPi => Po(i)
-        allocate(BPi%Gq_xXx_coords(Gquad_n,2))
-        allocate(BPi%Gq_xXx_C(Gquad_n))
+        allocate(BPi%Gq_xXx_coords(Gquad_n,2,2))
+        allocate(BPi%Gq_xXx_C(Gquad_n,2))
         call punGa(BPi)
        else
         Po(i)%isSourceSegmentForce = .false.
