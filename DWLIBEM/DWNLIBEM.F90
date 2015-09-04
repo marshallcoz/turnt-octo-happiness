@@ -380,7 +380,7 @@
 !     if (developerfeature .ne. 0) then
 !     allocate(developerAUXvec(NFREC,2))
 !     end if !#>
-      call preparePointerTable(pota,.true.,0.1_8) !#< b
+      call preparePointerTable(pota,.true.) !#< b
       call ETIME(tarray, result)
       call system('clear')
       write(PrintNum,*)"Pre-prosses took ", result,"seconds"
@@ -391,7 +391,7 @@
       write(6,'(A)', ADVANCE = "NO") repeat("_",58)
       write(6,'(A)', ADVANCE = "NO") " "
       print*,""
-      write(6,'(A)', ADVANCE = "NO") repeat(" ",60)
+      write(6,'(A)', ADVANCE = "NO") repeat(" ",70)
       end if !#>
       DO J = frecIni,frecEnd,-1 !NFREC+1,1,-1
         FREC=DFREC*real(J-1); if (J .eq. 1)  FREC = 0.5_8 * DFREC  ! Hz
@@ -429,6 +429,7 @@
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),60)
         write(6,'(A)', ADVANCE = "NO") repeat(char(8),17) !eta
         if (workBoundary) write(6,'(A)', ADVANCE = "NO") repeat(char(8),10) !nbp
+        if (workBoundary) write(6,'(A)', ADVANCE = "NO") repeat(char(8),10) !nzs
         write(6,'(A)', ADVANCE = "NO") "["
         write(6,'(A,A)', ADVANCE = "NO") & 
         repeat("X",int((58.0/NFREC)*(NFREC+1-J))),&
@@ -445,7 +446,8 @@
       if (workBoundary) then ! Subsegment the topography if neccesssary
          call subdivideTopo(J,FREC, onlythisJ,minBeta,beta0(i:N+2),nbpts,BouPoints)
           write(6,'(A,I5)', ADVANCE = "NO") "nbp= ", nbpts
-         call preparePointerTable(pota,.false.,smallestWL) !(solo DWNs)
+         call preparePointerTable(pota,.false.) !(solo DWNs)
+          write(6,'(A,I3)', ADVANCE = "NO") " | nZs=", nZs
     
        l = n_top_sub + 2* n_con_sub + n_val_sub
        if (PSV) ik = 2 ;  if (SH) ik = 1
@@ -869,6 +871,19 @@
       end if! 
       if(verbose .ge. 4) write(PrintNum,'(a)') "add diffracted field by topography"
       !#>
+      
+!     do iPxi = 1,n_top_sub + n_con_sub
+!     print*,iPxi, "----------------------------------------",boupoints(iPxi)%center
+!     print*,""
+!     print*,boupoints(iPxi)%G(3,3,2)
+!     print*,boupoints(iPxi)%Gmov(mPtini-nIpts,3,2,1)
+!     
+!     print*,""
+!     print*,boupoints(iPxi)%G(4,3,2)
+!     print*,boupoints(iPxi)%Gmov(mPtfin-nIpts,3,2,1)
+!     end do      
+!     stop
+      
       do iP_x = 1,nIpts !cada receptor X 
           if (allpoints(iP_x)%region .eq. 1) then !'estr'
             iPhi_I = 1
@@ -908,8 +923,6 @@
       if (makeVideo) then
       do m = 1,npixX
       do iP_x = mPtini,mPtfin !cada receptor X 
-!     do i=3,3 !dirección de desplazamient V !SH
-          i = 3
           if (fotogramas_Region(iP_x-nIpts,m) .eq. 1) then !'estr'
 !         print*,m,iP_x-nIpts,"estr"
             iPhi_I = 1
@@ -926,7 +939,8 @@
 !         print*,m,iP_x-nIpts,"void"
             cycle
           end if
-          auxGvector = z0 !(1:ik)
+        i=3 !dirección de desplazamient V !SH
+          auxGvector = z0
 !        print*, iPhi_I,iPhi_F, " -- ", ipxi_I,ipxi_F
          iPxi = ipxi_I
          do iPhi = iPhi_I,iPhi_F
@@ -935,12 +949,15 @@
            iPxi = iPxi + 1
          end do !iPhi 
          if (verbose .ge. 4) call showMNmatrixZ(Mi,1,auxGvector(1:Mi)," auxG",6)
-          fotogramas(iP_x-nIpts,m,J,i,currentiFte) = sum(trac0vec(1:Mi) * auxGvector(1:Mi)) + &
-          allpoints(iP_x)%Wmov(J,i,m,currentiFte) 
+          
+          fotogramas(iP_x-nIpts,m,J,i,currentiFte) = & 
+          allpoints(iP_x)%Wmov(J,i,m,currentiFte) + &
+          sum(trac0vec(1:Mi) * auxGvector(1:Mi)) 
+          
+!         print*,allpoints(iP_x)%center%z,m,currentiFte,allpoints(iP_x)%Wmov(J,i,m,currentiFte)!auxGvector(1:Mi)
           
 !         print*,m,iP_x,(abs(allpoints(iP_x)%Wmov(J,i,m,currentiFte))), & 
 !         (abs(sum(trac0vec(1:Mi) * auxGvector(1:Mi))))
-!     end do !i
       end do !iP_x
       end do !m
       end if !makevideo
@@ -1179,26 +1196,29 @@
       
       
 ! pointer table 
-      subroutine preparePointerTable(pota,firstTime,smallestWL)
+      subroutine preparePointerTable(pota,firstTime)
       use resultVars, only : nPts,allpoints,nBpts,BouPoints, & 
                              fixedpota,nZs,Punto,n_top_sub,n_con_sub
       use debugstuff
       use Gquadrature, only : Gquad_n
-      use glovars, only : verbose,workBoundary, rutaOut
+      use glovars, only : verbose,workBoundary, rutaOut,multSubdiv
       use waveNumVars, only : frec
+      use soilvars, only : minWL
       ! tabla con las coordenadas Z (sin repetir).
       implicit none
+      real*8 :: ratioWL_bola! = 1/multSubdiv
       logical,intent(in) :: firstTime
-      real*8,intent(in) :: smallestWL
+!     real*8,intent(in) :: smallestWL
       integer :: i,j,iP!,e
       logical :: nearby,esnueva
       type(Punto), pointer :: PX
       integer, allocatable, dimension(:,:) :: pota,auxpota
       real*8 :: bola
       character(LEN=100) :: titleN
-      !#< r 
+!     !#< r 
 !     bola = min(0.01_8*smallestWL,0.01_8)
-      bola = 0.1*smallestWL !#>
+!     bola = 0.1*smallestWL !#>
+      ratioWL_bola = 0.499/multSubdiv
       ! si es la primera vez que corre sólo agregamos los allpoints 
       if (firstTime) then
        if (verbose .ge. 4) print*, "generating master table"
@@ -1245,7 +1265,7 @@
          fixedPota = Pota
        end if
 !      call showMNmatrixI(nZs,2+j,fixedPota,"po_ta",6);stop
-      else !--first time----------------------------------------------------------------------------
+      else !--not the first time-------------------------------------------------------
        ! Dada la tabla de los puntos fijos.
        ! Agrega los centros de los segmentos que se resuelven con DWN. 
        if (verbose .ge. 4) print*, "updating master table"
@@ -1261,14 +1281,18 @@
        do iP = 1,n_top_sub + n_con_sub ! (Sólo lo que se resuelve con DWN) antes:nBpts
          esnueva = .true.
          do i = 1,nZs !para cada profundidad ya identificada en la tabla
-          ! diferenciar de que grupo es la coordenda
+          ! diferenciar de que grupo es la coordenda PX
            if (associated(PX)) nullify(PX)
            if (auxpota(i,3) .gt. 0) then
              PX => allpoints(auxpota(i,3))!; print*,"allp "
            else
              PX => boupoints(abs(auxpota(i,3)))!; print*,"boup "
            end if
+          ! si están en el mismo estrato
+          if (boupoints(iP)%layer .eq. PX%layer) then
           ! revisar si en la tabla ya hay una profundidad cercana 
+          !#< r 
+           bola = ratioWL_bola * minWL(PX%layer) !#>
            if (nearby(boupoints(iP)%center%z,PX%center%z,bola)) then
 !            print*,"estan cerca"
              if (auxpota(i,3) .lt. 0) then !negativo => boundary
@@ -1286,6 +1310,7 @@
 !            print*,"inscrito. renglon:",i,"(",auxpota(i,1)," ",auxpota(i,2),")"
              exit
            end if !nearby
+          end if !same layer
          end do ! i,nZs
          if (esnueva) then
            !nueva coordenada Z
@@ -2168,6 +2193,7 @@
        print*,"  p_x%center%z",p_x%center%z,"[m]  e=",p_X%layer
        lastresult = result
 #endif
+        !
             if (p_X%layer .eq. N+2) cycle
             if (dir_j .eq. 2) then; mecS = 1; mecE = 3 !V,s32,s12
             else;                   mecS = 1; mecE = 5 !W,U,s33,s31,s11
@@ -2235,6 +2261,12 @@
         n_Xs = pota(itabla_z,1) + pota(itabla_z,2)
         do itabla_x =1,n_Xs 
           call asociar(p_x, 0, itabla_z, 2+ itabla_x)
+          
+!         if (i_zF .ne. 0) then
+!         if (p_X%pointIndex .eq. 3 .or. p_X%pointIndex .eq. 106) then
+!          print*,"hit",p_X%pointIndex
+!         end if;end if!
+          
           if (p_x%isboundary .eqv. .false.) then 
               if (p_x%region .ne. 1) cycle; end if!'estr'
 #ifdef ver
@@ -2309,7 +2341,7 @@
        print*,"        fork non movie", result-lastresult                   !
        lastresult = result                                                  !
 #endif
-         end if                                                             !
+         end if  ! is a movie                                               !
       end do !imec !.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.-.
               !
               !                    |        RECEPTOR
@@ -4259,7 +4291,10 @@
          end if
       else ! i_zf .ne. 0  una fuente virtual de ibem
          el_tipo_de_fuente = 2 !(fuente segmento)
-         XinoEstaEnInterfaz = .true. !(se ha encargado la geometría)
+         
+         !#< r XinoEstaEnInterfaz = .true. !(se ha encargado la geometría) 
+         if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+         !#>
          if (i_zF .eq. -1) then !(campo refractado en inclusion R)
             shouldI = .true.
             estrato = N+2 !(para tomar las propiedades de la inclusión)
@@ -4347,18 +4382,21 @@
         ! para funciones de Greeen en frontera con cont. de desplazamiento
         if ((p_x%isboundary .eqv. .true.) .and. &
             (pXi%isboundary .eqv. .true.) .and. & 
-            (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
+            (p_x%boundaryIndex .eq. pXi%boundaryIndex)) then 
+            usarGreenex = .true.; end if
 !       print*,usarGreenex
         ! para campo cercano por fuente segmento
         if ((i_zF .eq. 0) .and. &
             (el_tipo_de_fuente .eq. 2) .and. &      !fuente real
-            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+            (abs(r) .lt. pXi%length/2)) then
+            usarGreenex = .true.; end if
 !       print*,usarGreenex    
 !       if ((p_X%isboundary .eqv. .false.) .and. &
 !           (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
 !           (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
         if ((pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
-            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+            (abs(r) .lt. pXi%length/2)) then 
+            usarGreenex = .true.; end if
 
 !       print*,usarGreenex    
         ! si fuente real y cilindrica entonces no
@@ -4733,7 +4771,9 @@
             end if 
       else !i_zf .ne. 0  una fuente virtual de ibem
          el_tipo_de_fuente = 2 !(fuente segmento)
-         XinoEstaEnInterfaz = .true. !(se ha encargado la geometría)
+         !#< r XinoEstaEnInterfaz = .true. !(se ha encargado la geometría) 
+         if (pXi%isOnInterface .eqv. .false.)XinoEstaEnInterfaz = .true.
+         !#>
          if (i_zF .eq. -1) then !(Fza distr en segmento en región R) 
 !           if (p_X%region .eq. 2) then
                !nx(1) =- p_X%normal%x;nx(2) =- p_X%normal%z 
@@ -4803,18 +4843,24 @@
         ! para funciones de Greeen en frontera con cont. de desplazamiento
         if ((p_x%isboundary .eqv. .true.) .and. &
             (pXi%isboundary .eqv. .true.) .and. & 
-            (p_x%boundaryIndex .eq. pXi%boundaryIndex)) usarGreenex = .true.
+            (p_x%boundaryIndex .eq. pXi%boundaryIndex)) then 
+            usarGreenex = .true.
+            end if
 !       print*,usarGreenex
         ! para campo cercano por fuente segmento
         if ((i_zF .eq. 0) .and. &
             (el_tipo_de_fuente .eq. 2) .and. &      !fuente real
-            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+            (abs(r) .lt. pXi%length/2)) then
+            usarGreenex = .true.
+            end if
 !       print*,usarGreenex    
 !       if ((p_X%isboundary .eqv. .false.) .and. &
 !           (pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
 !           (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
         if ((pXi%isboundary .eqv. .true.) .and. &   !fuente virtual
-            (abs(r) .lt. pXi%length/2)) usarGreenex = .true.
+            (abs(r) .lt. pXi%length/2))then
+             usarGreenex = .true.
+             end if
 
 !       print*,usarGreenex    
         ! si fuente real y cilindrica entonces no
@@ -4834,7 +4880,7 @@
          if (el_tipo_de_fuente .eq. 0) then                             !
            nGq = 1                                                      !
            GqC => ONE
-           iGqDistan = 0
+           iGqDistan = -1000
          else !.eq. 2 (fuente segmento)
             if (abs(r) .le. minWL(e)) then
             ! si está muy cerca:
@@ -4848,7 +4894,7 @@
             ! está lejos
             nGq = 1
             GqC => ONE
-            iGqDistan = 0
+            iGqDistan = -1000
             end if!                                                 ! 
 !        else ! eq. 2; print*,"fuente segmento "                        !
 !          if (pXi%isBoundary) nGq = Gquad_n ! IBEM                     !
@@ -5235,11 +5281,13 @@
       end if
       ! diffracted field due to the stratification U,V,W or G
       if (p_x%guardarMovieSiblings) then
-               p_xaux%center%x = p_x%center%x
+!              p_xaux%center%x = p_x%center%x
                p_xaux%center%z = p_x%center%z
                p_xaux%normal = p_x%normal
                p_xaux%isOnInterface = p_x%isOnInterface
                p_xaux%layer = p_x%layer
+               p_xaux%isboundary = .false.
+               p_xaux%boundaryindex = -100000
                p_Xmov => p_xaux
         po = min(int(vecNK(J)*SpliK),nmax); ne = 2*nmax-(po-2)
         do i = 1,npixX ! para cada hermanito
@@ -5311,9 +5359,23 @@
             if(i_zf .eq.0) then
               p_x%Wmov(J,3,i,iFte) = & 
               p_x%Wmov(J,3,i,iFte) + (auxKmo(1,1) + FF%V) ! * nf(dir_j) ! V
+!             print*,p_X%center%z,i,iFte,FF%V
             else
+            
+!     if (pXi%boundaryindex .eq. 1) then
+!     if (p_x%pointIndex-nIpts .eq. 1) then
+!     if (i .eq. 1) then
+!     print*,"hit"
+!     call FFsh(i_zf,FF,p_Xmov,pXi,cOME,1,1)
+!     print*,"------",pxi%center
+!     print*,pXi%Gmov(1,3,2,1)
+!     print*,auxKmo(1,1)
+!     print*,FF%V
+!     print*,auxKmo(1,1) + FF%V
+!     end if; end if; end if
+            
               pXi%Gmov(p_x%pointIndex-nIpts,3,dir_j,i) = & 
-              pXi%Gmov(p_x%pointIndex-nIpts,3,dir_j,i) + auxKmo(1,1) + FF%V ! V
+              pXi%Gmov(p_x%pointIndex-nIpts,3,dir_j,i) + (auxKmo(1,1) + FF%V) ! V
             end if
           else !PSV
           call FFpsv(i_zF,FF,dir_j,p_Xmov,pXi,cOME,1,1)
@@ -6032,7 +6094,7 @@
       use glovars, only : saveG,verbose
       use peli, only : fotogramas 
       use sourceVars, only : SH,PSV,ifTe => currentiFte
-      use waveNumVars, only : t_vec,omei, nF => NFREC, nT => NPTSTIME
+      use waveNumVars, only : t_vec,omei, nF => NFREC, nT => NPTSTIME,dfrec
       use meshVars, only : npixX,npixZ
       use waveVars, only : Uo,Dt
       use wavelets
@@ -6040,8 +6102,10 @@
       implicit none
       integer :: i,ix,iz,imec,mecS,mecE
       complex*16, dimension(:), pointer :: p_fot
-      character(LEN=100) :: nam,titlen
-      call system('mkdir perPixelTraces')
+      character(LEN=100) :: nam,titlen !#< b
+!     if (verbose .ge. 3) then
+         call system('mkdir perPixelTraces')
+!     end if !#>
       if (verbose .ge. 1) print*,"frec -> time"
       if (iFte .eq. 0) stop "crepa_four_fotogr iFte=0"
       
@@ -6059,7 +6123,17 @@
       do iz=1,npixZ
         do ix=1,npixX
           fotogramas(iz,ix,nT-nF+2:nT,imec,iFte) = conjg(fotogramas(iz,ix,nF:2:-1,imec,iFte))
-          p_fot => fotogramas(iz,ix,1:nT,imec,iFte)
+          p_fot => fotogramas(iz,ix,1:nT,imec,iFte) !#< b
+!         if (verbose .ge. 3) then
+           CALL chdir("perPixelTraces")
+            write(titleN,"(i0,a,i0,a)") ix,"_",iz,"r.pdf"
+            CALL SETFIL(trim(titleN))
+            call qplot(real((/((i-1)*dfrec,i=1,nf)/),4),real(p_fot(1:nf),4),nf)
+            write(titleN,"(i0,a,i0,a)") ix,"_",iz,"i.pdf"
+            CALL SETFIL(trim(titleN))
+            call qplot(real((/((i-1)*dfrec,i=1,nf)/),4),real(aimag(p_fot(1:nf)),4),nf)
+            CALL chdir("..")
+!         end if !#>
           p_fot = p_fot * t_vec
           if (saveG .eqv. .true.) then 
            do i=1,nT
@@ -6071,14 +6145,14 @@
           p_fot = FFTW(nT,p_fot,+1,1/(nT*dt))
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
-          exp(-OMEI * Dt*((/(i,i=0,nT-1)/)))
+          exp(-OMEI * Dt*((/(i,i=0,nT-1)/))) !#< b
 !         if (verbose .ge. 3) then
             CALL chdir("perPixelTraces")
-            write(titleN,"(i0,a,i0,a)") ix,"_",iz,".pdf"
+            write(titleN,"(i0,a,i0,a)") ix,"_",iz,"S.pdf"
             CALL SETFIL(trim(titleN))
             call qplot(real((/((i-1)*Dt,i=1,nT)/),4),real(p_fot(1:nT),4),nT)
             CALL chdir("..")
-!         end if
+!         end if  !#>
         end do !ix
       end do !iz
       end do !imec

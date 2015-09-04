@@ -24,7 +24,7 @@
       call system(trim(adjustl(rutaOut)))
       call chdir(trim(adjustl(rutaOut)),status)
       write(rutaOut,'(a,a)') "outs_",time
-      else
+      else 
       CALL get_command_argument(1, arg)
       IF (LEN_TRIM(arg) .ne. 0) then
         if (trim(arg) .eq. '-L') then
@@ -51,6 +51,7 @@
       call chdir("..")
       write(PrintNum,'(///)')
       end subroutine setupdirectories
+
 
       subroutine getMainInput
       use glovars
@@ -96,6 +97,7 @@
       close(35)
       CALL chdir("..")
       end subroutine getMainInput
+
 
       subroutine getSoilProps
       use soilVars; use waveNumVars; use waveVars, only : dt; use fitting
@@ -232,7 +234,7 @@
 
       ! complex frecuency to "smooth" the poles and be able to integrate
         ! Bouchon (2003) OMEI entre -pi/T y -2pi/T ; T= 2pi/DFREC tiempo total
-        ! tengo TW la ventana de tiempo de interés.
+        ! tengo TW la ventana de tiempo de inter√©s.
       OMEI = - periodicdamper*PI/TW ! se cumple que exp(omei TW) << 1
 
       if (verbose .ge. 1) then !#< b
@@ -270,6 +272,7 @@
       end if !#>
       end subroutine getSoilProps
 
+
       subroutine checarWisdom(a,b,c)
       use waveNumVars, only : planNmaxF,planNmaxB,&
                              planNfrecF,planNfrecB,&
@@ -304,7 +307,7 @@
       print*,trim(tx)
       stop "Re run program"
       end if
-      print*,"Se exportó wisdom ",trim(tx)
+      print*,"Se export√≥ wisdom ",trim(tx)
       else
       !importar
       j = fftw_import_wisdom_from_filename(trim(tx) // C_NULL_CHAR)
@@ -313,7 +316,7 @@
       stop "Error al importar wisdom en :FFTW"
       else
       write(PrintNum,*)"  "
-      write(PrintNum,*)"  leído wisdom ",trim(tx)
+      write(PrintNum,*)"  le√≠do wisdom ",trim(tx)
       ! crear planos
       flag = FFTW_WISDOM_ONLY
       planNfrecF = fftw_plan_dft_1d(a, Ua,Va, FFTW_FORWARD,flag)
@@ -326,6 +329,7 @@
       end if
       end if
       end subroutine checarWisdom
+
 
       subroutine vaciarWisdom
       use waveNumVars, only : planNmaxF,planNmaxB,&
@@ -342,6 +346,7 @@
       !call fftwf_forget_wisdom()
       !call fftwf_cleanup()
       end subroutine vaciarWisdom
+
 
       subroutine getInquirePoints
       use resultVars, only : Punto,nPtsolos,inqPoints, nIpts, iPtini,iPtfin, &
@@ -419,7 +424,7 @@
            n_OD = n_OD +1
            if (inqPoints(i)%tipoFrontera .eq. 1) n_OD = n_OD +1
            end if
-      !encontrar el layer en el que estan o 0 si está sobre la interfaz
+      !encontrar el layer en el que estan o 0 si est√° sobre la interfaz
            inqPoints(i)%layer = thelayeris(real(inqPoints(i)%center%z,8))
            if (auxGuardarFK .ge. 1 ) inqPoints(i)%guardarFK = .true.
            inqPoints(i)%isOnInterface = &
@@ -428,7 +433,7 @@
 
 !     addOD = 0
       iIndex = nIpts
-      ! !#< r putnos sobre la geometría -------------------------- !#>
+      ! !#< r putnos sobre la geometr√≠a -------------------------- !#>
       if (punEnlaFront) then
       reg(0) = 0; reg(1)= 1; reg(2) = 2
       if (flip12) then
@@ -493,7 +498,7 @@
        END IF
        if (abs(inqPoints(iIndex)%normal%x) .lt. 0.0001) inqPoints(iIndex)%normal%x = 0
        if (abs(inqPoints(iIndex)%normal%z) .lt. 0.0001) inqPoints(iIndex)%normal%z = 0
-       ! angulo para hacer la rotación a coordenadas normal y tangencial
+       ! angulo para hacer la rotaci√≥n a coordenadas normal y tangencial
        r = sqrt(inqPoints(iIndex)%normal%z**2 + inqPoints(iIndex)%normal%x**2)
        inqPoints(iIndex)%cosT = inqPoints(iIndex)%normal%x/r
        inqPoints(iIndex)%sinT = inqPoints(iIndex)%normal%z/r
@@ -532,7 +537,7 @@
         inqPoints(iIndex)%normal%z = nz
          if (abs(inqPoints(iIndex)%normal%x) .lt. 0.0001) inqPoints(iIndex)%normal%x = 0
          if (abs(inqPoints(iIndex)%normal%z) .lt. 0.0001) inqPoints(iIndex)%normal%z = 0
-       ! angulo para hacer la rotación a coordenadas normal y tangencial
+       ! angulo para hacer la rotaci√≥n a coordenadas normal y tangencial
          r = sqrt(inqPoints(iIndex)%normal%z**2 + inqPoints(iIndex)%normal%x**2)
          inqPoints(iIndex)%cosT = inqPoints(iIndex)%normal%x/r
          inqPoints(iIndex)%sinT = inqPoints(iIndex)%normal%z/r
@@ -619,6 +624,7 @@
       print*,"chido con los puntos de interes"
       end subroutine getInquirePoints
 
+
       subroutine getPolaridad(skipdir,PSV,SH)
 
       logical :: skipdir(3),PSV,SH
@@ -661,6 +667,7 @@
       return
       end if
       end subroutine getPolaridad
+
 
       subroutine getsource
       use wavevars, only: t0,maxtime! Escala,Ts,Tp, ampfunction, sigGaus,
@@ -783,6 +790,7 @@
 
       end subroutine getsource
 
+
       subroutine getVideoPoints
       use resultVars, only : moviePoints, nMpts, &
                              iPtfin,mPtini,mPtfin
@@ -826,11 +834,19 @@
         mPtini = iPtfin + 1
         mPtfin = mPtini + nMpts - 1
         allocate(moviePoints(nMpts))
-        moviePoints(:)%isBoundary = .false.
-        moviePoints(:)%isOnInterface = .false.
-        moviePoints(:)%guardarFK = .false.
-        moviePoints(:)%guardarMovieSiblings = .true.
-        moviePoints(:)%region = 1!'estr'
+      moviePoints(:)%normal%x = 0
+      moviePoints(:)%normal%z = 0
+      moviePoints(:)%isOnInterface = .false.
+      moviePoints(:)%isBoundary = .false.
+      moviePoints(:)%guardarFK = .false.
+      moviePoints(:)%guardarMovieSiblings = .true.
+      moviePoints(:)%isSabana = .false.
+      moviePoints(:)%isSourceSegmentForce= .false.
+      moviePoints(:)%isOD= .false. 
+      moviePoints(:)%region = 1
+      moviePoints(:)%boundaryIndex = 0
+      moviePoints(:)%atBou = .false.
+        
         do iz = 1, npixZ
           moviePoints(iz)%center%x = MeshMinX
           moviePoints(iz)%center%z = firstZ + (MeshMaxZ - firstZ)/(npixZ-1) * (iz-1)
@@ -842,6 +858,7 @@
           coords_X(iz) = real(MeshMinX + (MeshMaxX - MeshMinX)/(npixX-1) * (iz-1),4)
         end do
       end subroutine getVideoPoints
+
 
       subroutine getTopography
       !Read coordinates of collocation points and fix if there are
@@ -982,7 +999,7 @@
       boxVoid_minY = minval(Xcoord_Voidonly(:,2,:))
       end if
 
-      READ(77,*) !Cualquier receptor dentro de estas superficies está en la region homogenea
+      READ(77,*) !Cualquier receptor dentro de estas superficies est√° en la region homogenea
       READ(77,*) N_de_regdionesR !N de regiones
       READ(77,*) N_de_segmentosR !Total de segmentos
       if (N_de_regdionesR .ne. 0) then
@@ -1021,7 +1038,7 @@
       end if
       !
       if (flip12) then
-      READ(77,*) ! Borde de región E cuando flip12 .true.
+      READ(77,*) ! Borde de regi√≥n E cuando flip12 .true.
       READ(77,*) e
       READ(77,*) escalax,escalay
       READ(77,*) offsetx,offsety
@@ -1055,7 +1072,7 @@
 
 !     go to 384
       nXIoriginal = nXI
-      ! cortar en intersección con estratos y determinar estrato de cada segemento
+      ! cortar en intersecci√≥n con estratos y determinar estrato de cada segemento
       if (verbose >= 4) write(PrintNum,*)"begin slice with layers"
       iXI = 1
       DO !para cada segmento
@@ -1146,7 +1163,7 @@
 
                ! insertamos el nuevo punto en el vector de puntos
 !              if (allocated(auxVector)) deallocate(auxVector)
-!              allocate(auxVector(nXI+1,2,2)) ! un segmento más
+!              allocate(auxVector(nXI+1,2,2)) ! un segmento m√°s
                auxVector(1:iXI,1:2,1:2) = Xcoord_ER(1:iXI,1:2,1:2)
                auxVector(iXI,1,2) = nuevoPx
                auxVector(iXI,2,2) = Z(e)
@@ -1283,6 +1300,7 @@
       deallocate(lengthXI);deallocate(layerXI);deallocate(cost);deallocate(sint)
       end subroutine getTopography
 
+
       subroutine setVideoPointsRegions
       use peli, only : coords_Z,coords_X,fotogramas_Region
       use meshVars, only : npixX,npixZ
@@ -1319,6 +1337,7 @@
 
       end subroutine setVideoPointsRegions
 
+
       subroutine setInqPointsRegions
       use resultVars, only : allpoints,nPts,n_OD,nIpts
       use soilVars, only : N
@@ -1338,7 +1357,7 @@
       write(PrintNum,'(a,I0)') "nPts=",nPts
       write(PrintNum,'(a,I0)') "nIpts=",nIpts
       write(PrintNum,'(a,I0,a)') "There are ",n_OD," points to overdetermine the system"
-      write(PrintNum,*) "center,region,layer,isOD"
+      write(PrintNum,*) "center,region,layer,isOD,isOnInterface,guardarMovieSiblings,atBou"
       end if
       do i = 1, nPts
         if (allpoints(i)%atBou .eqv. .false.) then
@@ -1363,12 +1382,19 @@
         end if!
         !if (allpoints(i)%region .eq. 2) allpoints(i)%layer = N+2
         if (verbose .ge. 1) then
-        write(PrintNum,*)i,"[",allpoints(i)%center%x, &
-        ",",allpoints(i)%center%z,"] is ",allpoints(i)%region,allpoints(i)%layer,allpoints(i)%isOD
+        write(PrintNum,'(I0,2x,a,f7.2,a,f7.2,a,i0,a,i0,a,l,a,l,a,l,a,l)'),& 
+        i,"[",allpoints(i)%center%x,",",allpoints(i)%center%z,"] is r",& 
+        allpoints(i)%region,& 
+        " l",allpoints(i)%layer,& 
+        " od",allpoints(i)%isOD,&
+        " inf",allpoints(i)%isOnInterface, &
+        " mv",allpoints(i)%guardarMovieSiblings,& 
+        " bou",allpoints(i)%atBou
         end if
       end do!;stop "setInqPointsRegions"
       end subroutine setInqPointsRegions
       end module setupmodel
+
 
       function thelayeris(zi)
       use soilVars, only : Z,N
@@ -1385,6 +1411,7 @@
       thelayeris = e
       end function thelayeris
 
+
       function tellisoninterface(zi)
       use soilVars, only : Z,N
       implicit none
@@ -1400,8 +1427,7 @@
         end if
       end do
       end function tellisoninterface
-
-
+      
 
       function adentroOafuera(x,y,region)
        use geometryvars, only : Xcoord_Voidonly,Xcoord_Incluonly, &
@@ -1482,6 +1508,7 @@
 !      print*,XcooBox_maxX,XcooBox_maxY,XcooBox_minX,XcooBox_minY
       end function adentroOafuera
 
+
        function crossingNumber(x,y,nXI,Xcoord_ER)
        implicit none
        logical :: crossingNumber
@@ -1522,3 +1549,6 @@
           end if
 
       end function crossingNumber
+
+! Fortran code...
+      

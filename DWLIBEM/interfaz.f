@@ -36,10 +36,10 @@
           type (Punto), dimension(:), allocatable,target ::  BouPoints
         end subroutine subdivideTopo
         
-        subroutine preparePointerTable(pota,firstTime,smallestWL)
+        subroutine preparePointerTable(pota,firstTime)
           integer, allocatable, dimension(:,:) :: pota
           logical,intent(in) :: firstTime
-          real*8,intent(in) :: smallestWL
+!         real*8,intent(in) :: smallestWL
         end subroutine preparePointerTable
         
         subroutine reffField_by_(ipXi,dir_j,cOME)

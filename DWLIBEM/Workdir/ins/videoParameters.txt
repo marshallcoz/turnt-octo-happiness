@@ -1,9 +1,9 @@
       Resolution (vertical, horizontal)
 30  30   5  5
-      Vertical (start,end)
-0.0  7.0  0.
+      Vertical (start,end,firstZ)
+0.0  0.5  0.0
       Horizontal (start,end)
--3.5  3.5
+-0.5  0.5
 1.0	Vector lenght
 0.5	Vector lenght
 KEEP CALM AND THE FILE FORMAT
