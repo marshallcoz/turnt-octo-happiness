@@ -6103,9 +6103,9 @@
       integer :: i,ix,iz,imec,mecS,mecE
       complex*16, dimension(:), pointer :: p_fot
       character(LEN=100) :: nam,titlen !#< b
-!     if (verbose .ge. 3) then
+      if (verbose .ge. 3) then
          call system('mkdir perPixelTraces')
-!     end if !#>
+      end if !#>
       if (verbose .ge. 1) print*,"frec -> time"
       if (iFte .eq. 0) stop "crepa_four_fotogr iFte=0"
       
@@ -6124,7 +6124,7 @@
         do ix=1,npixX
           fotogramas(iz,ix,nT-nF+2:nT,imec,iFte) = conjg(fotogramas(iz,ix,nF:2:-1,imec,iFte))
           p_fot => fotogramas(iz,ix,1:nT,imec,iFte) !#< b
-!         if (verbose .ge. 3) then
+          if (verbose .ge. 3) then
            CALL chdir("perPixelTraces")
             write(titleN,"(i0,a,i0,a)") ix,"_",iz,"r.pdf"
             CALL SETFIL(trim(titleN))
@@ -6133,7 +6133,7 @@
             CALL SETFIL(trim(titleN))
             call qplot(real((/((i-1)*dfrec,i=1,nf)/),4),real(aimag(p_fot(1:nf)),4),nf)
             CALL chdir("..")
-!         end if !#>
+          end if !#>
           p_fot = p_fot * t_vec
           if (saveG .eqv. .true.) then 
            do i=1,nT
@@ -6146,13 +6146,13 @@
         ! remover efecto de la frecuencia imaginaria
           p_fot = p_fot * & 
           exp(-OMEI * Dt*((/(i,i=0,nT-1)/))) !#< b
-!         if (verbose .ge. 3) then
+          if (verbose .ge. 3) then
             CALL chdir("perPixelTraces")
             write(titleN,"(i0,a,i0,a)") ix,"_",iz,"S.pdf"
             CALL SETFIL(trim(titleN))
             call qplot(real((/((i-1)*Dt,i=1,nT)/),4),real(p_fot(1:nT),4),nT)
             CALL chdir("..")
-!         end if  !#>
+          end if  !#>
         end do !ix
       end do !iz
       end do !imec

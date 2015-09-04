@@ -1,32 +1,4 @@
 Points of interest 
-4  <- Por lo menos (1)
-1  101  F  0.0001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
-0  54   puntos en secciones planas
-F  0.1  Puntos en la frontera
-___________________________________________________________
-1.0  1.0  <- escala:x escala:y
-0.0  0.0  <- offset:x offset:y
- X        Z          nx       nz   guardarFK=1  ptColocSobreEstimar
- 0.5   1.49     -0.70710678118654746      -0.70710678118654746 0 F 0
- 0.5   1.51     -0.70710678118654746      -0.70710678118654746 0 F 0
--0.5   0.00     -0.70710678118654746      -0.70710678118654746 0 F 0
--0.5   0.50     -0.70710678118654746      -0.70710678118654746 0 F 0
-Secciones ----------------------------------------------------
- 5.0   5.0  <- escala:x escala:y
-10.0  80.0  <- offset:x offset:y
- npuntos     Xi        deltax      Zi       deltaz       nx       nz
-Sabanapoints -----------------------------------------------
-1.0  1.0  <- escala:x escala:y
-0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
-npuntos xini   deltax    zini   delta z  guardarFK / Fit Frontera
-101     -0.5   0.010    0.00   0.00   F   T
-hacer zeros el rango en la sabana:
-0   62
-
-
-
-
-Points of interest 
 2  <- Por lo menos (1)
 1  128  F  0.0001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
 0  54   puntos en secciones planas
@@ -35,8 +7,8 @@ ___________________________________________________________
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y
  X        Z          nx       nz   guardarFK=1  ptColocSobreEstimar
-0.3      0.6       0.0        1.0      0           F   0
--0.3      0.6      -1.0        0.0      0           F   0
+-130      99.5       0.0        1.0      1           F   0
+-130      100.1       0.0        1.0      1           F   0
 Secciones ----------------------------------------------------
  5.0   5.0  <- escala:x escala:y
 10.0  80.0  <- offset:x offset:y
@@ -45,41 +17,6 @@ Sabanapoints -----------------------------------------------
 1.0  1.0  <- escala:x escala:y
 0.0  0.0  <- offset:x offset:y (vertical offset goes after fit)
 npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
-128    -2.0  0.03125     0.0   0    F   T
+128    0.0  25.0     0.0   0    F   F
 hacer zeros el rango en la sabana:
 0   62
-
-
-
-
-
-Points of interest 
-6  <- Por lo menos (1)
-1  128  F  0.0001  400000000 <- N sabanas / N puntos / plot each / Deltaz / Maxstep
-0  54   puntos en secciones planas
-F  0.1  Puntos en la frontera
-___________________________________________________________
-1.0  1.0  <- escala:x escala:y
-0.0  0.0  <- offset:x offset:y
- X        Z          nx       nz   guardarFK=1  ptColocSobreEstimar
-0.3      0.6       0.0        1.0      0           F   0
--0.3      0.6      -1.0        0.0      0           F   0
-0.55000000000000004       0.64999999999999991      -0.70710678118654746      -0.70710678118654746  0 F 0
-0.45000000000000001       0.64999999999999991       0.70710678118654746      -0.70710678118654746  0 F 0
-0.45000000000000001       0.55000000000000004       0.70710678118654746       0.70710678118654746  0 F 0
-0.55000000000000004       0.55000000000000004      -0.70710678118654746       0.70710678118654746  0 F 0
-Secciones ----------------------------------------------------
- 5.0   5.0  <- escala:x escala:y
-10.0  80.0  <- offset:x offset:y
- npuntos     Xi        deltax      Zi       deltaz       nx       nz
-Sabanapoints -----------------------------------------------
-1.0  1.0  <- escala:x escala:y
-0.0  0.1  <- offset:x offset:y (vertical offset goes after fit)
-npuntos xini   deltax   zini   delta z  guardarFK / Fit Frontera
-128    -2.0  0.03125     0.0   0    F   T
-hacer zeros el rango en la sabana:
-0   62
-
-
-
-128    -10.00001  0.156     0.0   0    F   F
