@@ -438,13 +438,13 @@
       end do
       end subroutine ricker
       
-      subroutine gaussian(Uo,sigGausIn)
+      subroutine gaussian(Uo,NPTS,sigGausIn)
 !     use waveVars, only : Uo,sigGaus
-      use waveNumVars, only : NPTSTIME!,nfrec
+!     use waveNumVars, only : NPTSTIME!,nfrec
       implicit none
-      integer :: i
+      integer :: i,NPTS
       real*8 :: f,s
-      complex*16, dimension(NPTSTIME) :: Uo
+      complex*16, dimension(NPTS) :: Uo
       real :: sigGaus,sigGausIn
       integer :: shift
       f = 0.0
@@ -455,19 +455,19 @@
         shift = 0
       end if
       !positivos
-      s = real(sigGaus/100.0 * NPTSTIME/2,8)
-      do i=1, NPTSTIME/2+1
+      s = real(sigGaus/100.0 * NPTS/2,8)
+      do i=1, NPTS/2+1
         f = real(i-1,8) ! Hz
         Uo(i) = cmplx(exp(-0.5*(f/s)**2.),0.,8)
       end do
       !negativos
       if (shift .eq. 0) then
-      Uo(NPTSTIME/2+2:NPTSTIME) = conjg(Uo(NPTSTIME/2:2:-1))
+      Uo(NPTS/2+2:NPTS) = conjg(Uo(NPTS/2:2:-1))
       else
-      if (shift + NPTSTIME/2+1 .gt. NPTSTIME) shift = NPTSTIME/2
-      Uo(shift:shift + NPTSTIME/2+1) = Uo(1:NPTSTIME/2+1)
+      if (shift + NPTS/2+1 .gt. NPTS) shift = NPTS/2
+      Uo(shift:shift + NPTS/2+1) = Uo(1:NPTS/2+1)
       Uo(1:shift) = 1.0
-      Uo(NPTSTIME/2+2:NPTSTIME) = conjg(Uo(NPTSTIME/2:2:-1))
+      Uo(NPTS/2+2:NPTS) = conjg(Uo(NPTS/2:2:-1))
       end if
       end subroutine gaussian
       

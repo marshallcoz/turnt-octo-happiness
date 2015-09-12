@@ -1864,7 +1864,7 @@
           end if
      !********************************************************************************
       elseif(Po(iFte)%ampfunction .eq. 2) then ! Gaussian
-        call gaussian(Uo(:,iFte),Po(iFte)%sigGaus)
+        call gaussian(Uo(:,iFte),NPTSTIME,Po(iFte)%sigGaus)
           if (ve .ge. 1) then
            write(Printnum,'(a)')'   Incident wave amplitude function: Gaussian'
             write(titleN,'(a,I0,a)') 'x-amp',iFte,'-f.pdf'
@@ -1880,7 +1880,7 @@
 !           titleN,xAx,yAx,logflag,1200,800,real(DFREC*(NFREC+1),4))
           end if
       elseif(Po(iFte)%ampfunction .gt. 20) then ! GaussianCúbico
-        call gaussian(Uo(:,iFte),Po(iFte)%sigGaus) !shift =  int((int(sigGaus) - sigGaus) * 1000)
+        call gaussian(Uo(:,iFte),NPTSTIME,Po(iFte)%sigGaus) !shift =  int((int(sigGaus) - sigGaus) * 1000)
         if (int((int(Po(iFte)%sigGaus) - Po(iFte)%sigGaus) * 1000) .gt. 0) & 
         write(Printnum,'(a,I0)')'   One sided Gaussian filter with shift in points:',&
          int((int(Po(iFte)%sigGaus) - Po(iFte)%sigGaus) * 1000)
@@ -6843,16 +6843,22 @@
       use dislin
       use debugStuff
       use sourceVars, only : currentiFte
+!     use wavelets
       implicit none
       logical, intent(in) :: PSV
+!     complex*16, dimension(nSabanapts) :: tapper
       complex*16, dimension(nSabanapts,Nfrec+1,2) :: XF
+      complex*16, dimension(nSabanapts/2,Nfrec+1,2) :: XF2
+      complex*16, dimension(nSabanapts/4,Nfrec+1,2) :: XF4
       complex*16, dimension(nSabanapts,Nfrec+1,2) :: XFc
+      complex*16, dimension(nSabanapts/2,Nfrec+1,2) :: XFc2
+      complex*16, dimension(nSabanapts/4,Nfrec+1,2) :: XFc4
       complex*16, dimension(nfrec+1, nSabanapts/2,2) :: FC
       complex*16, dimension(nfrec+1, nSabanapts/2) :: uno
-      integer :: ij, iP,ik
+      integer :: ij, iP,ik!,i
       complex*16 :: come
       real*8 :: ome,dx
-!     CHARACTER(len=32) :: arg
+      CHARACTER(len=32) :: arg
       logical :: alguno
       real, parameter :: p1 = 5. ! sharpness parameter
       real, parameter :: p2 = 1. ! sharpness parameter
@@ -6877,16 +6883,73 @@
        end if
       end if
       end do
-      
-      ! XF -> KF -------------------------------
       if (.not. alguno) return
+      
+      ! la segunda mitad
+      ij = 1
+      do iP=nSabanapts/2+1,nSabanapts
+      XF2(ij,1:NFREC+1,1) = xf(ip,1:NFREC+1,1)
+      ij = ij +1
+      end do
+      
+      ! el último cuarto
+      ij = 1
+      do iP=nSabanapts*3/4+1,nSabanapts
+      XF4(ij,1:NFREC+1,1) = xf(ip,1:NFREC+1,1)
+      ij = ij +1
+      end do
+      
+       open(427,FILE= "outXF.m",action="write",status="replace")
+       write(arg,'(a)') "v_KF"
+       print*,"grabar ",arg
+       call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,1),arg,427)
+       close(427)
+           
+      ! XF -> KF -------------------------------
       dx = (allpoints(nSabanapts)%center%x - allpoints(nIpts-nSabanapts+1)%center%x)
       dx = dx / (nSabanapts+1)
       do ij = 1,NFREC+1
-        XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
-        call FORK(nSabanapts,XF(1:nSabanapts,ij,1),+1) 
-        XF(1:nSabanapts,ij,1) = XF(1:nSabanapts,ij,1) * sqrt(1.0*nSabanapts) * dx ! factor de escala
-        XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2)
+!       XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), nSabanapts/2) ! El centro de los sensores en nSab/2 ?
+!       XF(1:nSabanapts,ij,1) = cshift(XF(1:nSabanapts,ij,1), (nSabanapts/2-1)) ! Ordenar sensores
+!       XF2(:,ij,1) = cshift(XF2(:,ij,1), ((nSabanapts/2)/2-1))
+!       XF4(:,ij,1) = cshift(XF4(:,ij,1), ((nSabanapts/4)/2-1))
+!       if (ij .eq. 30) then
+!       CALL SETFIL("0_f30r.pdf")
+!       call qplot(real((/((i-1)*dx,i=1,nSabanapts)/),4),real(real(XF(1:nSabanapts,ij,1)),4),nSabanapts)
+!       CALL SETFIL("0_f30i.pdf")
+!       call qplot(real((/((i-1)*dx,i=1,nSabanapts)/),4),real(aimag(XF(1:nSabanapts,ij,1)),4),nSabanapts)
+!       end if
+        
+        ! tapper con gaussiana
+!       call gaussian(tapper,nSabanapts,30.050)
+!       CALL SETFIL("0tapperR.pdf")
+!       call qplot(real((/((i-1)*dx,i=1,nSabanapts)/),4),real(real(tapper),4),nSabanapts)
+!       CALL SETFIL("0tapperI.pdf")
+!       call qplot(real((/((i-1)*dx,i=1,nSabanapts)/),4),real(aimag(tapper),4),nSabanapts)
+!       XF(:,ij,1)=XF(:,ij,1)*tapper
+        
+!       if (ij .eq. 30) then
+!       CALL SETFIL("0_f30rt.pdf")
+!       call qplot(real((/((i-1)*dx,i=1,nSabanapts)/),4),real(real(XF(1:nSabanapts,ij,1)),4),nSabanapts)
+!       CALL SETFIL("0_f30it.pdf")
+!       call qplot(real((/((i-1)*dx,i=1,nSabanapts)/),4),real(aimag(XF(1:nSabanapts,ij,1)),4),nSabanapts)
+!       end if
+        
+        call FORK(nSabanapts  , XF(:,ij,1),+1) !backward
+        XF(:,ij,1) = XF(:,ij,1) /( sqrt(1.0*nSabanapts) * dx) ! factor de escala !backward
+!       call FORK(nSabanapts  , XF(:,ij,1),-1) !forward
+!       XF(:,ij,1) = XF(:,ij,1) * sqrt(1.0*nSabanapts) * dx ! factor de escala !forward
+!       call DFT(XF(:,ij,1),nSabanapts,-1) 
+!       XF(:,ij,1)= XF(:,ij,1)* dx !factor de escala DFT forward
+!       XF(:,ij,1) = cshift(XF(:,ij,1), -(nSabanapts/2-1)) !orden de negativo a positivo
+        
+        call FORK(nSabanapts/2,XF2(:,ij,1),+1) 
+        call FORK(nSabanapts/4,XF4(:,ij,1),+1) 
+        XF2(:,ij,1) = XF2(:,ij,1) * sqrt(1.0*nSabanapts/2) * dx ! factor de escala
+        XF4(:,ij,1) = XF4(:,ij,1) * sqrt(1.0*nSabanapts/4) * dx ! factor de escala
+!       XF(:,ij,1) = cshift(XF(:,ij,1), nSabanapts/2) !orden de negativo a positivo
+        XF2(:,ij,1) = cshift(XF2(:,ij,1), -((nSabanapts/2)/2-1)) !orden de negativo a positivo
+        XF4(:,ij,1) = cshift(XF4(:,ij,1), -((nSabanapts/4)/2-1)) !orden de negativo a positivo
         if (PSV) then
            XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
            call FORK(nSabanapts,XF(1:nSabanapts,ij,2),+1) 
@@ -6894,6 +6957,24 @@
            XF(1:nSabanapts,ij,2) = cshift(XF(1:nSabanapts,ij,2), nSabanapts/2)
         end if
       end do
+      
+       open(425,FILE= "outKF.m",action="write",status="replace")
+       write(arg,'(a)') "v_KF"
+       print*,"grabar ",arg
+       call scripToMatlabMNmatrixZ(nSabanapts,Nfrec+1,XF(:,:,1),arg,425)
+       close(425)
+       
+       open(4252,FILE= "outKF2.m",action="write",status="replace")
+       write(arg,'(a)') "v_KF2"
+       print*,"grabar ",arg
+       call scripToMatlabMNmatrixZ(nSabanapts/2,Nfrec+1,XF2(:,:,1),arg,4252)
+       close(4252)
+       
+       open(4254,FILE= "outKF4.m",action="write",status="replace")
+       write(arg,'(a)') "v_KF4"
+       print*,"grabar ",arg
+       call scripToMatlabMNmatrixZ(nSabanapts/4,Nfrec+1,XF4(:,:,1),arg,4254)
+       close(4254)
       
 !      open(427,FILE= "outKF.m",action="write",status="replace")
 !      write(arg,'(a)') "w_KF"
@@ -6903,15 +6984,41 @@
 !      close(427)
       
       ! comprimir
-      XFc(1:nSabanapts,1:Nfrec+1,1) = real(log(1. + exp(p1)*abs(XF(1:nSabanapts,1:Nfrec+1,1))) / & 
+      XFc(:,1:Nfrec+1,1) = real(log(1. + exp(p1)*abs(XF(:,1:Nfrec+1,1))) / & 
            log(exp(p1)+1.),4)
-      XFc(1:nSabanapts,1:Nfrec+1,1) = XFc(1:nSabanapts,1:Nfrec+1,1) / maxval(abs(XFc(1:nSabanapts,1:Nfrec+1,1)))
+      XFc(:,1:Nfrec+1,1) = XFc(:,1:Nfrec+1,1) / maxval(abs(XFc(:,1:Nfrec+1,1)))
       if (PSV) then
          CALL SETFIL("0_w_KF.pdf")
       else
          CALL SETFIL("0_v_KF.pdf")
       end if
       CALL QPLCLR(real(abs(XFc(1:nSabanapts,1:NFREC+1,1)),4), nSabanapts,NFREC+1) 
+      
+      
+      
+      XFc2(:,1:Nfrec+1,1) = real(log(1. + exp(p1)*abs(XF2(:,1:Nfrec+1,1))) / & 
+           log(exp(p1)+1.),4)
+      XFc2(:,1:Nfrec+1,1) = XFc2(:,1:Nfrec+1,1) / maxval(abs(XFc2(:,1:Nfrec+1,1)))
+      if (PSV) then
+         CALL SETFIL("0_w_KF2.pdf")
+      else
+         CALL SETFIL("0_v_KF2.pdf")
+      end if
+      CALL QPLCLR(real(abs(XFc2(:,1:NFREC+1,1)),4), nSabanapts/2,NFREC+1) 
+      
+      
+      
+      XFc4(:,1:Nfrec+1,1) = real(log(1. + exp(p1)*abs(XF4(:,1:Nfrec+1,1))) / & 
+           log(exp(p1)+1.),4)
+      XFc4(:,1:Nfrec+1,1) = XFc4(:,1:Nfrec+1,1) / maxval(abs(XFc4(:,1:Nfrec+1,1)))
+      if (PSV) then
+         CALL SETFIL("0_w_KF4.pdf")
+      else
+         CALL SETFIL("0_v_KF4.pdf")
+      end if
+      CALL QPLCLR(real(abs(XFc4(:,1:NFREC+1,1)),4), nSabanapts/4,NFREC+1) 
+      
+!     return
       
       if (PSV) then
       XFc(1:nSabanapts,1:Nfrec+1,2) = real(log(1. + exp(p1)*abs(XF(1:nSabanapts,1:Nfrec+1,2))) / & 
@@ -6950,7 +7057,7 @@
       else
          CALL SETFIL("0_v_CFp.pdf")
       end if
-      CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2) 
+      CALL QPLCLR(real(abs(FC(:,nSabanapts/2:1:-1,1)),4), NFREC+1,nSabanapts/2) 
       if (PSV) then
         FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
            log(exp(p2)+1.),4) 
@@ -6993,7 +7100,7 @@
       else
          CALL SETFIL("0_v_CFn.pdf")
       end if
-      CALL QPLCLR(real(abs(FC(:,:,1)),4), NFREC+1,nSabanapts/2)
+      CALL QPLCLR(real(abs(FC(:,nSabanapts/2:1:-1,1)),4), NFREC+1,nSabanapts/2)
       if (PSV) then
          FC(:,:,2) = real(log(1. + exp(p2)*abs(FC(:,:,2))) / & 
            log(exp(p2)+1.),4) 
@@ -7009,6 +7116,25 @@
          CALL QPLCLR(real(abs(FC(:,:,2)),4), NFREC+1,nSabanapts/2) 
       end if
       end subroutine F_K_exp
+      
+      
+      subroutine DFT(f,N,dir)
+      use glovars, only : UI,pi
+      complex*16, dimension(N) :: f,fout
+      integer :: N,dir
+!     real*8 :: DT
+      integer :: k,j
+      complex*16 :: suma
+      do k=1,N
+      suma = 0
+      do j=1,N
+      suma=suma + f(j) * exp(dir * UI * 2* pi *(j-1)*(k-1)/N)!* DT
+      end do
+      fout(k) = suma
+      !frec = k/(N*DT)
+      end do
+      f = fout
+      end subroutine DFT
       
      
       subroutine Churubusco(testPoints)
